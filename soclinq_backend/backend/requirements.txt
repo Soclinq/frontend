@@ -1,0 +1,12 @@
+Django>=4.2
+djangorestframework
+psycopg2-binary
+python-dotenv
+gunicorn
+djangorestframework-simplejwt
+requests
+channels
+channels-redis
+django-ratelimit
+
+

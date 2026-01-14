@@ -1,0 +1,31 @@
+services:
+  backend:
+    build: ./backend
+    container_name: soclinq_backend
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: soclinq_db
+    environment:
+      POSTGRES_DB: soclinq
+      POSTGRES_USER: soclinq_user
+      POSTGRES_PASSWORD: soclinq_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: soclinq_redis
+
+volumes:
+  postgres_data:
