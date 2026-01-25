@@ -4,6 +4,41 @@ from django.utils import timezone
 from .managers import UserManager
 import uuid
 from django.contrib.gis.db import models as gis_models
+from django.conf import settings
+from django.db import models
+
+class Organization(models.Model):
+    ORG_TYPES = [
+        ("NGO", "NGO"),
+        ("GOVERNMENT", "Government"),
+        ("NON_PROFIT", "Non-profit"),
+        ("COMMUNITY", "Community"),
+        ("OTHER", "Other"),
+    ]
+
+    name = models.CharField(max_length=255)
+    org_type = models.CharField(max_length=20, choices=ORG_TYPES)
+    org_type_other = models.CharField(max_length=255, blank=True)
+    address = models.TextField(blank=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="organizations"
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+def verification_upload_path(instance, filename):
+    return f"verification/{instance.user.id}/{filename}"
+
+class VerificationDocument(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="documents"
+    )
+    file = models.FileField(upload_to=verification_upload_path)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
 
 class UserRole(models.TextChoices):
     CITIZEN = "CITIZEN", "Citizen"
@@ -89,11 +124,11 @@ class OTP(models.Model):
         ("VERIFY", "Account Verification"),
     )
 
-    user = models.ForeignKey("User", on_delete=models.CASCADE)
+    identifier = models.CharField(max_length=255)
     code = models.CharField(max_length=6)
     purpose = models.CharField(max_length=20, choices=PURPOSE_CHOICES)
     is_used = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def is_expired(self):
-        return (timezone.now() - self.created_at).seconds > 300  # 5 minutes
+        return (timezone.now() - self.created_at).seconds > 12300  # 5 minutes

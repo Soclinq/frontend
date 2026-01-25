@@ -1,0 +1,68 @@
+.tracking {
+    padding: 22px;
+  }
+  
+  .header h1 {
+    font-size: 24px;
+    font-weight: 800;
+  }
+  
+  .header p {
+    color: #64748b;
+  }
+  
+  .panel {
+    background: #fff;
+    padding: 16px;
+    border-radius: 14px;
+    margin-top: 16px;
+    box-shadow: 0 12px 30px rgba(2,18,53,.08);
+  }
+  
+  .formGrid {
+    display: grid;
+    grid-template-columns: repeat(2,1fr);
+    gap: 12px;
+  }
+  
+ .input {
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid #d6e2ee;
+  }
+  
+  .location {
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  
+  .ts {
+    font-size: 12px;
+    color: #64748b;
+  }
+  
+  .button {
+    background: #064b8f;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-weight: 800;
+    border: none;
+  }
+  
+  .danger {
+    background: #dc2626;
+  }
+  
+  .helper {
+    color: #64748b;
+  }
+  
+  @media(max-width: 900px){
+    .formGrid {
+      grid-template-columns: 1fr;
+    }
+  }
+  

@@ -1,0 +1,102 @@
+.wrapper {
+    position: relative;
+  }
+  
+  /* Small icon button */
+  .iconButton {
+    background: none;
+    border: none;
+    font-size: 1.15rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px;
+    cursor: pointer;
+    justify-content: center;
+  }
+
+  .iconWrapper {
+    padding: 3px;
+    background-color: rgb(255, 255, 255);
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Popover bubble */
+  .popover {
+    position: absolute;
+    top: 140%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 190px;
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-size: 0.75rem;
+    text-align: left;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    border: none;
+    cursor: pointer;
+    z-index: 20;
+    animation: popIn 0.15s ease-out;
+  }
+  
+  /* Arrow pointing to icon */
+  .popover::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: transparent transparent var(--card-bg) transparent;
+  }
+  
+  /* Text styling */
+  .title {
+    display: block;
+    font-size: 0.65rem;
+    opacity: 0.6;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: white;
+    
+  }
+  
+  .value {
+    display: block;
+    font-weight: 600;
+    margin: 2px 0;
+    
+  }
+  
+  .note {
+    margin: 0;
+    opacity: 0.8;
+    
+  }
+  
+  /* Animation */
+  @keyframes popIn {
+    from {
+      opacity: 0;
+      transform: translate(-50%, -6px);
+    }
+    to {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+  }
+
+@media (max-width: 720px) {
+  .iconButton {
+    gap: 10px;
+    align-items: center;
+    flex-direction: row;
+
+  }
+}
+  

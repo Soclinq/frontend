@@ -1,0 +1,55 @@
+.message {
+    max-width: 78%;
+    padding: 0.7rem 0.9rem;
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    word-wrap: break-word;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+  }
+  
+  /* Other users */
+  .other {
+    align-self: flex-start;
+    background: #f1f5f9;
+    border-top-left-radius: 6px;
+  }
+  
+  /* Own messages */
+  .own {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    color: white;
+    border-top-right-radius: 6px;
+  }
+  
+  /* Text */
+  .text {
+    font-size: 0.9rem;
+    line-height: 1.45;
+  }
+  
+  /* Meta row */
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.7rem;
+    opacity: 0.8;
+  }
+  
+  .meta time {
+    white-space: nowrap;
+  }
+  
+  /* Read receipt */
+  .read {
+    font-weight: 600;
+  }
+  
+  /* Adjust contrast for own message */
+  .own .meta {
+    opacity: 0.85;
+  }
+  

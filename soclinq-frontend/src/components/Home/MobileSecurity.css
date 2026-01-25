@@ -1,0 +1,385 @@
+/* =========================
+   Slanted Section
+========================= */
+
+.slanted-section {
+    position: relative;
+    background: linear-gradient(135deg, #0b3c78, #081f3a);
+    clip-path: polygon(0 0, 100% 0, 100% 92%, 0 100%);
+    padding: 6rem 1.5rem 7rem;
+    color: #fff;
+  }
+  
+  /* =========================
+     Container & Animation
+  ========================= */
+  
+  .mobile-security-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 3.5rem;
+    align-items: center;
+  }
+  
+  .fade-in {
+    animation: fadeUp 1s ease forwards;
+  }
+  
+  @keyframes fadeUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* =========================
+     Left Content
+  ========================= */
+  
+  .section-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    letter-spacing: 1px;
+    margin-bottom: 1rem;
+  }
+  
+  .mobile-security-title {
+    font-size: clamp(2rem, 3vw, 2.7rem);
+    font-weight: 700;
+    margin-bottom: 1rem;
+  }
+  
+  .mobile-security-description {
+    max-width: 520px;
+    color: #dbeafe;
+    line-height: 1.7;
+    margin-bottom: 2rem;
+  }
+  
+  /* Feature Navigation */
+  
+  .feature-nav {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 2.5rem;
+  }
+  
+  .feature-item {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 0.9rem;
+    background: rgba(255,255,255,0.12);
+    border-radius: 999px;
+    font-size: 0.85rem;
+  }
+  
+  .feature-item svg {
+    color: #22c55e;
+  }
+  
+  /* Store badges */
+  
+  .store-badges {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  /* Shared Button Style */
+  .store-btn {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #fff;
+    min-width: 190px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  }
+  
+  .store-btn img {
+    height: 32px;
+    width: auto;
+    color: white;
+  }
+  
+  /* Text layout */
+  .store-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.1;
+  }
+  
+  .store-text .small {
+    font-size: 11px;
+    letter-spacing: 0.6px;
+    opacity: 0.85;
+    text-transform: uppercase;
+  }
+  
+  .store-text .big {
+    font-size: 16px;
+    font-weight: 600;
+  }
+  
+  /* Google Play */
+  .store-btn.google {
+    background: linear-gradient(135deg, #1a1a1a, #000);
+  }
+  
+  /* Apple */
+  .store-btn.apple {
+    background: linear-gradient(135deg, #1f1f1f, #000);
+  }
+  
+  /* Hover & Active */
+  .store-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  }
+  
+  .store-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  }
+  
+  /* Mobile */
+  @media (max-width: 480px) {
+    .store-btn {
+      min-width: 100%;
+      justify-content: center;
+    }
+  }
+  
+  /* =========================
+     iPhone Mockup
+  ========================= */
+
+.phone-section {
+    display: flex;
+    justify-content: center;
+    padding: 100px 20px;
+    opacity: 0;
+    transform: translateY(80px) scale(0.94);
+    transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  .phone-section.show {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  
+  /* =========================
+     iPhone Body
+  ========================= */
+  
+  .iphone {
+    width: 270px;
+    height: 560px;
+    border-radius: 44px;
+    padding: 8px;
+    background: linear-gradient(180deg, #121212, #1c1c1c);
+    position: relative;
+  
+    box-shadow:
+      0 40px 120px rgba(0, 0, 0, 0.55),
+      inset 0 0 0 2px #2b2b2b;
+  
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  /* =========================
+     Camera Module (Apple-style)
+  ========================= */
+/* =========================
+   Dynamic Island (Front Camera)
+========================= */
+
+.dynamic-island {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 27px;
+    background: #000;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    z-index: 5;
+  
+
+  }
+  
+  /* Camera lens */
+  .camera-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #555, #000 70%);
+    box-shadow:
+      inset 0 0 0 1px #111,
+      0 0 0 0.5px #000;
+  }
+  
+  /* Sensor / FaceID */
+  .sensor-dot {
+    width: 26px;
+    height: 6px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #111, #1e1e1e);
+    opacity: 0.9;
+  }
+  
+  /* =========================
+     Animation
+  ========================= */
+
+  
+  /* =========================
+     Screen
+  ========================= */
+  
+  .iphone-screen {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, #0a2b57, #071a33);
+    border-radius: 32px;
+    overflow: hidden;
+    color: #fff;
+  }
+  
+  /* =========================
+     Status Bar
+  ========================= */
+  
+  .status-bar {
+    height: 44px;
+    padding: 8px 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  
+  .time,
+  .status-icons {
+    display: flex;
+    gap: 6px;
+    font-size: 12px;
+    opacity: 0.9;
+  }
+  
+  /* =========================
+     App Content
+  ========================= */
+  
+  .screen-content {
+    padding: 40px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .screen-content h4 {
+    font-size: 20px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+  }
+  
+  .screen-content p {
+    font-size: 14px;
+    opacity: 0.85;
+  }
+  
+  /* =========================
+     SOS Card
+  ========================= */
+  
+  .sos-card {
+    margin-top: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: linear-gradient(135deg, #ff4d4d, #ff1e1e);
+    padding: 14px 16px;
+    border-radius: 16px;
+    box-shadow: 0 12px 40px rgba(255, 77, 77, 0.4);
+  
+    animation: pulse 2.6s infinite;
+  }
+  
+  .sos-card svg {
+    font-size: 28px;
+  }
+
+  .sos-card div {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .sos-card span {
+    font-size: 12px;
+    opacity: 0.9;
+  }
+  
+  /* =========================
+     Animations
+  ========================= */
+  
+  @keyframes pulse {
+    0%, 100% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+  
+  
+  /* =========================
+     Responsive
+  ========================= */
+  
+  @media (max-width: 900px) {
+    .mobile-security-container {
+      grid-template-columns: 1fr;
+      text-align: center;
+    }
+  
+    .feature-nav {
+      justify-content: center;
+    }
+  
+    .mobile-security-visual {
+      margin-top: 3rem;
+    }
+  }
+  

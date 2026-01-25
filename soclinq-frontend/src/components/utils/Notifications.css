@@ -1,0 +1,247 @@
+/* =========================
+   Notification Stack
+========================= */
+
+.notification-stack {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: auto;
+  max-width: calc(100vw - 40px);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* =========================
+   Notification Card
+========================= */
+
+.notification {
+  background: #ffffff;
+  border-radius: 0  0 10px;
+  box-shadow:
+    0 10px 25px rgba(0, 0, 0, 0.12),
+    0 4px 8px rgba(0, 0, 0, 0.08);
+    
+  overflow: hidden;
+  animation: slideIn 0.35s ease forwards;
+  position: relative;
+  cursor: grab;
+  user-select: none;
+  
+  animation: slideIn 0.35s ease forwards;
+  
+}
+
+/* Left accent */
+.notification.success { border-left: 5px solid #22c55e; }
+.notification.error   { border-left: 5px solid #ef4444; }
+.notification.warning { border-left: 5px solid #f59e0b; }
+.notification.info    { border-left: 5px solid #3b82f6; }
+.notification.loading { border-left: 5px solid #64748b; }
+
+/* =========================
+   Notification Body
+========================= */
+
+.notification-body {
+  padding: 14px 16px 16px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.notification-body strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.notification-body p {
+  margin: 0;
+  color: #475569;
+}
+
+/* =========================
+   Close Button
+========================= */
+
+.close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border: none;
+  background: transparent;
+  font-size: 1rem;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+
+.close-btn:hover {
+  color: #0f172a;
+  transform: scale(1.1);
+}
+
+/* =========================
+   Confirm Button
+========================= */
+
+.confirm-btn {
+  align-self: flex-start;
+  margin-top: 8px;
+  background: #ef4444;
+  color: #ffffff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.confirm-btn:hover {
+  background: #dc2626;
+}
+
+.confirm-btn:active {
+  transform: scale(0.97);
+}
+
+/* =========================
+   Progress Bar
+========================= */
+
+.progress-bar {
+  height: 4px;
+  width: 100%;
+  background: currentColor;
+  transition: width 0.1s linear;
+}
+
+.notification.success .progress-bar { background: #22c55e; }
+.notification.error   .progress-bar { background: #ef4444; }
+.notification.warning .progress-bar { background: #f59e0b; }
+.notification.info    .progress-bar { background: #3b82f6; }
+.notification.loading .progress-bar { background: #64748b; }
+
+
+.notification-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-icon {
+  font-size: 1.1rem;
+}
+
+.notification-icon.success { color: #22c55e; }
+.notification-icon.error   { color: #ef4444; }
+.notification-icon.warning { color: #f59e0b; }
+.notification-icon.info    { color: #3b82f6; }
+.notification-icon.loading { color: #64748b; }
+
+/* =========================
+   Animations
+========================= */
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(30px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(40px) scale(0.96);
+  }
+}
+
+
+
+
+.notification:active {
+  cursor: grabbing;
+}
+
+
+.notification.slide-out {
+  animation: slideOut 0.28s ease forwards;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .notification-stack {
+    width: auto;
+    max-width: calc(100vw - 40px);
+  }
+
+
+  .notification-body {
+    padding: 12px 40px 14px 12px;
+    font-size: 0.85rem;
+  }
+
+  .notification-body strong {
+    font-size: 0.9rem;
+  }
+
+  .close-btn {
+    top: 8px;
+    right: 8px;
+    font-size: 1.1rem;
+  }
+
+  .confirm-btn {
+    padding: 8px 16px;
+    font-size: 0.85rem;
+  }
+
+  .progress-bar {
+    height: 3px;
+  }
+}
+
+
+@media (max-width: 380px) {
+  .notification-body {
+    padding: 10px 12px 12px;
+    font-size: 0.8rem;
+  }
+
+  .notification-body strong {
+    font-size: 0.85rem;
+  }
+
+  .confirm-btn {
+    width: 100%;
+    text-align: center;
+  }
+}

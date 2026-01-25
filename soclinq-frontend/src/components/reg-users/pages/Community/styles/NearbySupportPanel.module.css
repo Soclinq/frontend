@@ -1,0 +1,84 @@
+.panel {
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.12);
+    padding: 1.5rem;
+  }
+  
+  /* Header */
+  .header {
+    margin-bottom: 1rem;
+  }
+  
+  .header h3 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 0.25rem;
+  }
+  
+  .header p {
+    font-size: 0.9rem;
+    color: #64748b;
+  }
+  
+  /* List */
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  /* Card */
+  .card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.9rem 1rem;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  }
+  
+  /* Left */
+  .left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  
+  .icon {
+    font-size: 1.25rem;
+  }
+  
+  /* Text */
+  .card strong {
+    display: block;
+    font-size: 0.95rem;
+    color: #0f172a;
+  }
+  
+  .meta {
+    font-size: 0.75rem;
+    color: #64748b;
+    text-transform: capitalize;
+  }
+  
+  /* Verified badge */
+  .verified {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 999px;
+    color: #0f766e;
+    background: rgba(20, 184, 166, 0.15);
+  }
+  

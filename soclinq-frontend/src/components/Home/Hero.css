@@ -1,0 +1,245 @@
+/* =========================
+   HERO BASE
+========================= */
+
+.hero {
+    position: relative;
+    overflow: hidden;
+    background: #000;
+  }
+  
+  /* =========================
+     SLIDES WRAPPER
+  ========================= */
+  
+  .slides {
+    position: relative;
+    height: min(78vh, 720px);
+  }
+  
+  /* =========================
+     SLIDE
+  ========================= */
+  
+  .slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transform: scale(1.02);
+    transition: opacity 0.6s ease, transform 1.2s ease;
+    background-size: cover;
+    background-position: center;
+    display: grid;
+    place-items: center;
+  }
+  
+  .slide.active {
+    opacity: 1;
+    transform: scale(1);
+  }
+  
+  /* Dark overlay */
+  .slide::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      rgba(1, 6, 14, 0.35),
+      rgba(1, 6, 14, 0.55)
+    );
+  }
+  
+  /* =========================
+     SLIDE CONTENT
+  ========================= */
+  
+  .slide-content {
+    position: relative;
+    z-index: 2;
+    max-width: 1100px;
+    width: 100%;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 24px;
+    color: #fff;
+  }
+  
+  /* =========================
+     TEXT CARD
+  ========================= */
+  
+  .slide-text {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 28px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  }
+  
+  .slide-text h1 {
+    font-size: clamp(1.8rem, 3.3vw + 0.5rem, 3rem);
+    line-height: 1.15;
+    margin: 0 0 10px;
+  }
+  
+  .slide-text p {
+    font-size: clamp(1rem, 1.1vw + 0.5rem, 1.25rem);
+    margin: 0 0 20px;
+    color: #e0e8f6;
+  }
+  
+  /* =========================
+     CTA BUTTONS
+  ========================= */
+  
+  .cta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.3s ease;
+  }
+  
+  .btn.primary {
+    background: #ffc107;
+    color: #0c1b33;
+  }
+  
+  .btn.primary:hover {
+    transform: translateY(-1px);
+  }
+  
+  .btn.secondary {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+  
+  .btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
+  
+  /* =========================
+     ILLUSTRATION CARD
+  ========================= */
+  
+  .slide-illus {
+    display: grid;
+    place-items: center;
+  }
+  
+  /* Breathing / floating animation */
+  .slide-illus .card {
+    width: min(420px, 86%);
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 24px;
+    padding: 22px;
+    text-align: center;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  
+    animation: breathe 4.5s ease-in-out infinite;
+  }
+  
+  .slide-illus .card svg {
+    font-size: 48px;
+    color: #ffffff;
+    margin-bottom: 10px;
+  }
+  
+  .slide-illus .card div {
+    font-size: 1rem;
+    color: #eaf2ff;
+    line-height: 1.4;
+  }
+  
+  /* =========================
+     BREATHING ANIMATION
+  ========================= */
+  
+  @keyframes breathe {
+    0% {
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      transform: translateY(-6px) scale(1.02);
+    }
+    100% {
+      transform: translateY(0) scale(1);
+    }
+  }
+  
+  /* =========================
+     DOTS
+  ========================= */
+  
+  .dots {
+    position: absolute;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    z-index: 3;
+  }
+  
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    border: none;
+    transition: width 0.3s ease, background 0.3s ease;
+  }
+  
+  .dot.active {
+    width: 28px;
+    background: #ffffff;
+  }
+  
+  /* =========================
+     MOBILE
+  ========================= */
+  
+  @media (max-width: 860px) {
+    .slide-content {
+      grid-template-columns: 1fr;
+      text-align: center;
+    }
+  
+    .slide-illus {
+      display: none;
+    }
+  
+    .cta {
+      justify-content: center;
+    }
+  }
+  
+  /* =========================
+     REDUCED MOTION SUPPORT
+  ========================= */
+  
+  @media (prefers-reduced-motion: reduce) {
+    .slide,
+    .slide-illus .card {
+      animation: none;
+      transition: none;
+    }
+  }
+  

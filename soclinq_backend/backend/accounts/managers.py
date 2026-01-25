@@ -20,3 +20,13 @@ class UserManager(BaseUserManager):
         extra_fields.setdefault("role", "HQ_ADMIN")
 
         return self.create_user(phone_number, username, password, **extra_fields)
+    
+    def generate_username(self, identifier):
+        base = identifier.split("@")[0]
+        username = base
+        i = 1
+        while self.model.objects.filter(username=username).exists():
+            username = f"{base}{i}"
+            i += 1
+        return username
+

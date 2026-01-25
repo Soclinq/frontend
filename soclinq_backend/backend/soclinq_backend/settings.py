@@ -12,7 +12,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+from dotenv import load_dotenv
+load_dotenv()
 import os
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -26,7 +29,22 @@ SECRET_KEY = 'django-insecure-c2l47fve61lc#t3lqs#=^=7z$7l2-=%p_n8k*j$#8n^amlher-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "soclinq.com",
+    "api.yourdomain.com",
+    "localhost",
+    "127.0.0.1",
+    "http://localhost:3000",
+]
+
+
+CSRF_COOKIE_HTTPONLY = False   # MUST be readable by JS
+CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SAMESITE = "Lax"
+
+SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SAMESITE = "Lax"
+
 
 ASGI_APPLICATION = "soclinq_backend.asgi.application"
 
@@ -34,10 +52,16 @@ CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [("redis", 6379)],
+            "hosts": [
+                (
+                    os.getenv("REDIS_HOST", "redis"),
+                    int(os.getenv("REDIS_PORT", 6379)),
+                )
+            ],
         },
     },
 }
+
 # Application definition
 
 INSTALLED_APPS = [
@@ -51,7 +75,7 @@ INSTALLED_APPS = [
     "accounts",
     "reports",
     "sos",
-    "dashboards"
+    "dashboards",
     "community",
     "devices",
     "notifications",
@@ -59,20 +83,30 @@ INSTALLED_APPS = [
     "channels",
     "django.contrib.gis",
     "rest_framework_simplejwt.token_blacklist",
+    "corsheaders"
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    "accounts.auth_utils.EnsureCSRFCookieMiddleware",
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    "audit.middleware.AuditMiddleware"
+    "audit.middleware.AuditMiddleware",
 ]
 
 ROOT_URLCONF = 'soclinq_backend.urls'
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
+
+CORS_ALLOW_METHODS = ["POST", "OPTIONS"]
+CORS_ALLOW_HEADERS = ["content-type"]
 
 TEMPLATES = [
     {
@@ -96,17 +130,28 @@ WSGI_APPLICATION = 'soclinq_backend.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.contrib.gis.db.backends.postgis",
+        "NAME": os.getenv("POSTGRES_DB"),
+        "USER": os.getenv("POSTGRES_USER"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD", "soclinq_pass" ),
+        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
     }
 }
 
+HOST = "localhost"
+
+
+
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ),
+        "accounts.auth_utils.CookieJWTAuthentication",
+    )
 }
+
+
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),

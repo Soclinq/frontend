@@ -1,0 +1,168 @@
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  
+    height: 64px;
+    background: linear-gradient(
+    135deg,
+    #4f8cff,
+    #6fa1ff
+  );
+
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.25);
+  
+    backdrop-filter: blur(12px);
+    transition: transform 0.25s ease-in-out;
+  }
+  
+  .hidden {
+    transform: translateY(-100%);
+  }
+  
+  /* Layout */
+  .inner {
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 0 1rem;
+  }
+  
+  /* LEFT */
+  .left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  
+  .title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f8fafc;
+    text-transform: capitalize;
+  }
+  
+  /* CENTER */
+  .stats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 10px;
+    background: rgba(190, 57, 57, 0.15);
+  }
+  
+  /* RIGHT */
+  .right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-left: auto;
+  }
+
+  .subGroup {
+    display: flex;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 5px;
+  }
+  
+  /* Buttons */
+  .menuBtn,
+  .iconBtn {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.15);
+    color: #f8fafc;
+  }
+
+  .iconBtn {
+    background-color: transparent;
+  }
+  
+  .menuBtn:hover,
+  .iconBtn:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
+  
+  /* Alert dot */
+  .alertDot {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 8px;
+    height: 8px;
+    background: #ef4444;
+    border-radius: 50%;
+  }
+  
+  /* Responsive */
+  @media (max-width: 468px) {
+    .title {
+      display: none;
+    }
+  }
+
+  @media (min-width: 1279px) {
+    .menuBtn {
+      display: none;
+    }
+
+
+  }
+  
+
+  /* Desktop vs Mobile stats */
+.statsDesktop {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.statsMobile {
+  display: none;
+  position: relative;
+}
+
+/* Dropdown */
+.statsDropdown {
+  position: absolute;
+  top: 33px;
+  left:  -29px;
+  min-width: 170px;
+  background: linear-gradient(
+    135deg,
+    #0c3b5c,
+    #0a2f48,
+    #071f32
+  );
+  backdrop-filter: blur(10px);
+  border-radius: 0 0 0 10px;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  z-index: 100;
+}
+
+/* Mobile only */
+@media (max-width: 768px) {
+  .statsDesktop {
+    display: none;
+  }
+
+  .statsMobile {
+    display: block;
+  }
+}
+
+  

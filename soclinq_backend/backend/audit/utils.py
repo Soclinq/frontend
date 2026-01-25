@@ -17,7 +17,7 @@ def log_action(
     if request:
         ip_address = request.META.get("REMOTE_ADDR")
         user_agent = request.META.get("HTTP_USER_AGENT", "")
-
+    print(str(metadata))
     AuditLog.objects.create(
         user=user,
         action=action,

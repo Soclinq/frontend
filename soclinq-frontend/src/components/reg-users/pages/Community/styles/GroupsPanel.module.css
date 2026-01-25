@@ -1,0 +1,136 @@
+.panel {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    border-radius: 18px;
+    padding: 2rem;
+    box-shadow: 0 30px 60px rgba(0, 0, 0, 0.12);
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  
+  /* Header */
+  .grheader {
+    margin-bottom: 1.75rem;
+    background-color: #e2e8f0;
+    padding: 10px;
+    border-radius: 10px;
+  }
+  
+  .grheader h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.25rem;
+  }
+  
+  .grheader p {
+    font-size: 0.75rem;
+    color: #475569;
+  }
+  
+  /* Create box */
+  .createBox {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.75rem;
+  }
+  
+  .createBox input {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.95rem;
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+  }
+  
+  .createBox input:focus {
+    border-color: #14b8a6;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.25);
+  }
+  
+  .createBox button {
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
+    border: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: white;
+    cursor: pointer;
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  
+  .createBox button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 25px rgba(20, 184, 166, 0.4);
+  }
+  
+  /* Group list */
+  .groupList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .groupCard {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.9rem 1rem;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  
+  .groupCard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  }
+  
+  .groupCard strong {
+    display: block;
+    font-size: 0.95rem;
+    color: #0f172a;
+  }
+  
+  .groupCard span {
+    font-size: 0.75rem;
+    color: #64748b;
+  }
+  
+  /* Remove button */
+  .remove {
+    background: transparent;
+    border: none;
+    color: #ef4444;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  
+  .remove:hover {
+    text-decoration: underline;
+  }
+  
+  /* Empty state */
+  .empty {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #64748b;
+    padding: 1.5rem 0;
+  }
+  
+  /* Responsive */
+  @media (max-width: 640px) {
+    .createBox {
+      flex-direction: column;
+    }
+  
+    .createBox button {
+      width: 100%;
+    }
+  }
+  

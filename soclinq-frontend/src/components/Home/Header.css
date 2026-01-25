@@ -1,0 +1,325 @@
+/* =========================
+   Header Base
+========================= */
+
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    background: rgba(10, 43, 87, 0.92);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  }
+  
+  .header-inner {
+    margin: 0 auto;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  /* =========================
+     Brand
+  ========================= */
+  
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 0.4px;
+  }
+  
+  .brand img {
+    height: 30px;
+  }
+  
+  /* =========================
+     Navigation
+  ========================= */
+  
+  .nav {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .nav a {
+    display: inline-block;
+    width: auto;
+    color: #eaf2ff;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 10px;
+    transition: background 0.25s ease;
+    font-size: 0.9rem;
+  }
+
+  .login-btn,
+  .signup-btn {
+    font-size: 12px;
+    width: 100%;
+    text-align: center;
+  }
+
+  .auth-actions .signup-btn {
+    color: rgb(33, 34, 36);
+  }
+  
+  .nav a:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  
+  /* =========================
+     Partner CTA
+  ========================= */
+  
+  .partner-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    isolation: isolate;
+    justify-content: center;
+  
+    background: linear-gradient(135deg, #d43808, #ff3c00);
+    color: #fcfcfc !important;
+    font-weight: 800;
+    padding: 10px 20px;
+    border-radius: 999px;
+    overflow: visible;
+  
+    /* Core animation */
+    animation:
+    ring 3s infinite ease-in-out,
+    glowPulse 1.8s infinite ease-in-out;
+  
+    /* Glow */
+    box-shadow: 0 0 0 rgba(255, 193, 7, 0.6);
+  }
+
+  @keyframes ring {
+    0%   { transform: rotate(0deg); }
+    2%   { transform: rotate(1deg); }
+    4%   { transform: rotate(0deg); }
+    6%   { transform: rotate(0deg); }
+    8%   { transform: rotate(1deg); }
+    10%  { transform: rotate(0deg); }
+  
+    /* pause */
+    100% { transform: rotate(0deg); }
+  }
+
+  .partner-btn::before,
+    .partner-btn::after {
+    content: "";
+    position: absolute;
+    inset: 0px;
+    border-radius: inherit;
+    background-color: red;
+    border: none;
+    opacity: 0;
+    z-index: -2;
+    
+    pointer-events: none;
+    }
+
+    .partner-btn::before {
+    animation: outerWave 2s infinite;
+    }
+
+    .partner-btn::after {
+    animation: outerWave 2s infinite;
+    animation-delay: 0.8s;
+}
+
+@keyframes outerWave {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 60, 0, 0.55);
+      opacity: 1;
+    }
+  
+    70% {
+      box-shadow: 0 0 0 14px rgba(255, 60, 0, 0);
+      opacity: 0;
+    }
+  
+    100% {
+      opacity: 0;
+    }
+  }
+  
+  .partner-btn:hover {
+    transform: translateY(-1px);
+  }
+  
+  /* =========================
+     Auth as
+  ========================= */
+  
+  .auth-actions {
+    display: flex;
+    gap: 10px;
+    margin-left: 25px;
+  }
+  
+  .login-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 999px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  
+  .signup-btn {
+    background: #fff;
+    color: #0a2b57;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  
+  /* =========================
+     Hamburger
+  ========================= */
+  
+  .menu-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+  
+  .bar {
+    width: 24px;
+    height: 2.5px;
+    background: #fff;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+  }
+  
+  /* X animation */
+  .bar.open:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+  
+  .bar.open:nth-child(2) {
+    opacity: 0;
+  }
+  
+  .bar.open:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  
+  @media (max-width: 860px) {
+    .menu-toggle {
+      display: flex;
+    }
+  
+    .nav {
+      position: absolute;
+      top: 60px;
+      right: 0;
+      width: min(86vw, 240px);
+      padding: 16px;
+      background: #0f2e5d;
+      border-radius: 0 0 0 1rem;
+  
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+  
+      opacity: 0;
+      transform: translateY(-10px) scale(0.98);
+      visibility: hidden;
+      pointer-events: none;
+  
+      transition:
+        opacity 0.25s ease,
+        transform 0.25s ease,
+        visibility 0s linear 0.4s;
+    }
+  
+    .nav.open {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      visibility: visible;
+      pointer-events: auto;
+  
+      transition:
+        opacity 0.25s ease,
+        transform 0.25s ease,
+        visibility 0s linear 0s;
+    }
+  
+    .nav a,
+    .nav .partner-btn,
+    .auth-actions {
+      opacity: 0;
+      transform: translateX(10px);
+  
+      transition:
+        opacity 0.25s ease,
+        transform 0.25s ease;
+  
+      transition-delay: 0s;
+    }
+  
+    .nav a {
+      display: block;
+      width: 100%;
+      font-size: 0.9rem;
+    }
+  
+    .nav.open a,
+    .nav.open .partner-btn,
+    .nav.open .auth-actions {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  
+    .nav.open a:nth-child(1) { transition-delay: 0.05s; }
+    .nav.open a:nth-child(2) { transition-delay: 0.1s; }
+    .nav.open a:nth-child(3) { transition-delay: 0.15s; }
+    .nav.open a:nth-child(4) { transition-delay: 0.2s; }
+    .nav.open a:nth-child(5) { transition-delay: 0.25s; }
+    .nav.open .partner-btn { transition-delay: 0.3s; }
+    .nav.open .auth-actions { transition-delay: 0.35s; }
+  
+    .nav:not(.open) a:nth-child(1) { transition-delay: 0.35s; }
+    .nav:not(.open) a:nth-child(2) { transition-delay: 0.3s; }
+    .nav:not(.open) a:nth-child(3) { transition-delay: 0.25s; }
+    .nav:not(.open) a:nth-child(4) { transition-delay: 0.2s; }
+    .nav:not(.open) a:nth-child(5) { transition-delay: 0.15s; }
+    .nav:not(.open) .partner-btn { transition-delay: 0.1s; }
+    .nav:not(.open) .auth-actions { transition-delay: 0.05s; }
+  
+
+    .auth-actions {
+      margin: 1rem 0 0;
+      flex-direction: row;
+      width: 100%;
+    }
+  
+    .login-btn,
+    .signup-btn {
+      width: auto;
+      
+      padding: 8px 14px;
+      font-size: 12px;
+      white-space: nowrap;
+      text-align: center;
+    }
+  
+    .auth-actions .signup-btn {
+      color: rgb(33, 34, 36);
+    }
+  }
+  

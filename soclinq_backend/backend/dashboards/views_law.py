@@ -11,6 +11,7 @@ class LawEnforcementDashboardView(APIView):
     permission_classes = [HasRBACPermission]
     required_permission = Permissions.VIEW_REPORT
 
+
     def get(self, request):
         hubs = CommunityMembership.objects.filter(
             user=request.user

@@ -1,0 +1,172 @@
+.header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.25rem;
+    max-width: 100%;
+    padding: 1.5rem;
+    background: linear-gradient(180deg, #ffffff, #f9fafb);
+    border-radius: 18px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.06);
+  }
+  
+  /* ================= AVATAR ================= */
+  
+  .avatar {
+    width: 86px;
+    height: 86px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #ffffff;
+    font-size: 2.1rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
+  }
+  
+  .avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  /* ================= IDENTITY ================= */
+  
+  .identity {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  
+  .verified {
+    color: #22c55e;
+    font-size: 1.2rem;
+  }
+  
+  .email {
+    font-size: 0.85rem;
+    color: #6b7280;
+    margin-top: 0.2rem;
+    word-break: break-all;
+  }
+  
+  /* ================= BADGES ================= */
+  
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.7rem;
+  }
+  
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: #eef2ff;
+    color: #3730a3;
+  }
+  
+  .active {
+    background: #ecfdf5;
+    color: #047857;
+  }
+  
+  .inactive {
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+  
+  /* ================= SECURITY ================= */
+  
+  .security {
+    margin-top: 0.9rem;
+  }
+  
+  .muted {
+    font-size: 0.8rem;
+    color: #9ca3af;
+  }
+  
+  /* ===== RISK BUTTON ===== */
+  
+  .risk {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    border-radius: 10px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  
+  /* ===== RISK LEVELS ===== */
+  
+  .low {
+    background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+    color: #065f46;
+  }
+  
+  .medium {
+    background: linear-gradient(135deg, #fffbeb, #fef3c7);
+    color: #92400e;
+  }
+  
+  .high {
+    background: linear-gradient(135deg, #fef2f2, #fee2e2);
+    color: #991b1b;
+  }
+  
+  /* ===== HOVER ===== */
+  
+  .risk:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  }
+  
+  /* ================= RESPONSIVE ================= */
+  
+  @media (max-width: 600px) {
+    .header {
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+  
+    .identity {
+      align-items: center;
+    }
+  
+    .name {
+      justify-content: center;
+    }
+  
+    .badges {
+      justify-content: center;
+    }
+  
+    .security {
+      display: flex;
+      justify-content: center;
+    }
+  }
+  

@@ -1,0 +1,56 @@
+.topbar {
+    height: 64px;
+    background: #064b8f;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 14px;
+    position: sticky;
+    top: 0;
+    z-index: 1100;
+  }
+  
+  .left {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  
+  .menu {
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 20px;
+  }
+  
+  .sub {
+    font-size: 12px;
+    opacity: .8;
+  }
+  
+  .actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  
+  .ghost {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,.3);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+  }
+  
+  .avatar {
+    background: #e2e8f0;
+    color: #064b8f;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+  }
+  

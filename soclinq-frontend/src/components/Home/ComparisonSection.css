@@ -1,0 +1,113 @@
+/* =========================
+   Comparison Section
+========================= */
+
+.comparison-section {
+    padding: 5rem 1.5rem;
+    background: linear-gradient(
+      180deg,
+      #f8fafc 0%,
+      #eef2f7 100%
+    );
+  }
+  
+  .comparison-container {
+    max-width: 1100px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  
+  .comparison-heading {
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    font-weight: 700;
+    color: #0a2b57;
+    margin-bottom: 0.75rem;
+  }
+  
+  .comparison-subheading {
+    font-size: 1rem;
+    color: #475569;
+    max-width: 650px;
+    margin: 0 auto 3rem;
+  }
+  
+  /* Grid */
+  
+  .comparison-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 2rem;
+  }
+  
+  /* Cards */
+  
+  .comparison-card {
+    padding: 2.5rem 2rem;
+    border-radius: 16px;
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    text-align: left;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  
+  .comparison-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
+  }
+  
+  .comparison-card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1.25rem;
+  }
+  
+  /* Traditional */
+  
+  .traditional {
+    border-top: 5px solid #ef4444;
+  }
+  
+  .traditional .comparison-card-title {
+    color: #b91c1c;
+  }
+  
+  /* LINQMI */
+  
+  .linqmi {
+    border-top: 5px solid #22c55e;
+  }
+  
+  .linqmi .comparison-card-title {
+    color: #15803d;
+  }
+  
+  /* List */
+  
+  .comparison-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .comparison-list li {
+    position: relative;
+    padding-left: 1.8rem;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+    color: #334155;
+  }
+  
+  .comparison-list li::before {
+    content: "✔";
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-size: 0.9rem;
+    color: #22c55e;
+  }
+  
+  .traditional .comparison-list li::before {
+    content: "✖";
+    color: #ef4444;
+  }
+  

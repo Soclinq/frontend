@@ -1,0 +1,203 @@
+/* ================= PANEL ================= */
+
+.panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #0b0f14;
+    color: #e5e7eb;
+    border-radius: 14px;
+    overflow: hidden;
+    z-index: 1999;
+  }
+
+  /* ================= HEADER ================= */
+  
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: #111827;
+    border-bottom: 1px solid #1f2937;
+  }
+  
+  .title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+  }
+  
+  .close {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+  
+  .close:hover {
+    color: #f87171;
+  }
+  
+  /* ================= STATUS ================= */
+  
+  .status {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    background: #020617;
+    border-bottom: 1px solid #1f2937;
+  }
+  
+  .badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  
+  .low {
+    background: #064e3b;
+    color: #6ee7b7;
+  }
+  
+  .medium {
+    background: #78350f;
+    color: #fde68a;
+  }
+  
+  .high {
+    background: #7f1d1d;
+    color: #fecaca;
+  }
+  
+  .timer {
+    font-size: 0.8rem;
+    color: #9ca3af;
+  }
+  
+  /* ================= LIVE CONTROLS ================= */
+  
+  .liveControls {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #1f2937;
+  }
+  
+  .liveControls button {
+    flex: 1;
+    padding: 10px;
+    background: #111827;
+    border: 1px solid #1f2937;
+    color: #e5e7eb;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.85rem;
+  }
+  
+  .liveControls button:hover {
+    background: #1f2937;
+  }
+  
+  /* ================= CAPTURE PANEL ================= */
+  
+  .capturePanel {
+    margin: 12px 16px;
+    border: 1px solid #1f2937;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #020617;
+  }
+  
+  .capturePanel header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: #111827;
+    border-bottom: 1px solid #1f2937;
+  }
+  
+  .capturePanel header button {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+  }
+  
+  .capturePanel video {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    background: black;
+  }
+  
+  .actions {
+    display: flex;
+    justify-content: center;
+    padding: 10px;
+  }
+  
+  .actions button {
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: none;
+    background: #dc2626;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  
+  .actions button:hover {
+    background: #b91c1c;
+  }
+  
+  /* ================= MAP ================= */
+  
+  .map {
+    flex: 1;
+    margin: 12px 16px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid #1f2937;
+  }
+  
+  /* ================= RESPONDERS ================= */
+  
+  .responders {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid #1f2937;
+    font-size: 0.85rem;
+    color: #d1d5db;
+  }
+  
+  /* Marker bubble rendered via Leaflet divIcon */
+  .responderMarker {
+    background: #111827;
+    color: #e5e7eb;
+    border: 1px solid #1f2937;
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-size: 0.65rem;
+    white-space: nowrap;
+  }
+  
+  /* ================= FOOTER ================= */
+  
+  .footer {
+    padding: 10px 16px;
+    font-size: 0.75rem;
+    color: #9ca3af;
+    background: #020617;
+    border-top: 1px solid #1f2937;
+  }
+  

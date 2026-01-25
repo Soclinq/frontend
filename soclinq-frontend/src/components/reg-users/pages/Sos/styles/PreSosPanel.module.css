@@ -1,0 +1,818 @@
+/* SosModal.module.css */
+
+/* ================= ROOT INPUTS ================= */
+
+.media {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+
+}
+
+.media button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
+    color: #e8f0ff;
+
+    padding: 10px 14px;
+    border-radius: 14px;
+
+    cursor: pointer;
+    font-weight: 650;
+    font-size: 14px;
+    letter-spacing: 0.2px;
+
+    transition: transform 0.12s ease, background 0.12s ease,
+        border-color 0.12s ease, opacity 0.12s ease;
+}
+
+.media button:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.14);
+}
+
+.media button:active {
+    transform: translateY(0px) scale(0.99);
+}
+
+.media button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.media textarea {
+    width: 100%;
+    min-height: 92px;
+    resize: none;
+
+    padding: 12px 14px;
+    border-radius: 18px;
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
+    color: #e8f0ff;
+
+    outline: none;
+
+    font-size: 14px;
+    line-height: 1.35;
+
+    transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.media textarea:focus {
+    border-color: rgba(122, 162, 255, 0.55);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+/* ================= CAPTURE PANEL ================= */
+
+.capturePanel {
+    margin-top: 14px;
+    border-radius: 18px;
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(10, 14, 28, 0.65);
+
+
+    box-shadow: 0px 18px 40px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(10px);
+}
+
+.capturePanel header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 12px 14px;
+
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.capturePanel header strong {
+    font-size: 14px;
+    font-weight: 750;
+    color: #ffffff;
+    letter-spacing: 0.2px;
+}
+
+.capturePanel header button {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.capturePanel header button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: scale(1.03);
+}
+
+.capturePanel header button:active {
+    transform: scale(0.98);
+}
+
+/* ================= VIDEO / CAMERA PREVIEW ================= */
+
+.capturePanel video {
+    width: 100%;
+    height: 660px;
+    object-fit: cover;
+    display: block;
+
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.cameraPreview {
+    width: 100%;
+    height: 280px;
+    object-fit: cover;
+    display: block;
+}
+
+/* ================= ACTIONS ================= */
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    padding: 12px 14px;
+}
+
+.actions button {
+    flex: 1;
+    min-width: 140px;
+
+    padding: 10px 14px;
+    border-radius: 14px;
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.06);
+
+    color: #e8f0ff;
+    font-weight: 700;
+    cursor: pointer;
+
+    transition: transform 0.12s ease, background 0.12s ease,
+        opacity 0.12s ease;
+}
+
+.actions button:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+.actions button:active {
+    transform: translateY(0px) scale(0.99);
+}
+
+.actions button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ================= ATTACH ================= */
+
+.attach {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+    flex: 1;
+    min-width: 140px;
+
+    padding: 10px 14px;
+    border-radius: 14px;
+
+    border: 1px dashed rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.04);
+
+    color: #cfe0ff;
+    font-weight: 650;
+
+    cursor: pointer;
+    user-select: none;
+
+    transition: background 0.12s ease, border-color 0.12s ease,
+        transform 0.12s ease, opacity 0.12s ease;
+}
+
+.attach:hover {
+    background: rgba(255, 255, 255, 0.075);
+    border-color: rgba(140, 185, 255, 0.45);
+    transform: translateY(-1px);
+}
+
+.disabled {
+    opacity: 0.45;
+    pointer-events: none;
+    transform: none;
+}
+
+/* ================= METER ================= */
+
+.meterWrap {
+    padding: 14px;
+    display: grid;
+    gap: 10px;
+}
+
+.meterWrap p {
+    margin: 0;
+    font-size: 13px;
+    color: rgba(232, 240, 255, 0.82);
+}
+
+.meterBar {
+    width: 100%;
+    height: 12px;
+    border-radius: 999px;
+    overflow: hidden;
+
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.meterFill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #22c55e, #f59e0b, #ef4444);
+    transition: width 70ms linear;
+}
+
+/* ================= PREVIEW GRID ================= */
+
+.previewGrid {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.previewItem {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+
+    box-shadow: 0px 10px 24px rgba(0, 0, 0, 0.28);
+}
+
+.previewItem video,
+.previewItem img {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    display: block;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.previewItem audio {
+    width: 100%;
+    padding: 10px;
+}
+
+.previewItem button {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 60, 60, 0.18);
+
+    color: #fff;
+    cursor: pointer;
+
+    display: grid;
+    place-items: center;
+
+    transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.previewItem button:hover {
+    background: rgba(255, 60, 60, 0.28);
+    transform: scale(1.04);
+}
+
+.previewItem button:active {
+    transform: scale(0.98);
+}
+
+/* ================= AI PANEL ================= */
+
+.ai {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 16px;
+
+    display: flex;
+    gap: 10px;
+    align-items: center;
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(140, 185, 255, 0.08);
+
+    color: #d7e8ff;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.ai span {
+    opacity: 0.95;
+}
+
+/* ================= WARNING ================= */
+
+.warning {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 16px;
+
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+
+    border: 1px solid rgba(255, 180, 64, 0.18);
+    background: rgba(255, 180, 64, 0.08);
+
+    color: rgba(255, 232, 205, 0.95);
+}
+
+.warning p {
+    margin: 0;
+    font-weight: 650;
+    font-size: 13px;
+    line-height: 1.35;
+}
+
+/* ================= CONTINUE BUTTON ================= */
+
+.confirm {
+    margin-top: 16px;
+    width: 100%;
+
+    border: none;
+    border-radius: 18px;
+    padding: 12px 16px;
+
+    background: linear-gradient(135deg, #3b82f6, #60a5fa);
+    color: #fff;
+
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.2px;
+
+    cursor: pointer;
+
+    box-shadow: 0px 16px 32px rgba(59, 130, 246, 0.28);
+    transition: transform 0.12s ease, filter 0.12s ease, opacity 0.12s ease;
+}
+
+.confirm:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.05);
+}
+
+.confirm:active {
+    transform: translateY(0px) scale(0.99);
+}
+
+.confirm:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+}
+
+/* ===== VIDEO STAGE + RECORD BADGE ===== */
+
+.videoStage {
+    position: relative;
+}
+
+.recordBadge {
+    position: absolute;
+    left: 12px;
+    top: 12px;
+
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 8px 10px;
+    border-radius: 999px;
+
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+
+    color: #fff;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: 0.4px;
+
+    backdrop-filter: blur(10px);
+}
+
+.recText {
+    opacity: 0.92;
+}
+
+.recTime {
+    font-variant-numeric: tabular-nums;
+    opacity: 0.98;
+}
+
+/* ===== RECORDING DOT ===== */
+
+.recDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+
+    background: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 0 0 rgba(255, 0, 0, 0);
+
+    transform: scale(0.95);
+    transition: background 0.15s ease;
+}
+
+.recDotOn {
+    background: #ff2d2d;
+    animation: recPulse 1s infinite;
+}
+
+@keyframes recPulse {
+    0% {
+        transform: scale(0.92);
+        box-shadow: 0 0 0 0 rgba(255, 45, 45, 0.35);
+    }
+
+    60% {
+        transform: scale(1.08);
+        box-shadow: 0 0 0 10px rgba(255, 45, 45, 0);
+    }
+
+    100% {
+        transform: scale(0.92);
+        box-shadow: 0 0 0 0 rgba(255, 45, 45, 0);
+    }
+}
+
+/* ===== AUDIO TOP ROW ===== */
+
+.audioTopRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.audioStatus {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.audioLabel {
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(232, 240, 255, 0.92);
+}
+
+.audioTime {
+    font-size: 13px;
+    font-weight: 800;
+    color: rgba(232, 240, 255, 0.92);
+    font-variant-numeric: tabular-nums;
+}
+
+/* ================= AUDIO LIST (ONE PER LINE) ================= */
+
+.audioList {
+    margin-top: 14px;
+    display: grid;
+    gap: 12px;
+}
+
+.audioCard {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0px 10px 24px rgba(0, 0, 0, 0.28);
+
+    padding: 5px;
+    display: grid;
+    gap: 8px;
+}
+
+/* ================= GRID PREVIEWS (VIDEO + IMAGES) ================= */
+
+.previewGrid {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 12px;
+}
+
+.mediaCard {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+
+
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0px 10px 24px rgba(0, 0, 0, 0.28);
+
+    padding: 5px;
+}
+
+/* ================= TOP BADGE ROW (EXT + DURATION) ================= */
+
+.mediaHeader {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+}
+
+.badgeRow {
+    display: flex;
+    align-items: center;
+    width: fit-content;
+    justify-content: space-between;
+    gap: 8px;
+
+    padding: 2px 10px;
+    border-radius: 999px;
+
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: #fff;
+
+    z-index: 3;
+    backdrop-filter: blur(10px);
+}
+
+.extBadge {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.5px;
+}
+
+.badgeDuration {
+    font-size: 11px;
+    font-weight: 900;
+    opacity: 0.95;
+    font-variant-numeric: tabular-nums;
+}
+
+.badgeDurationPlaceholder {
+    font-size: 11px;
+    font-weight: 900;
+    opacity: 0.6;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ================= MEDIA BODY ================= */
+
+.mediaBody {
+    padding: 10px;
+    display: grid;
+    gap: 8px;
+}
+
+/* ================= PLAYERS ================= */
+
+.audioPlayer {
+    width: 100%;
+    padding: 5px;
+}
+
+.videoPlayer {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.imagePlayer {
+    width: 100%;
+    height: 140px;
+    object-fit: cover;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.25);
+}
+
+/* ================= FILE NAME ================= */
+
+.fileName {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 650;
+    color: rgba(232, 240, 255, 0.78);
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ================= DELETE BUTTON (NO OVERLAY) ================= */
+
+ .deleteBtn {
+    width: fit-content;
+
+    background-color: red;
+    max-width: 100px;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+
+
+    border-radius: 14px;
+    border: 1px solid rgba(255, 70, 70, 0.25);
+    background: rgba(255, 70, 70, 0.12);
+
+    color: #fff;
+    font-weight: 850;
+    cursor: pointer;
+    
+
+    transition: transform 0.12s ease, background 0.12s ease;
+}
+
+
+
+.deleteBtn:hover {
+    background: rgba(255, 70, 70, 0.18);
+    transform: translateY(-1px);
+}
+
+.deleteBtn:active {
+    transform: translateY(0px) scale(0.99);
+}
+
+.deleteBtn span {
+    font-size: 12px;
+    opacity: 0.92;
+    
+}
+
+/* ================= NAVIGATION ROW ================= */
+
+.navRow {
+    margin-top: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  
+  /* ================= CANCEL BUTTON ================= */
+  
+  .cancelBtn {
+    flex: 1;
+    height: 44px;
+    border-radius: 14px;
+  
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+  
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 800;
+    font-size: 14px;
+  
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.12s ease, border 0.12s ease;
+  }
+  
+  .cancelBtn:hover {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.18);
+    transform: translateY(-1px);
+  }
+  
+  .cancelBtn:active {
+    transform: translateY(0px) scale(0.99);
+  }
+  
+  .cancelBtn:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.25);
+    outline-offset: 3px;
+  }
+  
+  /* ================= CONTINUE BUTTON ================= */
+  
+  .confirm {
+    flex: 1.4;
+    height: 44px;
+    border-radius: 14px;
+  
+    border: 1px solid rgba(255, 70, 70, 0.25);
+    background: linear-gradient(
+      180deg,
+      rgba(255, 70, 70, 0.22),
+      rgba(255, 70, 70, 0.12)
+    );
+  
+    color: #fff;
+    font-weight: 900;
+    font-size: 14px;
+    letter-spacing: 0.2px;
+  
+    cursor: pointer;
+    transition: transform 0.12s ease, background 0.12s ease;
+  }
+  
+  .confirm:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: linear-gradient(
+      180deg,
+      rgba(255, 70, 70, 0.28),
+      rgba(255, 70, 70, 0.14)
+    );
+  }
+  
+  .confirm:active:not(:disabled) {
+    transform: translateY(0px) scale(0.99);
+  }
+  
+  /* ================= DISABLED STATE ================= */
+  
+  .confirm:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    filter: grayscale(0.3);
+  }
+  
+  .cancelBtn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+  
+  /* ================= MOBILE RESPONSIVE ================= */
+  
+  @media (max-width: 520px) {
+    .navRow {
+      flex-direction: column;
+    }
+  
+    .cancelBtn,
+    .confirm {
+      width: 100%;
+      flex: unset;
+    }
+  }
+  
+
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 520px) {
+
+    .actions button,
+    .attach {
+        min-width: 100%;
+    }
+
+    .capturePanel video {
+        height: 220px;
+    }
+
+    .previewItem video,
+    .previewItem img {
+        height: 130px;
+    }
+}

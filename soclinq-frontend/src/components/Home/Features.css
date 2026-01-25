@@ -1,0 +1,197 @@
+/* =========================
+   FEATURES SECTION (FLIP)
+   Preserves original design
+========================= */
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 10px;
+  }
+  
+  @media (max-width: 980px) {
+    .features {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  @media (max-width: 620px) {
+    .features {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+  
+  /* =========================
+     FEATURE CARD BUTTON
+  ========================= */
+  
+  .feature-card {
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    perspective: 1200px;
+  }
+  
+  /* =========================
+     INNER (3D WRAPPER)
+  ========================= */
+  
+  .feature-inner {
+    position: relative;
+    width: 100%;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  /* Flip state */
+  .feature-card.flipped .feature-inner {
+    transform: rotateY(180deg);
+  }
+  
+  /* =========================
+     FRONT & BACK (SHARED)
+  ========================= */
+  
+  .feature-front,
+  .feature-back {
+    position: absolute;
+    inset: 0;
+  
+    background: var(--card);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+    border: 1px solid #e5e7eb;
+  
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 180px;
+    color: #151570;
+  
+    padding: 20px;
+    text-align: center;
+  
+    backface-visibility: hidden;
+  }
+
+  .feature-back {
+    font-size: 10px;
+  }
+  
+  /* =========================
+     FRONT (ORIGINAL LOOK)
+  ========================= */
+  
+  .feature-front {
+    font-weight: 600;
+    position: relative; /* needed for ::after */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    overflow: hidden;   /* hides ::after overflow */
+  }
+
+  .feature-front::after {
+    content: "";
+    position: absolute;
+    left: 5%;
+    right: 5%;
+    bottom: 0;
+  
+    height: 4px;
+    background: blue;
+    border-radius: 45% 45% 45%;
+  
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform 0.3s ease;
+  }
+  
+  
+  
+  .feature-card:hover .feature-front {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 40px rgba(2, 12, 27, 0.12);
+  }
+
+  .feature-card:hover .feature-front::after,
+.feature-card:focus-visible .feature-front::after {
+  transform: scaleX(1);
+}
+
+  
+  .feature-front h3 {
+    font-size: 1.05rem;
+    margin: 6px 0 0;
+  }
+  
+  .feature-icon {
+    font-size: 28px;
+    color: var(--secondary);
+    transition: color 0.25s ease, transform 0.25s ease;
+  }
+  
+  .feature-card:hover .feature-icon,
+  .feature-card:focus-visible .feature-icon {
+    color: var(--amber);
+    transform: scale(1.08);
+  }
+  
+
+  .feature-card:hover .feature-front {
+    box-shadow:
+      0 14px 40px rgba(2, 12, 27, 0.12),
+      0 0 0 1px rgba(255, 193, 7, 0.25);
+  }
+  
+  
+  /* =========================
+     BACK (DESCRIPTION SIDE)
+  ========================= */
+  
+  .feature-back {
+    transform: rotateY(180deg);
+    gap: 10px;
+  }
+  
+  .feature-back p {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin: 0;
+    line-height: 1.4;
+  }
+  
+  .feature-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1f5bd6;
+    text-decoration: none;
+  }
+  
+  .feature-link:hover {
+    text-decoration: underline;
+  }
+  
+  /* =========================
+     ACCESSIBILITY
+  ========================= */
+  
+  .feature-card:focus-visible {
+    outline: 3px solid rgba(26, 61, 124, 0.4);
+    outline-offset: 4px;
+  }
+  
+  /* =========================
+     REDUCED MOTION
+  ========================= */
+  
+  @media (prefers-reduced-motion: reduce) {
+    .feature-inner {
+      transition: none;
+    }
+  }
+  

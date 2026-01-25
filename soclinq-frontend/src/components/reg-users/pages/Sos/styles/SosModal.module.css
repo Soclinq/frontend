@@ -1,0 +1,200 @@
+/* ================= BACKDROP ================= */
+
+.backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(2, 6, 23, 0.8);
+    backdrop-filter: blur(6px);
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* ================= MODAL ================= */
+  
+  .modal {
+    width: 100%;
+    max-width: 1020px;
+    margin: 0 20px;
+    max-height: 95vh;
+    overflow-y: auto;
+    background: #020617;
+    color: #e5e7eb;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  
+    outline: none;
+  }
+
+
+
+
+  /* ================= HEADER ================= */
+  
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  .header h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+  
+  .header button {
+    background: transparent;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 1.2rem;
+  }
+  
+  .header button:hover {
+    color: #f87171;
+  }
+  
+  /* ================= MESSAGE ================= */
+  
+  .modal textarea {
+    width: 100%;
+    min-height: 90px;
+    resize: none;
+    border-radius: 12px;
+    border: 1px solid #1e293b;
+    background: #020617;
+    color: #e5e7eb;
+    padding: 12px;
+    font-size: 0.95rem;
+  }
+  
+  .modal textarea::placeholder {
+    color: #64748b;
+  }
+  
+  .modal textarea:focus {
+    outline: none;
+    border-color: #ef4444;
+  }
+  
+  /* ================= MEDIA ================= */
+  
+  .media {
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+  }
+  
+  .media label {
+    flex: 1;
+    background: #020617;
+    border: 1px dashed #334155;
+    border-radius: 12px;
+    padding: 10px 6px;
+  
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  
+    font-size: 0.75rem;
+    color: #cbd5f5;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .media label svg {
+    font-size: 1.1rem;
+  }
+  
+  .media label:hover {
+    background: #020617;
+    border-color: #ef4444;
+    color: #fecaca;
+  }
+  
+  /* ================= AI SEVERITY ================= */
+  
+  .ai {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+  }
+  
+  .ai svg {
+    font-size: 1.3rem;
+  }
+  
+  /* LOW */
+  .low {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+  }
+  
+  /* MEDIUM */
+  .medium {
+    background: rgba(234, 179, 8, 0.15);
+    color: #facc15;
+  }
+  
+  /* HIGH */
+  .high {
+    background: rgba(239, 68, 68, 0.18);
+    color: #f87171;
+  }
+  
+  /* ================= CONFIRM BUTTON ================= */
+  
+  .confirm {
+    margin-top: 8px;
+    background: #dc2626;
+    color: white;
+    border: none;
+    border-radius: 14px;
+    padding: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .confirm:hover {
+    background: #b91c1c;
+  }
+  
+  .confirm:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  /* ================= NOTE ================= */
+  
+  .note {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    text-align: center;
+  }
+  
+  /* ================= MOBILE ================= */
+  
+  @media (max-width: 480px) {
+    .modal {
+      border-radius: 12px;
+      padding: 16px;
+    }
+  
+    .media {
+      gap: 8px;
+    }
+  }
+  

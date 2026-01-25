@@ -1,0 +1,226 @@
+/* ================= ROOT ================= */
+
+.geo {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ================= HEADER ================= */
+
+.header {
+  background: linear-gradient(180deg, #ffffff, #f9fafb);
+  border-radius: 18px;
+  padding: 1.25rem 1.4rem;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.06);
+}
+
+.header h1 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.header p {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-top: 0.2rem;
+}
+
+/* ================= GRID ================= */
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 1.1rem;
+}
+
+/* ================= PANELS ================= */
+
+.panel {
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1px solid #e5e7eb;
+  padding: 1rem 1.1rem;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+}
+
+.panel h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 0.6rem;
+}
+
+/* ================= MAP ================= */
+
+.map {
+  position: relative;
+  width: 100%;
+  height: 420px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 0.8rem;
+}
+
+/* Leaflet fixes */
+.map :global(.leaflet-container) {
+  width: 100%;
+  height: 100%;
+  background: #f3f4f6;
+}
+
+.map :global(.leaflet-control-zoom) {
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.map :global(.leaflet-bar a) {
+  background: #ffffff;
+  color: #111827;
+}
+
+/* ================= CONTROLS ================= */
+
+.controls {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.controls > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.controls label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.controls select {
+  padding: 0.45rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  font-size: 0.75rem;
+  background: #ffffff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.controls select:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
+}
+
+/* ================= ACTIONS ================= */
+
+.actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.75rem;
+}
+
+.actions button {
+  background: linear-gradient(135deg, #6366f1, #4f46e5);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(79, 70, 229, 0.25);
+}
+
+.actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ghost {
+  background: #ffffff !important;
+  color: #374151 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+/* ================= ALERTS ================= */
+
+.alertList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.alertList li {
+  padding: 0.6rem 0.75rem;
+  border-radius: 12px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  font-size: 0.75rem;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.alertList li:last-child {
+  margin-bottom: 0;
+}
+
+/* ================= EMPTY ================= */
+
+.empty {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: center;
+  margin-top: 0.8rem;
+}
+
+/* ================= SOS HIGHLIGHT ================= */
+
+.alertList li:has(strong),
+.alertList li[data-sos="true"] {
+  border-left: 4px solid #dc2626;
+  background: #fef2f2;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+
+  .map {
+    height: 360px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 1rem;
+  }
+
+  .panel {
+    padding: 0.9rem;
+  }
+
+  .map {
+    height: 300px;
+  }
+
+  .controls {
+    gap: 0.5rem;
+  }
+}

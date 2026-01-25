@@ -6,6 +6,7 @@ gunicorn
 djangorestframework-simplejwt
 requests
 channels
+daphne
 channels-redis
 django-ratelimit
 

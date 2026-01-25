@@ -1,0 +1,74 @@
+.profile {
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ================= BACK BUTTON ================= */
+
+.backBtn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  background: transparent;
+  border: none;
+  padding: 0.25rem 0;
+
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-muted, #6b7280);
+
+  cursor: pointer;
+  transition: color 0.2s ease, transform 0.15s ease;
+}
+
+.backBtn svg {
+  font-size: 1.25rem;
+}
+
+.backBtn:hover {
+  color: var(--primary, #2563eb);
+  transform: translateX(-2px);
+}
+
+.backBtn:active {
+  transform: translateX(-1px);
+}
+
+/* ================= LOADING STATE ================= */
+
+.loading {
+  min-height: 50vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-muted, #6b7280);
+
+  letter-spacing: 0.2px;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 768px) {
+  .profile {
+    padding: 1.25rem 1rem 2.5rem;
+    gap: 1.25rem;
+  }
+
+  .backBtn {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile {
+    padding: 1rem 0.75rem 2rem;
+  }
+}

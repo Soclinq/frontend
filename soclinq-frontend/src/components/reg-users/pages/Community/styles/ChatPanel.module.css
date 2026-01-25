@@ -1,0 +1,122 @@
+.panel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.12);
+    padding: 1.5rem;
+  }
+  
+  /* Header */
+  .cpheader {
+    margin-bottom: 1.75rem;
+    background-color: #e2e8f0;
+    padding: 10px;
+    border-radius: 10px;
+  }
+  
+  .cpheader h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 0.25rem;
+  }
+  
+  .cpheader p {
+    font-size: 0.75rem;
+    color: #475569;
+  }
+  
+  /* Messages area */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  /* Empty state */
+  .empty {
+    text-align: center;
+    font-size: 0.9rem;
+    color: #94a3b8;
+    margin-top: 2rem;
+  }
+  
+  /* Message bubble */
+  .message {
+    align-self: flex-start;
+    max-width: 85%;
+    background: #f1f5f9;
+    border-radius: 14px;
+    padding: 0.75rem 0.9rem;
+    position: relative;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05);
+  }
+  
+  .text {
+    font-size: 0.9rem;
+    color: #0f172a;
+    line-height: 1.5;
+  }
+  
+  /* Remove action */
+  .remove {
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-top: 0.35rem;
+    cursor: pointer;
+  }
+  
+  .remove:hover {
+    text-decoration: underline;
+  }
+  
+  /* Input area */
+  .inputBox {
+    display: flex;
+    gap: 0.6rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+  }
+  
+  .inputBox input {
+    flex: 1;
+    padding: 0.7rem 0.9rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.9rem;
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+  }
+  
+  .inputBox input:focus {
+    border-color: #14b8a6;
+    box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.25);
+  }
+  
+  .inputBox button {
+    padding: 0.7rem 1.2rem;
+    border-radius: 12px;
+    border: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: white;
+    cursor: pointer;
+    background: linear-gradient(135deg, #0f766e, #14b8a6);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  
+  .inputBox button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 25px rgba(20, 184, 166, 0.4);
+  }
+  

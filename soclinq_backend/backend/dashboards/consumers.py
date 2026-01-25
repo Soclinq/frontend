@@ -1,17 +1,16 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
-from django.contrib.auth.models import AnonymousUser
 
 
 class DashboardConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        user = self.scope["user"]
+        user = self.scope.get("user")
 
-        if isinstance(user, AnonymousUser):
+        if not user or not getattr(user, "is_authenticated", False):
             await self.close()
             return
 
-        self.group_name = f"dashboard_{user.role.lower()}"
+        self.group_name = f"dashboard_{user?.role.lower()}"
 
         await self.channel_layer.group_add(
             self.group_name,
