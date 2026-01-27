@@ -10,7 +10,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
             await self.close()
             return
 
-        self.group_name = f"dashboard_{user?.role.lower()}"
+        self.group_name = f"dashboard_{user.role.lower()}"
 
         await self.channel_layer.group_add(
             self.group_name,

@@ -1,28 +1,18 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from django.contrib.auth import get_user_model
 from .models import OTP, Organization, VerificationDocument
 from .otp_utils import generate_otp
-from .auth_utils import get_user_by_identifier
-from django.contrib.auth import authenticate
-from django.utils import timezone
+from .auth_utils import get_user_by_identifier, CookieJWTAuthentication
 from datetime import timedelta
 from rest_framework_simplejwt.tokens import RefreshToken
-from .auth_utils import get_user_by_identifier
 from audit.utils import log_action
 from community.utils import auto_assign_user_to_hubs
 from notifications.channels import send_otp_notification
 from rest_framework.parsers import MultiPartParser, FormParser
-from django.contrib.auth import get_user_model
-from django.db import transaction
+from django.contrib.auth import get_user_model, authenticate
 from .serializers import RegisterSubmitSerializer
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from django.utils import timezone
-from datetime import timedelta
-from django.contrib.auth import authenticate
 from django.db import transaction
-from rest_framework_simplejwt.tokens import RefreshToken
 from django.middleware.csrf import get_token
 from django.conf import settings
 from rest_framework_simplejwt.exceptions import TokenError
@@ -30,10 +20,13 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 
 
 User = get_user_model()
+same_site = "Lax"
+secure_cookie = False
+
 
 
 
@@ -184,11 +177,6 @@ class VerifyOTPView(APIView):
         )
     
 
-from django.db import IntegrityError, transaction
-from rest_framework import status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-
 class RegisterSubmitView(APIView):
     parser_classes = [MultiPartParser, FormParser]
     authentication_classes = []
@@ -254,23 +242,23 @@ class RegisterSubmitView(APIView):
                 status=status.HTTP_201_CREATED,
             )
 
+
             response.set_cookie(
-                "access",
-                str(refresh.access_token),
+                key="access",
+                value=str(refresh.access_token),
                 httponly=True,
                 secure=secure_cookie,
-                samesite="Lax",
-                max_age=15 * 60,
+                samesite=same_site,
             )
 
             response.set_cookie(
-                "refresh",
-                str(refresh),
+                key="refresh",
+                value=str(refresh),
                 httponly=True,
                 secure=secure_cookie,
-                samesite="Lax",
-                max_age=7 * 24 * 60 * 60,
+                samesite=same_site,
             )
+
 
             # ✅ Success log
             log_action(
@@ -336,6 +324,7 @@ class RegisterSubmitView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+@method_decorator(csrf_exempt, name="dispatch")
 class LoginView(APIView):
     authentication_classes = []
     permission_classes = []
@@ -427,21 +416,27 @@ class LoginView(APIView):
             status=200
         )
 
+
         response.set_cookie(
-            key="access",
-            value=str(refresh.access_token),
+            "access",
+            str(refresh.access_token),
             httponly=True,
             secure=secure_cookie,
-            samesite="Lax",
+            samesite=same_site,
+            path="/",
+            max_age=15 * 60,
         )
 
         response.set_cookie(
-            key="refresh",
-            value=str(refresh),
+            "refresh",
+            str(refresh),
             httponly=True,
             secure=secure_cookie,
-            samesite="Lax",
+            samesite=same_site,
+            path="/",
+            max_age=7 * 24 * 60 * 60,
         )
+
 
         log_action(
             user=user,
@@ -453,8 +448,11 @@ class LoginView(APIView):
         return response
 
 
+
+@method_decorator(csrf_exempt, name="dispatch")
 class RefreshView(APIView):
     authentication_classes = []
+    permission_classes = []
 
     def post(self, request):
         refresh_token = request.COOKIES.get("refresh")
@@ -468,34 +466,62 @@ class RefreshView(APIView):
         except TokenError:
             return Response({"error": "Invalid refresh token"}, status=401)
 
-        response = Response({"message": "Token refreshed"})
+        response = Response({"message": "Token refreshed"}, status=200)
+
         response.set_cookie(
             key="access",
             value=str(new_access),
             httponly=True,
-            secure=True,
-            samesite="Lax",
+            secure=secure_cookie,
+            samesite=same_site,
+            path="/",
+            max_age=15 * 60,
         )
+
+        # ✅ also re-set refresh cookie so browser stays consistent
+        response.set_cookie(
+            key="refresh",
+            value=str(refresh),
+            httponly=True,
+            secure=secure_cookie,
+            samesite=same_site,
+            path="/",
+            max_age=7 * 24 * 60 * 60,
+        )
+
         return response
 
-
-
+@method_decorator(csrf_exempt, name="dispatch")
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
+    authentication_classes = [CookieJWTAuthentication]
 
     def get(self, request):
+        print("✅ COOKIES:", request.COOKIES)
+        print("✅ ACCESS:", request.COOKIES.get("access"))
+        print("✅ USER:", request.user, request.user.is_authenticated)
+
         user = request.user
         return Response({
             "user": {
-                "id": user.id,
+                "id": str(user.id),
                 "email": user.email,
                 "phone": user.phone_number,
+                "username": user.username,
                 "fullName": user.full_name,
-                "role": user?.role,
+                "role": user.role,
                 "isVerified": user.is_verified,
+                "isStaff": user.is_staff,
+                "preferredLanguage": user.preferred_language,
+                "location": {
+                    "country": user.country,
+                    "state": user.state,
+                    "lga": user.lga,
+                },
             }
         })
-    
+
+
 
 class CSRFView(APIView):
     authentication_classes = []

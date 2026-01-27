@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import "leaflet/dist/leaflet.css";
 
-import Home from "@/components/reg-users/pages/Home";
+import Home from "@/components/reg-users/pages/Home/Home";
 import Sos from "@/components/reg-users/pages/Sos/Sos";
 import Community from "@/components/reg-users/pages/Community/Community";
 import Tracking from "@/components/reg-users/pages/Tracking/Tracking";
@@ -21,7 +21,6 @@ import {
   MdSupportAgent,
   MdMenu,
   MdClose,
-  MdPerson,
 } from "react-icons/md";
 
 import styles from "./page.module.css";
@@ -178,7 +177,20 @@ export default function Page() {
         >
           <div className={styles.sidebarHeader}>
             <div className={styles.brand}>
-              <button
+              
+
+              {!sidebarCollapsed && (
+                <div className={styles.appLogo}>
+                  
+
+                <span className={styles.logoText}>
+                  <img className={styles.imgLogo} src="/logo/applogo.png" />
+                  LINQ<span>MI</span>
+                </span>
+                </div>
+              )}
+
+            <button
                 className={styles.collapseBtn}
                 onClick={() =>
                   setSidebarCollapsed(prev => !prev)
@@ -190,12 +202,6 @@ export default function Page() {
                   <MdClose size={22} />
                 )}
               </button>
-
-              {!sidebarCollapsed && (
-                <span className={styles.logoText}>
-                  LINQ<span>MI</span>
-                </span>
-              )}
             </div>
           </div>
 

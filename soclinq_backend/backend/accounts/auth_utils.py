@@ -18,16 +18,19 @@ def get_user_by_identifier(identifier):
     return User.objects.filter(phone_number=identifier).first()
 
 
-
 class CookieJWTAuthentication(JWTAuthentication):
     def authenticate(self, request):
         raw_token = request.COOKIES.get("access")
         if not raw_token:
             return None
 
-        validated_token = self.get_validated_token(raw_token)
-        return self.get_user(validated_token), validated_token
-
+        try:
+            validated_token = self.get_validated_token(raw_token)
+            user = self.get_user(validated_token)
+            return (user, validated_token)
+        except Exception as e:
+            print("❌ CookieJWTAuthentication failed:", str(e))
+            return None
 
 
 class EnsureCSRFCookieMiddleware(MiddlewareMixin):

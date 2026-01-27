@@ -12,6 +12,7 @@ import {
   FaStop,
   FaBolt,
 } from "react-icons/fa";
+import { MdFullscreen, MdFullscreenExit } from "react-icons/md";
 
 import { getSocket } from "@/lib/socket";
 
@@ -290,7 +291,7 @@ const fusion = useLocationFusion(loc => {
         onClick={toggleFullscreen}
         aria-label="Toggle fullscreen"
       >
-        {isFullscreen ? "⤢" : "⤢"}
+        {isFullscreen ? <MdFullscreenExit /> : <MdFullscreen />}
       </button>
 
       <button

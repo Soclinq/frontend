@@ -1,0 +1,340 @@
+.wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  
+  /* Header */
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  
+  .title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 950;
+    color: rgba(241, 245, 255, 0.96);
+  }
+  
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: rgba(203, 213, 225, 0.85);
+  }
+  
+  /* Main Card */
+  .mainCard {
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    background: linear-gradient(
+      180deg,
+      rgba(9, 20, 40, 0.92) 0%,
+      rgba(7, 16, 32, 0.92) 100%
+    );
+    box-shadow: 0 18px 55px rgba(2, 6, 23, 0.55);
+    overflow: hidden;
+  }
+  
+  .mainTop {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px 14px 10px;
+  }
+  
+  .liveBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 950;
+    letter-spacing: 0.06em;
+    color: white;
+  
+    background: radial-gradient(circle at 30% 30%, rgba(168, 85, 247, 0.9), rgba(59, 130, 246, 0.95));
+    box-shadow: 0 0 18px rgba(168, 85, 247, 0.22);
+  }
+  
+  .mainInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  
+  .mainTitle {
+    margin: 0;
+    font-weight: 950;
+    color: rgba(241, 245, 255, 0.96);
+    font-size: 0.95rem;
+  }
+  
+  .mainDesc {
+    margin: 0;
+    font-size: 0.82rem;
+    color: rgba(203, 213, 225, 0.84);
+  }
+  
+  .distance {
+    margin: 0;
+    font-size: 0.8rem;
+    color: rgba(96, 165, 250, 0.95);
+    font-weight: 900;
+  }
+  
+  /* Player */
+  .player {
+    width: 100%;
+    height: 250px;
+    border-top: 1px solid rgba(148, 163, 184, 0.1);
+    background: rgba(2, 6, 23, 0.55);
+  }
+  
+  .iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+  }
+  
+  /* Empty */
+  .emptyMain {
+    padding: 18px;
+  }
+  
+  .emptyTitle {
+    margin: 0;
+    font-weight: 950;
+    color: rgba(241, 245, 255, 0.95);
+  }
+  
+  .emptySub {
+    margin: 6px 0 0;
+    font-size: 0.85rem;
+    color: rgba(203, 213, 225, 0.8);
+  }
+  
+  /* Sections */
+  .section {
+    padding-top: 4px;
+  }
+  
+  .sectionHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  
+  .sectionTitle {
+    margin: 0;
+    font-weight: 950;
+    color: rgba(241, 245, 255, 0.95);
+    font-size: 0.92rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .sectionHint {
+    font-size: 0.78rem;
+    font-weight: 900;
+    color: rgba(203, 213, 225, 0.72);
+  }
+  
+  /* Horizontal scroll row */
+  .rowScroll {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding-bottom: 6px;
+  }
+  
+  .rowScroll::-webkit-scrollbar {
+    height: 8px;
+  }
+  .rowScroll::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.18);
+    border-radius: 999px;
+  }
+  .rowScroll::-webkit-scrollbar-track {
+    background: rgba(2, 6, 23, 0.25);
+  }
+  
+  .streamCard {
+    min-width: 180px;
+    max-width: 220px;
+    display: flex;
+    flex-direction: column;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    background: rgba(15, 23, 42, 0.35);
+    cursor: pointer;
+    transition: 0.15s ease;
+    text-align: left;
+  }
+  
+  .streamCard:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.08);
+    box-shadow: 0 0 22px rgba(168, 85, 247, 0.12);
+  }
+  
+  .thumb {
+    height: 90px;
+    background: rgba(2, 6, 23, 0.35);
+  }
+  
+  .thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .thumbFallback {
+    height: 100%;
+    display: grid;
+    place-items: center;
+    font-weight: 950;
+    color: rgba(241, 245, 255, 0.95);
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(59, 130, 246, 0.35));
+  }
+  
+  .streamBody {
+    padding: 10px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  
+  .streamTitle {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 950;
+    color: rgba(241, 245, 255, 0.95);
+  }
+  
+  .streamMeta {
+    margin: 0;
+    font-size: 0.78rem;
+    color: rgba(203, 213, 225, 0.78);
+    font-weight: 800;
+  }
+  
+  /* Previous streams */
+  .previousGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  
+  .prevCard {
+    border-radius: 16px;
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    background: rgba(15, 23, 42, 0.35);
+    padding: 12px;
+  }
+  
+  .prevTop {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  
+  .prevBadge {
+    padding: 4px 8px;
+    font-weight: 950;
+    font-size: 0.7rem;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.2);
+    border: 1px solid rgba(96, 165, 250, 0.22);
+    color: rgba(226, 232, 240, 0.95);
+  }
+  
+  .prevTitle {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 950;
+    color: rgba(241, 245, 255, 0.95);
+  }
+  
+  .prevLink {
+    display: inline-flex;
+    font-size: 0.82rem;
+    font-weight: 950;
+    color: rgba(96, 165, 250, 0.95);
+    text-decoration: none;
+  }
+  
+  .prevLink:hover {
+    text-decoration: underline;
+  }
+  
+  .emptyRow,
+  .emptyPrev {
+    color: rgba(203, 213, 225, 0.75);
+    font-size: 0.85rem;
+    padding: 10px 2px;
+  }
+  
+  /* Skeletons */
+  .skeletonMain {
+    padding: 14px;
+  }
+  
+  .skeletonVideo {
+    height: 250px;
+    border-radius: 14px;
+    background: rgba(148, 163, 184, 0.12);
+    margin-top: 10px;
+  }
+  
+  .skeletonText {
+    height: 14px;
+    width: 55%;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.12);
+    margin-top: 10px;
+  }
+  
+  .skeletonTextSmall {
+    height: 12px;
+    width: 35%;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.1);
+    margin-top: 8px;
+  }
+  
+  .streamCardSkeleton {
+    min-width: 180px;
+    height: 140px;
+    border-radius: 16px;
+    background: rgba(148, 163, 184, 0.12);
+  }
+  
+  .prevCardSkeleton {
+    height: 90px;
+    border-radius: 16px;
+    background: rgba(148, 163, 184, 0.12);
+  }
+  
+  @media (max-width: 520px) {
+    .player {
+      height: 210px;
+    }
+  
+    .previousGrid {
+      grid-template-columns: 1fr;
+    }
+  }
+  

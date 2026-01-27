@@ -7,16 +7,15 @@ type WatchOptions = PositionOptions;
 export function useGeolocation() {
   const watchIdRef = useRef<number | null>(null);
 
+  /* ===================== WATCH POSITION ===================== */
+
   const watchPosition = (
     onSuccess: PositionCallback,
     arg2?: PositionErrorCallback | WatchOptions,
     arg3?: WatchOptions
   ) => {
-    if (!("geolocation" in navigator)) {
-      return;
-    }
+    if (!("geolocation" in navigator)) return;
 
-    // ✅ interpret arguments safely
     let onError: PositionErrorCallback | undefined;
     let options: WatchOptions | undefined;
 
@@ -24,7 +23,7 @@ export function useGeolocation() {
     if (typeof arg2 === "object") {
       options = arg2;
     }
-    // case: watchPosition(success, errorFn)
+    // case: watchPosition(success, errorFn, options)
     else if (typeof arg2 === "function") {
       onError = arg2;
       options = arg3;
@@ -50,5 +49,27 @@ export function useGeolocation() {
     }
   };
 
-  return { watchPosition, clearWatch };
+  /* ===================== GET LOCATION (ONE TIME) ===================== */
+
+  const getLocation = (options?: PositionOptions) => {
+    return new Promise<GeolocationCoordinates>((resolve, reject) => {
+      if (!("geolocation" in navigator)) {
+        reject(new Error("Geolocation not supported"));
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve(pos.coords),
+        (err) => reject(err),
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0,
+          ...(options || {}),
+        }
+      );
+    });
+  };
+
+  return { watchPosition, clearWatch, getLocation };
 }

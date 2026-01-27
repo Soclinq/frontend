@@ -60,8 +60,11 @@
   /* ================= PRIMARY SOS BUTTON ================= */
   
   .sosBtn {
-    width: 100%;
+    width: 60%;
     padding: 14px;
+    display: block;
+    margin: 0 auto;
+    max-width: 300px;
     border-radius: 16px;
   
     background: linear-gradient(

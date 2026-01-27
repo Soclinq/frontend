@@ -16,7 +16,7 @@ export type LocationPacket = {
 };
 
 const MAX_SPEED = 50; // m/s
-const MAX_ACCURACY = 800;
+const MAX_ACCURACY = 3000;
 
 class Kalman2D {
   lat: number;
@@ -62,6 +62,13 @@ export function useLocationFusion(
   }
 
   function ingest(d: LocationPacket) {
+    if (!lastRef.current) {
+      kalmanRef.current = new Kalman2D(d.lat, d.lng, d.accuracy);
+      lastRef.current = d;
+      onFused(d);
+      return;
+    }
+
     if (d.accuracy > MAX_ACCURACY) return;
     if (!isValid(d)) return;
 

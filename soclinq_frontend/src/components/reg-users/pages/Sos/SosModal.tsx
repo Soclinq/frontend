@@ -14,7 +14,7 @@ interface SosFlowModalProps {
 }
 
 export default function SosFlowModal({ onClose }: SosFlowModalProps) {
-  const [step, setStep] = useState<SosStep>("ACTIVE");
+  const [step, setStep] = useState<SosStep>("PRE");
 
   return (
     <div className={styles.backdrop}>

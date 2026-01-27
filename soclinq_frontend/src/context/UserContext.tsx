@@ -86,6 +86,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await res.json();
+      
+
 
       /**
        * 🔐 IMPORTANT:
@@ -141,6 +143,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || "Login failed");
     }
+
+    
 
     await refresh();
   };

@@ -15,6 +15,8 @@ from datetime import timedelta
 from dotenv import load_dotenv
 load_dotenv()
 import os
+from corsheaders.defaults import default_headers, default_methods
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -27,23 +29,43 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-c2l47fve61lc#t3lqs#=^=7z$7l2-=%p_n8k*j$#8n^amlher-'
 
 # SECURITY WARNING: don't run with debug turned on in production!
+
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    "soclinq.com",
-    "api.yourdomain.com",
     "localhost",
     "127.0.0.1",
-    "http://localhost:3000",
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+]
 
-CSRF_COOKIE_HTTPONLY = False   # MUST be readable by JS
-CSRF_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_HTTPONLY = False
+CSRF_COOKIE_SECURE = False if DEBUG else True
 CSRF_COOKIE_SAMESITE = "Lax"
 
-SESSION_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_SECURE = False if DEBUG else True
 SESSION_COOKIE_SAMESITE = "Lax"
+
+
+# ✅ CORS
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+]
+
+CORS_ALLOW_CREDENTIALS = True
+
+CORS_ALLOW_HEADERS =[
+    "content-type",
+    "x-csrftoken",
+]
+
+CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
+
 
 
 ASGI_APPLICATION = "soclinq_backend.asgi.application"
@@ -56,6 +78,7 @@ CHANNEL_LAYERS = {
                 (
                     os.getenv("REDIS_HOST", "redis"),
                     int(os.getenv("REDIS_PORT", 6379)),
+                    ("127.0.0.1", 6379)
                 )
             ],
         },
@@ -83,7 +106,11 @@ INSTALLED_APPS = [
     "channels",
     "django.contrib.gis",
     "rest_framework_simplejwt.token_blacklist",
-    "corsheaders"
+    "corsheaders",
+    "websocket",
+    "live",
+    "storages"
+
 ]
 
 MIDDLEWARE = [
@@ -99,14 +126,22 @@ MIDDLEWARE = [
     "audit.middleware.AuditMiddleware",
 ]
 
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
+
+
+
 ROOT_URLCONF = 'soclinq_backend.urls'
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-]
+DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
 
-CORS_ALLOW_METHODS = ["POST", "OPTIONS"]
-CORS_ALLOW_HEADERS = ["content-type"]
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = "soclinq-sos-media"
+AWS_S3_REGION_NAME = "eu-north-1"
+AWS_QUERYSTRING_AUTH = False
+
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = None
 
 TEMPLATES = [
     {
@@ -204,6 +239,9 @@ ZEPTOMAIL_API_KEY = os.getenv("ZEPTOMAIL_API_KEY")
 ZEPTOMAIL_SENDER_EMAIL = os.getenv("ZEPTOMAIL_SENDER_EMAIL")
 ZEPTOMAIL_SENDER_NAME = os.getenv("ZEPTOMAIL_SENDER_NAME")
 
+LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
+LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
+LIVEKIT_WS_URL = os.getenv("LIVEKIT_WS_URL")
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/

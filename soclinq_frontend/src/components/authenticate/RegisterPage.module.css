@@ -1,0 +1,621 @@
+/* ================= THEME (LIGHT) ================= */
+
+.page {
+  min-height: 100vh;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+
+  /* soft light gradients */
+  background: radial-gradient(circle at 20% 15%, rgba(96, 165, 250, 0.35), transparent 55%),
+    radial-gradient(circle at 85% 75%, rgba(56, 189, 248, 0.25), transparent 55%),
+    radial-gradient(circle at 40% 100%, rgba(59, 130, 246, 0.18), transparent 65%),
+    #f6f9ff;
+}
+
+/* ================= CARD ================= */
+
+.card {
+  width: min(560px, 100%);
+  padding: 0px;
+  border-radius: 20px;
+
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(245, 249, 255, 0.95) 100%);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+
+  color: rgba(15, 23, 42, 0.92);
+  box-shadow: 0 18px 55px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+/* ================= HEADER ================= */
+
+.header {
+  text-align: center;
+  border-radius: 20px 20px 0px 0px;
+  margin-bottom: 14px;
+  padding: 20px;
+
+  background: linear-gradient(135deg, #1654da 0%, #0c8fc7 100%);
+  color: white;
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.header p {
+  margin: 8px 0 0;
+  font-size: 0.88rem;
+  color: rgba(229, 233, 238, 0.9);
+}
+
+/* ================= TABS ================= */
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin: 10px;
+  margin-bottom: 30px;
+
+}
+
+.tabBtn {
+  flex: 1;
+  padding: 11px 10px;
+
+  background: rgba(241, 245, 249, 0.95);
+  border: none;
+
+  color: rgba(15, 23, 42, 0.88);
+  cursor: pointer;
+  font-weight: 900;
+  transition: 0.15s ease;
+}
+
+.tabBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.02);
+}
+
+.tabActive {
+  background: rgba(219, 234, 254, 0.9);
+  border-bottom: 2px solid rgba(37, 99, 235, 0.95);
+  border-color: rgba(37, 99, 235, 0.25);
+}
+
+/* ================= FORM ================= */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 20px;
+}
+
+/* ================= SOCIAL LOGIN ================= */
+
+.socialRow {
+  display: flex;
+  gap: 10px;
+}
+
+.socialBtn {
+  flex: 1;
+  padding: 11px 12px;
+  border-radius: 14px;
+
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+
+  color: rgba(15, 23, 42, 0.92);
+  cursor: pointer;
+  font-weight: 900;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+
+  transition: 0.15s ease;
+}
+
+.socialBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+.divider {
+  position: relative;
+  text-align: center;
+  margin: 6px 0 4px;
+  color: rgba(71, 85, 105, 0.9);
+  font-size: 0.8rem;
+}
+
+.divider span {
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.divider::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(15, 23, 42, 0.10);
+  transform: translateY(-50%);
+  z-index: -1;
+}
+
+/* ================= INPUT GROUP ================= */
+
+.inputGroup {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 12px 12px;
+  border-radius: 14px;
+
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+}
+
+.leftIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 22px;
+  font-size: 1.05rem;
+  color: rgba(71, 85, 105, 0.95);
+  flex-shrink: 0;
+}
+
+.inputGroup input,
+.inputGroup select {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+
+  color: rgba(15, 23, 42, 0.92);
+  font-size: 0.93rem;
+}
+
+.inputGroup input::placeholder {
+  color: rgba(100, 116, 139, 0.9);
+}
+
+.inputGroup select {
+  appearance: none;
+  cursor: pointer;
+  color: rgba(15, 23, 42, 0.92);
+}
+
+.readonly {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.rightSlot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.validIcon {
+  color: rgba(16, 185, 129, 0.95);
+  font-size: 1.15rem;
+}
+
+/* Focus glow */
+.inputGroup:focus-within {
+  border-color: rgba(37, 99, 235, 0.35);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+/* invalid state highlight */
+.inputInvalid {
+  border-color: rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.10);
+}
+
+/* OTP button */
+.actionBtn {
+  padding: 2px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+
+  background: rgba(37, 99, 235, 0.92);
+  color: white;
+
+  margin: 0;
+  width: 80px;
+
+  cursor: pointer;
+  font-weight: 900;
+  font-size: 0.75rem;
+  transition: 0.15s ease;
+}
+
+.actionBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+.actionBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ================= PHONE INPUT ================= */
+
+.phoneGroup {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 10px 12px;
+  border-radius: 14px;
+
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+}
+
+.phoneWrap {
+  width: 100%;
+}
+
+/* react-phone-number-input overrides */
+.phoneWrap :global(.PhoneInput) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.phoneWrap :global(.PhoneInputInput) {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+
+  color: rgba(15, 23, 42, 0.92);
+  font-size: 0.93rem;
+}
+
+.phoneWrap :global(.PhoneInputInput::placeholder) {
+  color: rgba(100, 116, 139, 0.9);
+}
+
+.phoneWrap :global(.PhoneInputCountrySelect) {
+  background: rgba(241, 245, 249, 0.95);
+  color: rgba(15, 23, 42, 0.92);
+
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 10px;
+
+  padding: 6px 8px;
+}
+
+/* ================= PASSWORD HINTS ================= */
+
+.hints {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+
+  padding: 10px 12px;
+  border-radius: 14px;
+
+  background: rgba(241, 245, 249, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  font-size: 0.82rem;
+  color: rgba(51, 65, 85, 0.95);
+}
+
+.hint svg {
+  font-size: 0.95rem;
+}
+
+.hintOk {
+  color: rgba(16, 185, 129, 0.95);
+}
+
+/* ================= BLOCK SECTIONS ================= */
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.label {
+  font-size: 0.82rem;
+  font-weight: 950;
+  color: rgba(15, 23, 42, 0.92);
+}
+
+.miniNote {
+  margin: 0;
+  font-size: 0.76rem;
+  color: rgba(71, 85, 105, 0.9);
+  line-height: 1.35;
+}
+
+/* ================= PASSWORD EYE BUTTON ================= */
+
+.eyeBtn {
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+
+  background: rgba(241, 245, 249, 0.95);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+
+  color: rgba(30, 41, 59, 0.92);
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.eyeBtn:hover {
+  filter: brightness(1.03);
+  transform: translateY(-1px);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08);
+}
+
+/* ================= OSM / NOMINATIM ADDRESS SEARCH ================= */
+
+.addrBox {
+  position: relative;
+}
+
+.smallLoading {
+  font-size: 0.75rem;
+  color: rgba(71, 85, 105, 0.85);
+  font-weight: 900;
+}
+
+.addrResults {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  border-radius: 14px;
+
+  overflow: hidden;
+  z-index: 70;
+
+  box-shadow: 0 22px 45px rgba(15, 23, 42, 0.12);
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.addrItem {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+
+  background: transparent;
+  border: none;
+  cursor: pointer;
+
+  color: rgba(15, 23, 42, 0.92);
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+
+.addrItem:hover {
+  background: rgba(219, 234, 254, 0.8);
+}
+
+/* Dropdown scrollbar */
+.addrResults::-webkit-scrollbar {
+  width: 8px;
+}
+
+.addrResults::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+}
+
+.addrResults::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.8);
+}
+
+/* ================= UPLOAD GRID ================= */
+
+.uploadGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.uploadBox {
+  position: relative;
+  height: 96px;
+  border-radius: 14px;
+  overflow: hidden;
+
+  background: rgba(248, 250, 252, 0.95);
+  border: 1px dashed rgba(15, 23, 42, 0.18);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.addBox {
+  cursor: pointer;
+  color: rgba(30, 41, 59, 0.85);
+  font-weight: 900;
+  flex-direction: column;
+  gap: 6px;
+  transition: 0.15s ease;
+}
+
+.addBox:hover {
+  filter: brightness(1.03);
+  transform: translateY(-1px);
+}
+
+.previewImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.pdfBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+
+  color: rgba(15, 23, 42, 0.92);
+  font-weight: 950;
+  font-size: 0.8rem;
+}
+
+.pdfBox svg {
+  font-size: 1.5rem;
+  color: rgba(239, 68, 68, 0.95);
+}
+
+.removeBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+
+  border-radius: 999px;
+  border: 1px solid rgba(15, 23, 42, 0.10);
+  background: rgba(255, 255, 255, 0.95);
+
+  color: rgba(15, 23, 42, 0.9);
+  cursor: pointer;
+}
+
+.removeBtn:hover {
+  filter: brightness(1.05);
+}
+
+/* ================= TURNSTILE ================= */
+
+.turnstileWrap {
+  display: flex;
+  justify-content: center;
+  padding-top: 2px;
+}
+
+/* ================= SUBMIT ================= */
+
+.submitBtn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+
+  border: 1px solid rgba(37, 99, 235, 0.20);
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.95), rgba(56, 189, 248, 0.9));
+
+  color: white;
+  font-weight: 950;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.submitBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.bottomNav {
+  margin: 20px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(15, 23, 42, 0.08);
+
+  display: flex;
+  align-items: center;
+  justify-content:flex-end;
+  gap: 10px;
+}
+
+.bottomText {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(71, 85, 105, 0.9);
+  font-weight: 700;
+}
+
+.loginBtn {
+  padding: 10px 12px;
+  border-radius: 12px;
+
+  border: 1px solid rgba(37, 99, 235, 0.20);
+  background: rgba(219, 234, 254, 0.85);
+
+  color: rgba(37, 99, 235, 0.95);
+  font-weight: 900;
+  cursor: pointer;
+
+  transition: 0.15s ease;
+}
+
+.loginBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 420px) {
+  .card {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .uploadGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .socialBtn span {
+    display: none;
+  }
+
+  .header h2 {
+    font-size: 1.25rem;
+  }
+}

@@ -9,5 +9,7 @@ channels
 daphne
 channels-redis
 django-ratelimit
+livekit
+django-storages boto3
 
 

@@ -26,5 +26,7 @@ path("api/v1/", include([
     path("sos/", include("sos.urls")),
     path("notifications/", include("notifications.urls")),
     path("dashboards/", include("dashboards.urls")),
+    path("live/", include("live.urls")),
+
 ]))
 ]

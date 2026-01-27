@@ -1,14 +1,16 @@
-import os
-from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
-from dashboards.middleware import JWTAuthMiddlewareStack
-import dashboards.routing
+from channels.security.websocket import AllowedHostsOriginValidator
+from django.core.asgi import get_asgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "soclinq_backend.settings")
+import os
+from websocket.urls import websocket_urlpatterns
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "project.settings")
 
 application = ProtocolTypeRouter({
     "http": get_asgi_application(),
-    "websocket": JWTAuthMiddlewareStack(
-        URLRouter(dashboards.routing.websocket_urlpatterns)
+
+    "websocket": AllowedHostsOriginValidator(
+        URLRouter(websocket_urlpatterns)
     ),
 })

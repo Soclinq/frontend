@@ -6,7 +6,7 @@ import RegisterPage from "@/components/authenticate/RegisterPage"
 export default function About() {
   return (
     <>
-    <Header/>;
+    <Header/>
     <RegisterPage />
     </>
   )

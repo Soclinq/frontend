@@ -2,6 +2,17 @@
 
 /* ================= ROOT INPUTS ================= */
 
+.panel {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    color: #e5e7eb;
+    overflow-y: auto;
+    max-height: 86vh;
+    padding: 0 15px 15px 15px;
+    box-shadow: 0 14px 45px rgba(0, 0, 0, 0.65);
+  }
+  
 .media {
     display: flex;
     gap: 10px;
@@ -695,7 +706,7 @@
 .navRow {
     margin-top: 18px;
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: space-between;
     gap: 12px;
   }

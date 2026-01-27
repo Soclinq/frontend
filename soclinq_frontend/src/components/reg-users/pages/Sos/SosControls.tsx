@@ -3,13 +3,9 @@
 import styles from "./styles/SosControls.module.css";
 import {
   MdDangerous,
-  MdRadar,
-  MdPauseCircle,
   MdClose,
 } from "react-icons/md";
-import { FaPlay } from "react-icons/fa";
 import { useState } from "react";
-import Modal from "react-modal";
 
 import SosModal from "./SosModal";
 import { getSocket } from "@/lib/socket";
@@ -115,19 +111,12 @@ export default function SosControls() {
         )}
       </div>
 
-      <Modal
-        isOpen={showModal}
-        onRequestClose={() => setShowModal(false)}
-        overlayClassName={styles.modalOverlay}
-        className={styles.modal}
-        appElement={document.body}
-      >
+
         {showModal && (
           <SosModal
             onClose={() => setShowModal(false)}
           />
         )}
-      </Modal>
 
     </>
   );

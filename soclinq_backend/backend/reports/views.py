@@ -6,7 +6,7 @@ from community.access import user_is_hub_member
 from audit.utils import log_action
 from .models import Report, ReportCategory
 from dashboards.realtime import broadcast_to_role
-from community.models import CommunityMembership, HubRole
+from community.models import CommunityMembership, HubRole, CommunityHub
 from .models import ReportStatus
 
 

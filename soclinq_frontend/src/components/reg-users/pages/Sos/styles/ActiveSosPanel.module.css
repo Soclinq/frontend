@@ -1,203 +1,478 @@
-/* ================= PANEL ================= */
+/* ================= ROOT BACKDROP ================= */
+
+
 
 .panel {
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    background: #0b0f14;
-    color: #e5e7eb;
-    border-radius: 14px;
-    overflow: hidden;
-    z-index: 1999;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #0b0f14 0%, #05070c 100%);
+  color: #e5e7eb;
+  border-radius: 18px;
+  overflow-y: auto;
+  max-height: 80vh;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 14px 45px rgba(0, 0, 0, 0.65);
+}
+
+/* ================= STATUS ================= */
+
+.status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: rgba(2, 6, 23, 0.75);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.low {
+  background: rgba(6, 78, 59, 0.55);
+  color: #6ee7b7;
+}
+
+.medium {
+  background: rgba(120, 53, 15, 0.6);
+  color: #fde68a;
+}
+
+.high {
+  background: rgba(127, 29, 29, 0.65);
+  color: #fecaca;
+}
+
+.timer {
+  font-size: 0.82rem;
+  color: #9ca3af;
+}
+
+/* ================= TOAST ================= */
+
+.toast {
+  margin: 12px 14px 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(17, 24, 39, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #e5e7eb;
+  font-size: 0.85rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  animation: toastPop 0.18s ease-out;
+}
+
+@keyframes toastPop {
+  from {
+    transform: translateY(-6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0px);
+    opacity: 1;
+  }
+}
+
+/* ================= LIVE TEXT ================= */
+
+.textBox {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(2, 6, 23, 0.35);
+}
+
+.textArea {
+  width: 100%;
+  min-height: 88px;
+  resize: none;
+  background: rgba(15, 23, 42, 0.6);
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px 12px;
+  font-size: 0.9rem;
+  outline: none;
+  line-height: 1.35;
+}
+
+.textArea::placeholder {
+  color: rgba(156, 163, 175, 0.9);
+}
+
+.textArea:focus {
+  border-color: rgba(96, 165, 250, 0.35);
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+}
+
+.textFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  gap: 10px;
+}
+
+.textCount {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.sendBtn {
+  padding: 9px 14px;
+  border-radius: 12px;
+  background: rgba(37, 99, 235, 0.95);
+  color: white;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.sendBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.sendBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ================= GO LIVE BTN ================= */
+
+.liveControls {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.goLiveBtn {
+  width: 70%;
+  max-width: 300px;
+  display: block;
+  margin: 0 auto;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(90deg, #dc2626 0%, #ef4444 60%, #dc2626 100%);
+  box-shadow: 0 10px 22px rgba(220, 38, 38, 0.22);
+  transition: 0.15s ease;
+}
+
+.goLiveBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.07);
+}
+
+/* ================= CAMERA STAGE ================= */
+
+.cameraStage {
+  margin: 12px 14px 0;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.65);
+  position: relative;
+}
+
+.cameraVideo {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+  display: block;
+  background: black;
+}
+
+/* ================= FULLSCREEN CONTROL ================= */
+
+.fsControls {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+}
+
+.fsControls button {
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(2, 6, 23, 0.75);
+  color: #e5e7eb;
+  cursor: pointer;
+  font-size: 0.78rem;
+  transition: 0.15s ease;
+}
+
+.fsControls button:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+
+/* ================= RESPONDER TOAST (LIVE) ================= */
+
+.responderToast {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 20;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #a7f3d0;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* ================= REC BADGE ================= */
+
+.recBadge {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e5e7eb;
+}
+
+.recDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(156, 163, 175, 0.6);
+}
+
+.recDotOn {
+  background: #ef4444;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.8);
+}
+
+.recText {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+
+.recTime {
+  font-size: 0.76rem;
+  color: #cbd5e1;
+}
+
+/* ================= AUDIO / VIDEO DISABLE ROW ================= */
+
+.cancelRow {
+  padding: 10px;
+  display: flex;
+  gap: 10px;
+  background: rgba(2, 6, 23, 0.65);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cancelBtn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.7);
+  color: #e5e7eb;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.15s ease;
+  font-size: 0.85rem;
+}
+
+.cancelBtn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.cancelActive {
+  background: rgba(220, 38, 38, 0.2);
+  border-color: rgba(220, 38, 38, 0.4);
+  color: #fecaca;
+}
+
+/* ================= CAMERA BOTTOM ================= */
+
+.cameraBottom {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  background: rgba(2, 6, 23, 0.75);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.recordBtn,
+.stopBtn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  font-weight: 900;
+  transition: 0.15s ease;
+}
+
+.recordBtn {
+  background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%);
+  color: white;
+}
+
+.stopBtn {
+  background: rgba(17, 24, 39, 0.85);
+  color: #e5e7eb;
+}
+
+.recordBtn:hover,
+.stopBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.closeLiveBtn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.75);
+  color: #e5e7eb;
+  font-weight: 900;
+  cursor: pointer;
+  transition: 0.15s ease;
+  
+}
+
+.closeLiveBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+/* ================= MAP ================= */
+
+.map {
+  flex: 1;
+  margin: 12px 14px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(2, 6, 23, 0.4);
+  min-height: 420px;
+}
+
+/* ✅ FIX leaflet canvas sizing */
+.map :global(.leaflet-container) {
+  width: 100%;
+  height: 100%;
+}
+
+/* ================= LOCATION LOADING ================= */
+
+.locLoading {
+  margin: 0 14px 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: #bfdbfe;
+  font-weight: 700;
+  font-size: 0.84rem;
+}
+
+/* ================= RESPONDERS SUMMARY ================= */
+
+.responders {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.86rem;
+  color: #d1d5db;
+  background: rgba(2, 6, 23, 0.65);
+}
+
+.responders svg {
+  color: #60a5fa;
+  flex-shrink: 0;
+}
+
+/* Marker bubble rendered via Leaflet divIcon */
+.responderMarker {
+  background: rgba(17, 24, 39, 0.92);
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.5);
+}
+
+/* ================= FOOTER ================= */
+
+.footer {
+  padding: 12px 14px;
+  font-size: 0.78rem;
+  color: #9ca3af;
+  background: rgba(2, 6, 23, 0.85);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.closeBtn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.75);
+  color: #e5e7eb;
+  font-weight: 900;
+  cursor: pointer;
+  transition: 0.15s ease;
+}
+
+.closeBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+/* ================= MOBILE POLISH ================= */
+
+@media (max-width: 420px) {
+  .panel {
+    height: 95vh;
+    border-radius: 16px;
   }
 
-  /* ================= HEADER ================= */
-  
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    background: #111827;
-    border-bottom: 1px solid #1f2937;
+  .cameraVideo {
+    height: 210px;
   }
-  
-  .title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 0.95rem;
-    letter-spacing: 0.04em;
+
+  .textArea {
+    min-height: 78px;
+    font-size: 0.88rem;
   }
-  
-  .close {
-    background: transparent;
-    border: none;
-    color: #9ca3af;
-    font-size: 1.1rem;
-    cursor: pointer;
-  }
-  
-  .close:hover {
-    color: #f87171;
-  }
-  
-  /* ================= STATUS ================= */
-  
-  .status {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 16px;
-    background: #020617;
-    border-bottom: 1px solid #1f2937;
-  }
-  
-  .badge {
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-  }
-  
-  .low {
-    background: #064e3b;
-    color: #6ee7b7;
-  }
-  
-  .medium {
-    background: #78350f;
-    color: #fde68a;
-  }
-  
-  .high {
-    background: #7f1d1d;
-    color: #fecaca;
-  }
-  
-  .timer {
-    font-size: 0.8rem;
-    color: #9ca3af;
-  }
-  
-  /* ================= LIVE CONTROLS ================= */
-  
-  .liveControls {
-    display: flex;
-    gap: 8px;
-    padding: 12px 16px;
-    border-bottom: 1px solid #1f2937;
-  }
-  
-  .liveControls button {
-    flex: 1;
-    padding: 10px;
-    background: #111827;
-    border: 1px solid #1f2937;
-    color: #e5e7eb;
-    border-radius: 10px;
-    cursor: pointer;
-    font-size: 0.85rem;
-  }
-  
-  .liveControls button:hover {
-    background: #1f2937;
-  }
-  
-  /* ================= CAPTURE PANEL ================= */
-  
-  .capturePanel {
-    margin: 12px 16px;
-    border: 1px solid #1f2937;
-    border-radius: 12px;
-    overflow: hidden;
-    background: #020617;
-  }
-  
-  .capturePanel header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 8px 12px;
-    background: #111827;
-    border-bottom: 1px solid #1f2937;
-  }
-  
-  .capturePanel header button {
-    background: transparent;
-    border: none;
-    color: #9ca3af;
-    cursor: pointer;
-  }
-  
-  .capturePanel video {
-    width: 100%;
-    height: 220px;
-    object-fit: cover;
-    background: black;
-  }
-  
-  .actions {
-    display: flex;
-    justify-content: center;
-    padding: 10px;
-  }
-  
-  .actions button {
-    padding: 10px 18px;
-    border-radius: 999px;
-    border: none;
-    background: #dc2626;
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  
-  .actions button:hover {
-    background: #b91c1c;
-  }
-  
-  /* ================= MAP ================= */
-  
-  .map {
-    flex: 1;
-    margin: 12px 16px;
-    border-radius: 14px;
-    overflow: hidden;
-    border: 1px solid #1f2937;
-  }
-  
-  /* ================= RESPONDERS ================= */
-  
-  .responders {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    border-top: 1px solid #1f2937;
-    font-size: 0.85rem;
-    color: #d1d5db;
-  }
-  
-  /* Marker bubble rendered via Leaflet divIcon */
-  .responderMarker {
-    background: #111827;
-    color: #e5e7eb;
-    border: 1px solid #1f2937;
-    border-radius: 999px;
-    padding: 4px 8px;
-    font-size: 0.65rem;
-    white-space: nowrap;
-  }
-  
-  /* ================= FOOTER ================= */
-  
-  .footer {
-    padding: 10px 16px;
-    font-size: 0.75rem;
-    color: #9ca3af;
-    background: #020617;
-    border-top: 1px solid #1f2937;
-  }
-  
+}

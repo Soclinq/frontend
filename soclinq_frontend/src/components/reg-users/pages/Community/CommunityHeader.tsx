@@ -14,10 +14,7 @@ export default function CommunityHeader() {
           Community <span>Hub</span>
         </h1>
 
-        <p className={styles.subtitle}>
-          Connect with trusted groups, engage in peer discussions,
-          and receive announcements from verified leaders.
-        </p>
+        
       </div>
     </header>
   );

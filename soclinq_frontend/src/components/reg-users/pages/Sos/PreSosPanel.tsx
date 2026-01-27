@@ -15,7 +15,8 @@ import { haptic } from "@/lib/haptics";
 import { useLiveAudio } from "@/hooks/useLiveAudio";
 import { useLiveVideo } from "@/hooks/useLiveVideo";
 import { useLiveCamera } from "@/hooks/useLiveCamera";
-
+import { authFetch } from "@/lib/authFetch";
+import { usePreciseLocation } from "@/hooks/usePreciseLocation";
 /* ================= TYPES ================= */
 
 type CaptureMode = "NONE" | "AUDIO" | "VIDEO" | "IMAGE";
@@ -44,6 +45,7 @@ export interface PreSosData {
 
 /* ================= CONSTANTS ================= */
 
+
 const MAX_MESSAGE = 300;
 const MAX_IMAGES = 10;
 const MAX_VIDEOS = 3;
@@ -59,30 +61,6 @@ function useUser() {
       phone: "+2340000000000",
     },
   };
-}
-
-/* ================= PLACEHOLDER FETCH FUNCTIONS ================= */
-
-async function fetchAnalyzeSos(payload: PreSosData) {
-  console.log("📡 [fetchAnalyzeSos] payload:", payload);
-  await new Promise(r => setTimeout(r, 400));
-  return { ok: true };
-}
-
-async function fetchUploadSosMedia(files: {
-  audios: File[];
-  videos: File[];
-  images: File[];
-}) {
-  console.log("📤 [fetchUploadSosMedia] files:", files);
-  await new Promise(r => setTimeout(r, 500));
-  return { ok: true };
-}
-
-async function fetchCreateSosCase(payload: PreSosData) {
-  console.log("🚨 [fetchCreateSosCase] payload:", payload);
-  await new Promise(r => setTimeout(r, 700));
-  return { ok: true, sosId: `SOS-${Date.now()}` };
 }
 
 /* ================= AI SEVERITY ================= */
@@ -214,12 +192,18 @@ interface PreSosPanelProps {
 
 export default function PreSosPanel({ onClose, onStart }: PreSosPanelProps) {
   const { user } = useUser();
-
+  const {
+    location,
+    loading: locationLoading,
+  } = usePreciseLocation();
+  
   /* ---------- STATE ---------- */
   const [message, setMessage] = useState("");
   const [images, setImages] = useState<File[]>([]);
   const [audios, setAudios] = useState<File[]>([]);
   const [videos, setVideos] = useState<File[]>([]);
+
+  const [draftId, setDraftId] = useState<string | null>(null);
 
   const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   const [audioPreviews, setAudioPreviews] = useState<string[]>([]);
@@ -287,6 +271,58 @@ export default function PreSosPanel({ onClose, onStart }: PreSosPanelProps) {
     }
   };
 
+  async function uploadFile(
+    draftId: string,
+    file: File,
+    mediaType: "audio" | "video" | "image",
+    duration?: number
+  ) {
+    // 1️⃣ Get presigned URL
+    const res = await authFetch(`/sos/media/presign/${draftId}/`, {
+      method: "POST",
+      body: JSON.stringify({
+        mediaType,
+        filename: file.name,
+        contentType: file.type,
+      }),
+    });
+  
+    const { upload, mediaId } = await res.json();
+  
+    // 2️⃣ Upload directly to S3
+    const form = new FormData();
+    Object.entries(upload.fields).forEach(([k, v]) =>
+      form.append(k, v as string)
+    );
+    form.append("file", file);
+  
+    await fetch(upload.url, {
+      method: "POST",
+      body: form,
+    });
+  
+    // 3️⃣ Finalize
+    await authFetch(`/sos/media/finalize/${mediaId}/`, {
+      method: "POST",
+      body: JSON.stringify({ duration }),
+    });
+  }
+  
+  async function uploadAllMedia(draftId: string) {
+    await Promise.all([
+      ...audios.map((f, i) =>
+        uploadFile(draftId, f, "audio", audioDurations[i])
+      ),
+      ...videos.map((f, i) =>
+        uploadFile(draftId, f, "video", videoDurations[i])
+      ),
+      ...images.map(f =>
+        uploadFile(draftId, f, "image")
+      ),
+    ]);
+  }
+  
+  
   const startVideoTimer = () => {
     stopVideoTimer();
     setVideoSeconds(0);
@@ -310,9 +346,6 @@ export default function PreSosPanel({ onClose, onStart }: PreSosPanelProps) {
     }
   };
 
-
-
-  /* ---------- AUDIO METER CONTROL ---------- */
   const startAudioMeter = async () => {
     try {
       const stream = liveAudio.streamRef?.current;
@@ -365,7 +398,6 @@ export default function PreSosPanel({ onClose, onStart }: PreSosPanelProps) {
     }
   };
 
-  /* ================= HELPERS ================= */
 
   const stopAndReset = async () => {
     stopAudioMeter();
@@ -585,7 +617,7 @@ export default function PreSosPanel({ onClose, onStart }: PreSosPanelProps) {
       if (hasStartRecording) {
         await (liveVideo as any).startRecording();
       } else {
-        await liveVideo.startRecording(); // fallback: preview+record together
+        await liveVideo.startRecording();
       }
 
       return;
@@ -610,15 +642,70 @@ export default function PreSosPanel({ onClose, onStart }: PreSosPanelProps) {
       notify("Add a message or attach evidence first.");
       return;
     }
+
+    if (locationLoading) {
+      notify("Still determining your location… please wait.");
+      return;
+    }
+    
+    if (!location) {
+      notify("Unable to determine your location. Try moving outdoors.");
+      return;
+    }
+    
+    
+    
+    if (location.accuracy > 300) {
+      notify("Location accuracy is too low. Move to open space.");
+      return;
+    }
+     
   
-    await fetchUploadSosMedia({ audios, videos, images });
-    await fetchAnalyzeSos(payload);
-    await fetchCreateSosCase(payload);
-  
-    haptic("medium");
-  
-    // ✅ MOVE TO ACTIVE STEP
-    onStart();
+    // 1️⃣ Create draft once
+    let id = draftId;
+
+      if (!id) {
+        const res = await authFetch("/sos/drafts/", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            message,
+            signal,
+          }),
+        });
+
+        const data = await res.json();
+        id = data.draftId;
+        setDraftId(id);
+      }
+
+      if (!id) {
+        throw new Error("Failed to create SOS draft");
+      }
+
+      await uploadAllMedia(id);
+      const res = await authFetch(`/sos/activate/${id}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          hub_id: "xxxxx",
+          latitude: location.lat,
+          longitude: location.lng,
+        }),               
+      });
+      
+      const data = await res.json();
+
+      if (!res.ok) {
+        notify(data.error || "Failed to activate SOS");
+        return;
+      }
+
+      onStart();
   };
   
 
@@ -635,7 +722,7 @@ export default function PreSosPanel({ onClose, onStart }: PreSosPanelProps) {
   /* ================= UI ================= */
 
   return (
-    <>
+    <div className={styles.panel}>
       <textarea
         placeholder="Describe the emergency (optional)…"
         value={message}
@@ -995,6 +1082,20 @@ export default function PreSosPanel({ onClose, onStart }: PreSosPanelProps) {
         </div>
       )}
 
+      {locationLoading && (
+        <small className={styles.locPending}>
+          📡 Determining your location…
+        </small>
+      )}
+
+
+      {location && (
+        <small>
+          Location accuracy ±{Math.round(location.accuracy)}m ({location.source})
+        </small>
+      )}
+
+
       {/* ======= SUBMIT ======= */}
       <div className={styles.navRow}>
         <button className={styles.cancelBtn} onClick={onClose}>
@@ -1010,6 +1111,6 @@ export default function PreSosPanel({ onClose, onStart }: PreSosPanelProps) {
         </button>
       </div>
 
-    </>
+    </div>
   );
 }
