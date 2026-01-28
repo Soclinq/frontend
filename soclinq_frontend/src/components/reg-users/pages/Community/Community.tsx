@@ -4,8 +4,8 @@ import styles from "./styles/Community.module.css";
 import { useCommunityStore } from "@/hooks/useCommunityStore";
 
 import CommunityHeader from "./CommunityHeader";
-import GroupsPanel from "./GroupsPanel";
-import ChatPanel from "./ChatPanel";
+import GroupsContainer from "./GroupsContainer";
+
 import AnnouncementsPanel from "./AnnouncementsPanel";
 import NearbySupportPanel from "./NearbySupportPanel";
 import { ReactElement } from "react";
@@ -20,21 +20,12 @@ export default function Community(): ReactElement {
 
       {/* Membership */}
       <section className={styles.section}>
-        <GroupsPanel
-          list={store.groups.list}
-          createGroup={store.groups.createGroup}
-          removeGroup={store.groups.removeGroup}
+        <GroupsContainer
         />
       </section>
 
       {/* Core interaction */}
       <section className={styles.mainGrid}>
-        <ChatPanel
-          user={store.user}
-          messages={store.chat.messages}
-          sendChat={store.chat.sendChat}
-        />
-
         <AnnouncementsPanel
           user={store.user}
           messages={store.announcements.messages}

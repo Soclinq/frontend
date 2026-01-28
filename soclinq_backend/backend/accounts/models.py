@@ -48,60 +48,130 @@ class UserRole(models.TextChoices):
     HQ_ADMIN = "HQ_ADMIN", "HQ Admin"
     INVESTIGATOR = "INVESTIGATOR", "Investigator"
 
+from community.models import AdminUnit
+from .managers import UserManager
+
 
 class User(AbstractBaseUser, PermissionsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
+    # ─────────────────────────────
     # Core identity
+    # ─────────────────────────────
     email = models.EmailField(unique=True, null=True, blank=True)
     phone_number = models.CharField(max_length=20, unique=True)
-
     username = models.CharField(max_length=150, unique=True)
 
+    # ─────────────────────────────
     # Role
+    # ─────────────────────────────
     role = models.CharField(
         max_length=30,
         choices=UserRole.choices,
-        default=UserRole.CITIZEN
+        default=UserRole.CITIZEN,
     )
 
+    # ─────────────────────────────
     # Profile
+    # ─────────────────────────────
     full_name = models.CharField(max_length=255, blank=True)
-    live_photo = models.ImageField(upload_to="users/live_photos/", null=True, blank=True)
-
-    # Language & accessibility
-    preferred_language = models.CharField(
-        max_length=20,
-        default="en"
+    live_photo = models.ImageField(
+        upload_to="users/live_photos/",
+        null=True,
+        blank=True,
     )
 
-    # Location (for auto community join)
-    country = models.CharField(max_length=100)
-    state = models.CharField(max_length=100)
-    lga = models.CharField(max_length=100)
+    preferred_language = models.CharField(max_length=20, default="en")
 
+    # ─────────────────────────────
+    # 📍 Location (AUTHORITATIVE)
+    # ─────────────────────────────
+    last_known_location = gis_models.PointField(
+        geography=True,
+        srid=4326,
+        null=True,
+        blank=True,
+        help_text="Last known GPS/IP-based location",
+    )
+
+    location_source = models.CharField(
+        max_length=20,
+        choices=[
+            ("GPS", "GPS"),
+            ("IP", "IP"),
+            ("MANUAL", "Manual"),
+            ("UNKNOWN", "Unknown"),
+        ],
+        default="UNKNOWN",
+    )
+
+    location_confidence = models.CharField(
+        max_length=10,
+        choices=[
+            ("HIGH", "High"),
+            ("MEDIUM", "Medium"),
+            ("LOW", "Low"),
+        ],
+        default="LOW",
+    )
+
+    # ─────────────────────────────
+    # 🧭 Resolved administrative units
+    # ─────────────────────────────
+    admin_0 = models.ForeignKey(
+        AdminUnit,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="users_admin_0",
+        limit_choices_to={"level": 0},
+    )
+
+    admin_1 = models.ForeignKey(
+        AdminUnit,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="users_admin_1",
+        limit_choices_to={"level": 1},
+    )
+
+    admin_2 = models.ForeignKey(
+        AdminUnit,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="users_admin_2",
+        limit_choices_to={"level": 2},
+    )
+
+    location_updated_at = models.DateTimeField(null=True, blank=True)
+
+    # ─────────────────────────────
     # Device binding
+    # ─────────────────────────────
     imei = models.CharField(max_length=50, blank=True, null=True)
     sim_number = models.CharField(max_length=50, blank=True, null=True)
     phone_model = models.CharField(max_length=100, blank=True)
     last_ip_address = models.GenericIPAddressField(null=True, blank=True)
 
+    # ─────────────────────────────
     # Security & account state
+    # ─────────────────────────────
     is_active = models.BooleanField(default=True)
     is_suspended = models.BooleanField(default=False)
+
     failed_login_attempts = models.PositiveIntegerField(default=0)
     lock_until = models.DateTimeField(null=True, blank=True)
 
+    # ─────────────────────────────
     # System flags
+    # ─────────────────────────────
     is_staff = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
 
     date_joined = models.DateTimeField(default=timezone.now)
     last_updated = models.DateTimeField(auto_now=True)
-    last_known_location = gis_models.PointField(
-    geography=True,
-    null=True,
-    blank=True)
 
     USERNAME_FIELD = "phone_number"
     REQUIRED_FIELDS = ["username"]
@@ -110,7 +180,6 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.username} ({self.role})"
-
 
 class SecurityQuestion(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="security_questions")

@@ -62,12 +62,13 @@ export function usePreciseLocation() {
   }, []);
 
   /* ---------- IP FALLBACK ---------- */
-  useIPLocation(!location && !loading, (ip) => {
+  useIPLocation(true, (ip) => {
     fusion.ingest({
       ...ip,
       source: "IP",
     });
   });
+  
 
   /* ---------- MANUAL REFRESH ---------- */
   const refresh = () => {

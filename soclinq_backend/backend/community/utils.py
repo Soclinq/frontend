@@ -1,56 +1,39 @@
-from .models import CommunityHub, HubLevel, CommunityMembership
+# community.utils
+import requests
+
+NOMINATIM_URL = "https://nominatim.openstreetmap.org/reverse"
+
+def reverse_geocode(lat: float, lng: float):
+    params = {
+        "lat": lat,
+        "lon": lng,
+        "format": "json",
+        "zoom": 10,
+        "addressdetails": 1,
+    }
+
+    headers = {
+        "User-Agent": "soclinq/1.0 (contact@yourdomain.com)"
+    }
+
+    res = requests.get(NOMINATIM_URL, params=params, headers=headers, timeout=10)
+    res.raise_for_status()
+
+    return res.json()
 
 
-def get_or_create_hub(*, level, country, state="", lga="", parent=None):
-    hub, _ = CommunityHub.objects.get_or_create(
-        level=level,
-        country=country,
-        state=state,
-        lga=lga,
-        defaults={
-            "name": f"{lga or state or country} {level.title()} Hub",
-            "parent": parent,
-            "is_verified": level in [HubLevel.STATE, HubLevel.NATIONAL],
-        },
-    )
-    return hub
+# community/utils/iso.py
 
+ISO2_TO_ISO3 = {
+    "NG": "NGA",
+    "US": "USA",
+    "GB": "GBR",
+    "IN": "IND",
+}
 
-def auto_assign_user_to_hubs(user):
-    # NATIONAL
-    national = get_or_create_hub(
-        level=HubLevel.NATIONAL,
-        country=user.country,
-    )
+def iso2_to_iso3(code: str) -> str:
+    code = code.upper()
+    if code not in ISO2_TO_ISO3:
+        raise ValueError(f"Unsupported country code: {code}")
+    return ISO2_TO_ISO3[code]
 
-    # STATE
-    state = get_or_create_hub(
-        level=HubLevel.STATE,
-        country=user.country,
-        state=user.state,
-        parent=national,
-    )
-
-    # LGA
-    lga = get_or_create_hub(
-        level=HubLevel.LGA,
-        country=user.country,
-        state=user.state,
-        lga=user.lga,
-        parent=state,
-    )
-
-    # LOCAL
-    local = get_or_create_hub(
-        level=HubLevel.LOCAL,
-        country=user.country,
-        state=user.state,
-        lga=user.lga,
-        parent=lga,
-    )
-
-    for hub in [local, lga, state, national]:
-        CommunityMembership.objects.get_or_create(
-            user=user,
-            hub=hub,
-        )

@@ -27,6 +27,8 @@ path("api/v1/", include([
     path("notifications/", include("notifications.urls")),
     path("dashboards/", include("dashboards.urls")),
     path("live/", include("live.urls")),
+    path("communities/", include("community.urls")),
+
 
 ]))
 ]
