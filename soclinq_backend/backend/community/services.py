@@ -184,3 +184,107 @@ def ensure_system_hubs_and_join(user, admin_units):
         hubs[level] = hub
 
     return hubs
+
+
+
+from rest_framework import serializers
+from community.models import HubMessage, MessageAttachment
+
+
+class MessageAttachmentSerializer(serializers.ModelSerializer):
+    type = serializers.CharField(source="attachment_type")
+    thumbnailUrl = serializers.CharField(source="thumbnail_url", allow_blank=True, required=False)
+
+
+    class Meta:
+        model = MessageAttachment
+        fields = [
+            "id",
+            "type",
+            "url",
+            "thumbnailUrl",
+            "mime_type",
+            "file_name",
+            "file_size",
+            "width",
+            "height",
+            "duration_ms",
+        ]
+
+
+class HubMessageSerializer(serializers.ModelSerializer):
+    hubId = serializers.UUIDField(source="hub_id", read_only=True)  # ✅ ADD THIS
+
+    messageType = serializers.CharField(source="message_type")
+    createdAt = serializers.DateTimeField(source="created_at")
+    clientTempId = serializers.CharField(source="client_temp_id", required=False, allow_blank=True)
+
+    sender = serializers.SerializerMethodField()
+    replyTo = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
+    isMine = serializers.SerializerMethodField()
+    editedAt = serializers.DateTimeField(source="edited_at", allow_null=True, required=False)
+    deletedAt = serializers.DateTimeField(source="deleted_at", allow_null=True, required=False)
+
+
+    def get_sender(self, obj):
+        user = obj.sender
+        return {
+            "id": str(user.id),
+            "name": getattr(user, "full_name", None) or user.username,
+            "photo": getattr(user, "photo", None),
+        }
+
+    def get_isMine(self, obj):
+        req = self.context.get("request")
+        if not req or not req.user.is_authenticated:
+            return False
+        return str(obj.sender_id) == str(req.user.id)
+
+    def get_replyTo(self, obj):
+        if not obj.reply_to_id:
+            return None
+        return {
+            "id": str(obj.reply_to_id),
+            "text": obj.reply_to.text if obj.reply_to else "",
+            "senderName": getattr(obj.reply_to.sender, "full_name", None)
+            or (obj.reply_to.sender.username if obj.reply_to else None),
+        }
+    
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        data["hubId"] = str(instance.hub_id)
+
+        # ✅ if deleted, hide text + attachments
+        if instance.deleted_at:
+            data["text"] = ""
+            data["attachments"] = []
+            data["messageType"] = "TEXT"
+            data["reactions"] = []
+            data["myReaction"] = None
+
+        return data
+
+
+    def get_attachments(self, obj):
+        qs = obj.attachments.all()
+        return MessageAttachmentSerializer(qs, many=True).data
+
+    class Meta:
+        model = HubMessage
+        fields = [
+            "id",
+            "clientTempId",
+            "hubId", 
+            "messageType",
+            "text",
+            "createdAt",
+            "sender",
+            "replyTo",
+            "attachments",
+            "isMine",
+            "editedAt",    
+            "deletedAt",
+            "myReaction",
+        ]

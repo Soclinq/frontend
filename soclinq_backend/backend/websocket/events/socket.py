@@ -2,12 +2,15 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
 
-def notify_group(group_name: str, payload: dict, exclude_user_channel: str | None = None):
+def notify_group(group_id: str, payload: dict, exclude_user_channel: str | None = None):
     """
-    Send payload to a channels group.
-    Uses BaseConsumer.broadcast() format.
+    Broadcast payload to a websocket chat group.
+    Group naming MUST match the consumer group_add.
     """
     channel_layer = get_channel_layer()
+
+    # ✅ Valid group name for Channels (no slashes, no spaces, < 100 chars)
+    group_name = f"chat_{group_id}"
 
     async_to_sync(channel_layer.group_send)(
         group_name,

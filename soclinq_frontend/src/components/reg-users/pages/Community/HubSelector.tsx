@@ -2,9 +2,10 @@
 
 import {
   FiMapPin,
-  FiChevronRight,
   FiLayers,
   FiPlus,
+  FiChevronDown,
+  FiChevronUp,
 } from "react-icons/fi";
 import { useState } from "react";
 import styles from "./styles/HubSelector.module.css";
@@ -66,30 +67,33 @@ export default function HubSelector({
   return (
     <div className={styles.modalBackdrop}>
       <div className={styles.modalLarge}>
-        {/* Header */}
+        {/* Header (CLICKABLE) */}
         <header className={styles.modalHeader}>
-          <div className={styles.lgaInfo}>
-            <FiMapPin className={styles.lgaIcon} />
-            <div>
-              <h3 className={styles.lgaName}>
-                {currentLGA?.lga.name ?? "Select your LGA"}
-              </h3>
-              <p className={styles.lgaMeta}>Community hub</p>
+          <button
+            type="button"
+            className={styles.lgaHeaderBtn}
+            disabled={disabledAll}
+            onClick={() => setChangeLGAModalOpen(true)}
+          >
+            <div className={styles.lgaInfo}>
+              <FiMapPin className={styles.lgaIcon} />
+              <div>
+                <h3 className={styles.lgaName}>
+                  {currentLGA?.lga.name ?? "Select your LGA"}
+                </h3>
+                <p className={styles.lgaMeta}>Community hub</p>
+              </div>
             </div>
-          </div>
+
+            {/* Arrow right side */}
+            <span className={styles.lgaArrow}>
+              <FiChevronUp /> <FiChevronDown />
+            </span>
+          </button>
         </header>
 
         {/* Actions */}
         <div className={styles.actionRow}>
-          <button
-            className={styles.actionBtn}
-            disabled={!currentLGA || disabledAll}
-            onClick={() => setChangeLGAModalOpen(true)}
-          >
-            <FiChevronRight />
-            <span>Change LGA</span>
-          </button>
-
           <button
             className={styles.actionBtnPrimary}
             disabled={!currentLGA || disabledAll}
@@ -133,7 +137,10 @@ export default function HubSelector({
         loading={loading}
         lgaGroups={lgaGroups}
         currentLGA={currentLGA}
-        onSelect={onSwitchLGA}
+        onSelect={(lga) => {
+          onSwitchLGA(lga);
+          setChangeLGAModalOpen(false);
+        }}
         onClose={() => setChangeLGAModalOpen(false)}
       />
 

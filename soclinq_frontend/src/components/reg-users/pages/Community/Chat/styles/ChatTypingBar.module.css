@@ -1,0 +1,33 @@
+.typing {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  
+    padding: 6px 12px;
+    margin: 0 12px 6px;
+  
+    border-radius: var(--chat-radius-lg);
+  
+    background: color-mix(in srgb, var(--chat-bg-soft) 92%, transparent);
+    border: 1px solid var(--chat-border-soft);
+  
+    color: var(--chat-text-muted);
+    font-size: 12px;
+    font-weight: 900;
+  
+    backdrop-filter: blur(10px);
+  }
+  
+  .icon {
+    font-size: 16px;
+    color: var(--chat-focus);
+    opacity: 0.9;
+  }
+  
+  .text {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  

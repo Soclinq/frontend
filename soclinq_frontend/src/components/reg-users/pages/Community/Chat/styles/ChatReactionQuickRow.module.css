@@ -1,0 +1,117 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: transparent;
+  }
+  
+  /* floating row */
+  .row {
+    position: fixed;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  
+    padding: 8px 10px;
+    border-radius: var(--chat-radius-lg);
+  
+    background: var(--chat-surface);
+    border: 1px solid var(--chat-border-soft);
+    box-shadow: var(--chat-shadow);
+  
+    animation: pop 0.12s ease;
+    transform-origin: left top;
+  }
+  
+  @keyframes pop {
+    from {
+      transform: scale(0.98);
+      opacity: 0.7;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  .emojis {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-right: 4px;
+    border-right: 1px solid var(--chat-border-soft);
+  }
+  
+  /* emoji buttons */
+  .emojiBtn {
+    width: 36px;
+    height: 36px;
+    border-radius: 14px;
+  
+    border: 1px solid transparent;
+    background: transparent;
+  
+    cursor: pointer;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    transition: transform 0.08s ease, background 0.2s ease, border 0.2s ease;
+  }
+  
+  .emojiBtn:hover {
+    background: var(--chat-accent-soft);
+    border-color: color-mix(in srgb, var(--chat-accent) 30%, transparent);
+  }
+  
+  .emojiBtn:active {
+    transform: scale(0.97);
+  }
+  
+  .emojiActive {
+    background: var(--chat-brand-soft);
+    border-color: color-mix(in srgb, var(--chat-brand) 30%, transparent);
+  }
+  
+  .emoji {
+    font-size: 18px;
+    line-height: 1;
+  }
+  
+  /* plus + close buttons */
+  .plusBtn,
+  .closeBtn {
+    width: 36px;
+    height: 36px;
+    border-radius: 14px;
+  
+    border: 1px solid var(--chat-border);
+    background: var(--chat-surface);
+  
+    color: var(--chat-text);
+    cursor: pointer;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    transition: transform 0.08s ease, background 0.2s ease, border 0.2s ease;
+  }
+  
+  .plusBtn:hover {
+    background: var(--chat-focus-soft);
+    border-color: color-mix(in srgb, var(--chat-focus) 30%, transparent);
+  }
+  
+  .closeBtn:hover {
+    background: var(--chat-danger-soft);
+    border-color: color-mix(in srgb, var(--chat-danger) 30%, transparent);
+    color: var(--chat-danger);
+  }
+  
+  .plusBtn:active,
+  .closeBtn:active {
+    transform: scale(0.97);
+  }
+  

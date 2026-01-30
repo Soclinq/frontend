@@ -16,13 +16,15 @@ class ChatConsumer(BaseConsumer):
     """
 
     async def connect(self):
+        print("WS COOKIES:", self.scope.get("cookies"))
+        print("WS USER:", self.scope.get("user"))
         user = self.scope.get("user")
 
         if not user or user.is_anonymous:
             await self.close(code=4001)
             return
 
-        self.group_id = self.scope["url_route"]["kwargs"].get("group_id")
+        self.group_id = self.scope["url_route"]["kwargs"]["group_id"]
         if not self.group_id:
             await self.close(code=4002)
             return
@@ -37,7 +39,7 @@ class ChatConsumer(BaseConsumer):
             await self.close(code=4003)
             return
 
-        self.room = chat_group_name(self.group_id)
+        self.room = f"chat_{self.group_id}"
 
         await self.channel_layer.group_add(self.room, self.channel_name)
         await self.accept()
@@ -59,7 +61,7 @@ class ChatConsumer(BaseConsumer):
         user = self.scope.get("user")
 
         if hasattr(self, "room"):
-            await self.channel_layer.group_discard(self.room, self.channel_name)
+            await self.channel_layer.group_discard(self.room, self.channel_name)    
 
         if user and not user.is_anonymous and hasattr(self, "room"):
             await self._broadcast_to_room(

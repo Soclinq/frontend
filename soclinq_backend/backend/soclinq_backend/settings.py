@@ -72,19 +72,14 @@ CORS_ALLOW_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
 ASGI_APPLICATION = "soclinq_backend.asgi.application"
 
 CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [
-                (
-                    os.getenv("REDIS_HOST", "redis"),
-                    int(os.getenv("REDIS_PORT", 6379)),
-                    ("127.0.0.1", 6379)
-                )
-            ],
-        },
+  "default": {
+    "BACKEND": "channels_redis.core.RedisChannelLayer",
+    "CONFIG": {
+      "hosts": [("127.0.0.1", 6379)],
     },
+  },
 }
+
 
 # Application definition
 

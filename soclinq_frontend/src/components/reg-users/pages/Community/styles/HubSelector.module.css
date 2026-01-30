@@ -886,6 +886,33 @@
   
   /* ================= RESPONSIVE ================= */
   
+  .lgaHeaderBtn {
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+  }
+  
+  .lgaHeaderBtn:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  
+  .lgaArrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    gap: 2px;
+    font-size: 16px;
+    opacity: 0.85;
+  }
+  
   @media (max-width: 520px) {
     .modalLarge {
       border-radius: 18px;

@@ -66,13 +66,19 @@ export default function GroupsContainer() {
         source: source ?? "UNKNOWN",
       }),
     });
-
+  
     if (!res.ok) throw new Error();
-
+  
     const data = await res.json();
+  
     const blocks: LGAGroupBlock[] = data.groups ?? [];
-    return blocks;
+  
+    const resolvedLgaId: string | undefined =
+      data?.resolvedLocation?.adminUnits?.["2"]?.id;
+  
+    return { blocks, resolvedLgaId };
   }
+  
 
 
 async function createHub(payload: CreateHubPayload) {
@@ -131,7 +137,8 @@ async function createHub(payload: CreateHubPayload) {
       try {
         setLoading(true);
 
-        const blocks = await loadCommunities(lat, lng);
+
+        const { blocks, resolvedLgaId } = await loadCommunities(lat, lng);
 
         if (!blocks.length) {
           notify({
@@ -144,9 +151,16 @@ async function createHub(payload: CreateHubPayload) {
         }
 
         setLgaGroups(blocks);
-        setCurrentLGA(blocks[0]);
+
+        // ✅ select based on resolved LGA (ADMIN_2)
+        const autoSelected =
+          (resolvedLgaId && blocks.find((b) => b.lga.id === resolvedLgaId)) || blocks[0];
+
+        setCurrentLGA(autoSelected);
+
         setViewMode("GROUPS");
         setActiveGroupId(null);
+
       } catch {
         notify({
           type: "error",

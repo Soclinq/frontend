@@ -1,0 +1,148 @@
+.header {
+    width: 100%;
+    padding: 12px 14px;
+  
+    background: color-mix(in srgb, var(--chat-bg) 92%, transparent);
+    backdrop-filter: blur(14px);
+  
+    border-bottom: 1px solid var(--chat-border-soft);
+    z-index: 20;
+  }
+  
+  /* =========================
+     Normal Mode
+  ========================= */
+  .normalRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 900;
+    color: var(--chat-text);
+    letter-spacing: 0.2px;
+  }
+  
+  .backBtn {
+    width: var(--chat-btn);
+    height: var(--chat-btn);
+    border-radius: var(--chat-radius-md);
+  
+    border: 1px solid var(--chat-border);
+    background: var(--chat-surface-2);
+    color: var(--chat-text);
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.2s ease, border 0.2s ease;
+  }
+  
+  .backBtn:hover {
+    background: var(--chat-accent-soft);
+    border-color: color-mix(in srgb, var(--chat-accent) 35%, var(--chat-border));
+  }
+  
+  .backBtn:active {
+    transform: scale(0.97);
+  }
+  
+  /* =========================
+     Selection Mode
+  ========================= */
+  .selectionRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .closeSelectionBtn {
+    width: var(--chat-btn);
+    height: var(--chat-btn);
+    border-radius: var(--chat-radius-md);
+  
+    border: 1px solid var(--chat-border);
+    background: var(--chat-accent-soft);
+    color: var(--chat-text);
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.2s ease, border 0.2s ease;
+  }
+  
+  .closeSelectionBtn:hover {
+    background: color-mix(in srgb, var(--chat-accent-soft) 80%, white);
+    border-color: color-mix(in srgb, var(--chat-accent) 45%, var(--chat-border));
+  }
+  
+  .closeSelectionBtn:active {
+    transform: scale(0.97);
+  }
+  
+  .selectionCount {
+    font-size: 14px;
+    font-weight: 900;
+    color: var(--chat-text);
+    margin-right: auto;
+  }
+  
+  .selectionActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  /* =========================
+     Icon Buttons
+  ========================= */
+  .iconBtn {
+    width: var(--chat-btn);
+    height: var(--chat-btn);
+    border-radius: var(--chat-radius-md);
+  
+    border: 1px solid var(--chat-border);
+    background: var(--chat-surface);
+  
+    color: var(--chat-text);
+    box-shadow: var(--chat-shadow);
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    cursor: pointer;
+    transition: transform 0.08s ease, background 0.2s ease, border 0.2s ease;
+  }
+  
+  .iconBtn:hover {
+    background: var(--chat-brand-soft);
+    border-color: color-mix(in srgb, var(--chat-brand) 30%, var(--chat-border));
+  }
+  
+  .iconBtn:active {
+    transform: scale(0.97);
+  }
+  
+  .iconBtn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  
+  .dangerBtn {
+    color: var(--chat-danger);
+  }
+  
+  .dangerBtn:hover {
+    background: var(--chat-danger-soft);
+    border-color: color-mix(in srgb, var(--chat-danger) 35%, var(--chat-border));
+  }
+  

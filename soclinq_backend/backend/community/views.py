@@ -351,36 +351,21 @@ class CreateCommunityView(APIView):
             status=status.HTTP_201_CREATED,
         )
 
+from uuid import UUID
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from community.models import CommunityMembership, HubMessage, MessageAttachment, MessageType
+from community.services import HubMessageSerializer
+from websocket.events.socket import notify_group
+
+
 class GroupMessagesView(APIView):
-    """
-    GET  /chat/groups/<group_id>/messages/?cursor=...
-    POST /chat/groups/<group_id>/messages/
-
-    GET Response:
-    {
-      "messages": [...],
-      "nextCursor": "..."
-    }
-
-    POST Body:
-    {
-      "text": "hello",
-      "tempId": "tmp-123" (optional)
-    }
-
-    POST Response:
-    {
-      "id": "...db_uuid...",
-      "tempId": "...",
-      "text": "...",
-      "createdAt": "...",
-      "sender": {...}
-    }
-    """
-
     permission_classes = [IsAuthenticated]
     PAGE_SIZE = 30
-
+    
     def get(self, request, group_id):
         user = request.user
 
@@ -397,9 +382,11 @@ class GroupMessagesView(APIView):
 
         qs = (
             HubMessage.objects.filter(hub_id=group_id)
+            .exclude(hidden_by__user=user)  # ✅ delete-for-me filter
             .select_related("sender")
             .order_by("-created_at", "-id")
         )
+
 
         # ✅ cursor pagination (load older)
         if cursor:
@@ -466,16 +453,15 @@ class GroupMessagesView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
     def post(self, request, group_id):
         user = request.user
-        text = (request.data.get("text") or "").strip()
-        temp_id = request.data.get("tempId")  # ✅ optional
 
-        if not text:
-            return Response(
-                {"error": "Message text is required"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        text = (request.data.get("text") or "").strip()
+        client_temp_id = request.data.get("clientTempId") or ""
+        message_type = request.data.get("messageType") or MessageType.TEXT
+        reply_to_id = request.data.get("replyToId")
+        attachments = request.data.get("attachments") or []  # array from upload endpoint
 
         # ✅ Ensure membership
         if not CommunityMembership.objects.filter(
@@ -486,37 +472,594 @@ class GroupMessagesView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # ✅ Create message in DB
+        # ✅ Validate minimal content
+        if not text and not attachments:
+            return Response(
+                {"error": "Message must contain text or attachments"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ✅ Resolve reply_to
+        reply_obj = None
+        if reply_to_id:
+            try:
+                reply_obj = HubMessage.objects.filter(hub_id=group_id, id=reply_to_id).first()
+            except Exception:
+                reply_obj = None
+
+        # ✅ Create message
         msg = HubMessage.objects.create(
             hub_id=group_id,
             sender=user,
             text=text,
+            message_type=message_type,
+            client_temp_id=client_temp_id,
+            reply_to=reply_obj,
         )
 
-        payload = {
-            "id": str(msg.id),
-            "tempId": temp_id,
-            "text": msg.text,
-            "createdAt": msg.created_at.isoformat(),
-            "sender": {
-                "id": str(user.id),
-                "name": getattr(user, "full_name", None) or user.username,
-                "photo": getattr(user, "photo", None),
-            },
-        }
+        # ✅ Attach uploaded attachments
+        # attachments = [{id, type, url, ...}]
+        for att in attachments:
+            att_id = att.get("id")
+            if not att_id:
+                continue
 
-        # ✅ Broadcast to all members EXCEPT sender (avoid duplicates)
+            # ✅ Attach only existing attachments (avoid user hacking)
+            a = MessageAttachment.objects.filter(id=att_id, message__isnull=True).first()
+            if not a:
+                continue
+
+            a.message = msg
+            a.save()
+
+        # ✅ Serialize for response
+        data = HubMessageSerializer(msg, context={"request": request}).data
+
+        # ✅ Broadcast to websocket group
         notify_group(
-            group_name=chat_group_name(group_id),
+            group_id=str(group_id),
             payload={
                 "type": "message:new",
+                "payload": data,
+            },
+        )
+
+        return Response(data, status=status.HTTP_201_CREATED)
+
+
+
+import uuid
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from community.models import MessageAttachment, AttachmentType
+
+
+def detect_attachment_type(mime: str) -> str:
+    if mime.startswith("image/"):
+        return AttachmentType.IMAGE
+    if mime.startswith("audio/"):
+        return AttachmentType.AUDIO
+    if mime.startswith("video/"):
+        return AttachmentType.VIDEO
+    return AttachmentType.FILE
+
+
+class ChatUploadView(APIView):
+    """
+    POST /communities/chat/uploads/
+
+    FormData:
+      files: File[]  (multiple)
+
+    Response:
+    {
+      "attachments": [
+        {
+          "id": "...",
+          "type": "IMAGE",
+          "url": "https://...",
+          "file_name": "...",
+          "mime_type": "...",
+          ...
+        }
+      ]
+    }
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        files = request.FILES.getlist("files")
+
+        if not files:
+            return Response(
+                {"error": "No files provided"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ⚠️ TEMP: storing locally using Django file storage.
+        # In production, use S3 via django-storages or presigned upload.
+        saved = []
+
+        for f in files:
+            mime = getattr(f, "content_type", "") or ""
+            a_type = detect_attachment_type(mime)
+
+            # We create an attachment record WITHOUT message yet
+            # (it will later be attached in message POST)
+            att = MessageAttachment.objects.create(
+                attachment_type=a_type,
+                url="",  # will fill after saving file (below)
+                file_name=f.name,
+                file_size=f.size,
+                mime_type=mime,
+            )
+
+            # store file via FileField if you used FileField
+            # BUT our model uses url+s3_key. For local dev, generate URL:
+            # ✅ easiest: change MessageAttachment model to include FileField in dev
+            # OR store uploaded file with your own upload system.
+
+            # ✅ For now, return "fake url" placeholder
+            # You will replace this with S3 URL later.
+            att.url = f"/uploads/chat/{uuid.uuid4()}-{f.name}"
+            att.save()
+
+            saved.append(
+                {
+                    "id": str(att.id),
+                    "type": att.attachment_type,
+                    "url": att.url,
+                    "thumbnailUrl": att.thumbnail_url if hasattr(att, "thumbnail_url") else "",
+                    "mimeType": att.mime_type,
+                    "fileName": att.file_name,
+                    "fileSize": att.file_size,
+                    "width": att.width,
+                    "height": att.height,
+                    "durationMs": att.duration_ms,
+                }
+            )
+
+        return Response({"attachments": saved}, status=status.HTTP_201_CREATED)
+
+
+# community/views_chat_reactions.py
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from community.models import HubMessage, MessageReaction
+from websocket.events.socket import notify_group
+
+class MessageReactionView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, message_id):
+        emoji = (request.data.get("emoji") or "").strip()
+        if not emoji:
+            return Response({"error": "emoji is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        msg = HubMessage.objects.filter(id=message_id).first()
+        if not msg:
+            return Response({"error": "Message not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # ✅ ensure membership
+        if not msg.hub.memberships.filter(user=request.user, is_active=True).exists():
+            return Response({"error": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+        # toggle reaction
+        exists = MessageReaction.objects.filter(message=msg, user=request.user, emoji=emoji).exists()
+        if exists:
+            MessageReaction.objects.filter(message=msg, user=request.user, emoji=emoji).delete()
+            action = "removed"
+        else:
+            MessageReaction.objects.create(message=msg, user=request.user, emoji=emoji)
+            action = "added"
+
+        payload = {
+            "messageId": str(msg.id),
+            "emoji": emoji,
+            "userId": str(request.user.id),
+            "action": action,
+        }
+
+        notify_group(
+            group_id=str(msg.hub_id),
+            payload={"type": "reaction:update", "payload": payload},
+        )
+
+        return Response(payload, status=status.HTTP_200_OK)
+
+
+from datetime import timedelta
+from django.utils import timezone
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from community.models import HubMessage
+from websocket.events.socket import notify_group
+
+from datetime import timedelta
+from django.utils import timezone
+
+def can_force_delete(user, hub_id: str):
+    if user.is_staff or user.is_superuser:
+        return True
+
+    return CommunityMembership.objects.filter(
+        user=user,
+        hub_id=hub_id,
+        role__in=["MODERATOR", "LEADER"],
+        is_active=True,
+    ).exists()
+
+
+class MessageDeleteView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, message_id):
+        msg = HubMessage.objects.select_related("hub").filter(id=message_id).first()
+        if not msg:
+            return Response({"error": "Message not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        is_sender = str(msg.sender_id) == str(request.user.id)
+
+        # ✅ sender window
+        sender_can_delete = is_sender and (timezone.now() - msg.created_at <= timedelta(hours=1))
+
+        # ✅ moderators can delete anytime
+        mod_can_delete = can_force_delete(request.user, msg.hub_id)
+
+        if not (sender_can_delete or mod_can_delete):
+            return Response({"error": "Not allowed to delete this message"}, status=status.HTTP_403_FORBIDDEN)
+
+        # ✅ must be sender
+        if str(msg.sender_id) != str(request.user.id):
+            return Response({"error": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+        # ✅ time limit: 1 hour
+        if timezone.now() - msg.created_at > timedelta(hours=1):
+            return Response({"error": "Delete window expired (1 hour max)"}, status=status.HTTP_400_BAD_REQUEST)
+
+        hub_id = str(msg.hub_id)
+
+        # ✅ soft delete recommended
+        msg.deleted_at = timezone.now()
+        msg.save(update_fields=["deleted_at"])
+
+
+        # ✅ notify websocket
+        notify_group(
+            group_id=str(msg.hub_id),
+            payload={
+                "type": "message:delete",
                 "payload": {
-                    **payload,
-                    "excludeSenderId": str(user.id),
-                    "isMine": False,
-                    "status": "sent",
+                    "messageId": str(msg.id),
+                    "deletedAt": msg.deleted_at.isoformat(),
                 },
             },
         )
 
-        return Response(payload, status=status.HTTP_201_CREATED)
+
+        return Response({"ok": True}, status=status.HTTP_200_OK)
+
+
+from datetime import timedelta
+from django.utils import timezone
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from community.models import HubMessage
+from community.services import HubMessageSerializer
+from websocket.events.socket import notify_group
+
+
+class MessageEditView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, message_id):
+        msg = HubMessage.objects.select_related("hub").filter(id=message_id).first()
+        if not msg:
+            return Response({"error": "Message not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if str(msg.sender_id) != str(request.user.id):
+            return Response({"error": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+        # ✅ time limit: 20 mins
+        if timezone.now() - msg.created_at > timedelta(minutes=20):
+            return Response({"error": "Edit window expired (20 minutes max)"}, status=status.HTTP_400_BAD_REQUEST)
+
+        text = (request.data.get("text") or "").strip()
+        if not text:
+            return Response({"error": "Text is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        msg.text = text
+        msg.edited_at = timezone.now()
+        msg.save(update_fields=["text", "edited_at"])
+
+
+        data = HubMessageSerializer(msg, context={"request": request}).data
+
+        notify_group(
+            group_id=str(msg.hub_id),
+            payload={"type": "message:edit", "payload": data},
+        )
+
+        return Response(data, status=status.HTTP_200_OK)
+
+
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from community.models import HubMessage, HubMessageHidden
+
+
+class MessageDeleteForMeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, message_id):
+        msg = HubMessage.objects.filter(id=message_id).first()
+        if not msg:
+            return Response({"error": "Message not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        HubMessageHidden.objects.get_or_create(message=msg, user=request.user)
+
+        return Response({"ok": True}, status=status.HTTP_200_OK)
+
+
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from community.models import HubMessage, CommunityMembership, HubMessageReceipt, HubMessageReaction
+
+
+class MessageInfoView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, message_id):
+        msg = HubMessage.objects.select_related("hub", "sender").filter(id=message_id).first()
+        if not msg:
+            return Response({"error": "Message not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # ✅ must be a member of hub
+        if not CommunityMembership.objects.filter(user=request.user, hub_id=msg.hub_id, is_active=True).exists():
+            return Response({"error": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+        # ✅ receipts (delivered/read)
+        receipts = (
+            HubMessageReceipt.objects.select_related("user")
+            .filter(message=msg)
+            .order_by("-read_at", "-delivered_at")
+        )
+
+        delivered = []
+        read = []
+
+        for r in receipts:
+            u = r.user
+            base = {
+                "user": {
+                    "id": str(u.id),
+                    "name": getattr(u, "full_name", None) or u.username,
+                    "photo": getattr(u, "photo", None),
+                }
+            }
+
+            if r.delivered_at:
+                delivered.append({**base, "deliveredAt": r.delivered_at.isoformat()})
+            if r.read_at:
+                read.append({**base, "readAt": r.read_at.isoformat()})
+
+        # ✅ reactions by who
+        reaction_items = (
+            HubMessageReaction.objects.select_related("user")
+            .filter(message=msg)
+            .order_by("-created_at")
+        )
+
+        reactions = [
+            {
+                "emoji": rx.emoji,
+                "createdAt": rx.created_at.isoformat(),
+                "user": {
+                    "id": str(rx.user.id),
+                    "name": getattr(rx.user, "full_name", None) or rx.user.username,
+                    "photo": getattr(rx.user, "photo", None),
+                },
+            }
+            for rx in reaction_items
+        ]
+
+        return Response(
+            {
+                "message": {
+                    "id": str(msg.id),
+                    "text": msg.text,
+                    "createdAt": msg.created_at.isoformat(),
+                    "editedAt": msg.edited_at.isoformat() if msg.edited_at else None,
+                    "deletedAt": msg.deleted_at.isoformat() if msg.deleted_at else None,
+                    "sender": {
+                        "id": str(msg.sender.id),
+                        "name": getattr(msg.sender, "full_name", None) or msg.sender.username,
+                        "photo": getattr(msg.sender, "photo", None),
+                    },
+                },
+                "delivered": delivered,
+                "read": read,
+                "reactions": reactions,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+from uuid import UUID
+from django.db import transaction
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from community.models import CommunityHub, CommunityMembership, HubMessage, MessageAttachment
+from community.services import HubMessageSerializer
+from websocket.events.socket import notify_group
+
+
+class MessageForwardView(APIView):
+    """
+    POST /communities/chat/messages/<message_id>/forward/
+
+    Body:
+    {
+      "targetHubIds": ["uuid1", "uuid2"]
+    }
+
+    ✅ clones message + clones attachments into each hub
+    ✅ broadcasts message:new into each target hub ws group
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, message_id):
+        user = request.user
+
+        target_hub_ids = request.data.get("targetHubIds") or []
+        if not isinstance(target_hub_ids, list) or not target_hub_ids:
+            return Response(
+                {"error": "targetHubIds must be a non-empty array"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ✅ Load source message
+        src = (
+            HubMessage.objects.select_related("hub", "sender", "reply_to")
+            .prefetch_related("attachments")
+            .filter(id=message_id)
+            .first()
+        )
+
+        if not src:
+            return Response(
+                {"error": "Message not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # ✅ Security: user must be a member of the source hub
+        if not CommunityMembership.objects.filter(
+            user=user, hub_id=src.hub_id, is_active=True
+        ).exists():
+            return Response(
+                {"error": "You are not allowed to forward from this hub"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # ✅ Normalize UUIDs
+        parsed_ids = []
+        for raw in target_hub_ids:
+            try:
+                parsed_ids.append(UUID(str(raw)))
+            except Exception:
+                continue
+
+        if not parsed_ids:
+            return Response(
+                {"error": "No valid target hub IDs"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ✅ fetch hubs
+        hubs = CommunityHub.objects.filter(id__in=parsed_ids, is_active=True)
+        hub_map = {h.id: h for h in hubs}
+
+        forwarded_count = 0
+        forwarded_messages = []  # optional
+
+        # ✅ bulk forward safely
+        for hub_id in parsed_ids:
+            hub = hub_map.get(hub_id)
+            if not hub:
+                continue
+
+            # ✅ Membership check per target hub
+            if not CommunityMembership.objects.filter(
+                user=user, hub_id=hub.id, is_active=True
+            ).exists():
+                continue
+
+            # ✅ prevent forwarding into same hub (optional)
+            # if hub.id == src.hub_id:
+            #     continue
+
+            with transaction.atomic():
+                # ✅ clone message
+                new_msg = HubMessage.objects.create(
+                    hub_id=hub.id,
+                    sender=user,
+                    text=src.text or "",
+                    message_type=src.message_type,
+                    reply_to=src.reply_to if src.reply_to_id else None,
+
+                    # ✅ OPTIONAL fields if you added them
+                    # forwarded_from=src,
+                    # is_forwarded=True,
+                )
+
+                # ✅ clone attachments (same S3 URLs)
+                for a in src.attachments.all():
+                    MessageAttachment.objects.create(
+                        message=new_msg,
+                        attachment_type=a.attachment_type,
+                        url=a.url,
+                        thumbnail_url=getattr(a, "thumbnail_url", "") or "",
+                        mime_type=getattr(a, "mime_type", "") or "",
+                        file_name=getattr(a, "file_name", "") or "",
+                        file_size=getattr(a, "file_size", None),
+                        width=getattr(a, "width", None),
+                        height=getattr(a, "height", None),
+                        duration_ms=getattr(a, "duration_ms", None),
+                    )
+
+                forwarded_count += 1
+
+                # ✅ serialize response payload
+                payload = HubMessageSerializer(
+                    new_msg, context={"request": request}
+                ).data
+
+                forwarded_messages.append(payload)
+
+                # ✅ websocket broadcast to target hub group
+                notify_group(
+                    group_name=chat_group_name(str(hub.id)),
+                    payload={
+                        "type": "message:new",
+                        "payload": payload,
+                    },
+                )
+
+        if forwarded_count == 0:
+            return Response(
+                {"error": "No hubs forwarded. (not a member / invalid hubs)"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return Response(
+            {
+                "success": True,
+                "forwarded": forwarded_count,
+                # optional, return created messages
+                "messages": forwarded_messages,
+            },
+            status=status.HTTP_200_OK,
+        )

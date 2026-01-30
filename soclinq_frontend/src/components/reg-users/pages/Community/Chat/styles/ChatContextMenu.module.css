@@ -1,0 +1,92 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+  
+    background: transparent;
+  }
+  
+  /* WhatsApp-like floating menu */
+  .menu {
+    position: fixed;
+    min-width: 210px;
+    max-width: 240px;
+  
+    padding: 8px;
+    border-radius: var(--chat-radius-lg);
+  
+    background: var(--chat-surface);
+    border: 1px solid var(--chat-border-soft);
+    box-shadow: var(--chat-shadow);
+  
+    transform-origin: top left;
+    animation: pop 0.12s ease;
+  }
+  
+  @keyframes pop {
+    from {
+      transform: scale(0.98);
+      opacity: 0.6;
+    }
+    to {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  
+  .item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  
+    padding: 10px 10px;
+    border-radius: 14px;
+  
+    border: 1px solid transparent;
+    background: transparent;
+  
+    color: var(--chat-text);
+    font-size: 13px;
+    font-weight: 900;
+  
+    cursor: pointer;
+    text-align: left;
+  
+    transition: background 0.18s ease, border 0.18s ease, transform 0.08s ease;
+  }
+  
+  .item svg {
+    font-size: 18px;
+    opacity: 0.9;
+  }
+  
+  .item:hover {
+    background: var(--chat-accent-soft);
+    border-color: color-mix(in srgb, var(--chat-accent) 30%, transparent);
+  }
+  
+  .item:active {
+    transform: scale(0.99);
+  }
+  
+  .item:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  
+  .divider {
+    height: 1px;
+    background: var(--chat-border-soft);
+    margin: 6px 4px;
+  }
+  
+  .danger {
+    color: var(--chat-danger);
+  }
+  
+  .danger:hover {
+    background: var(--chat-danger-soft);
+    border-color: color-mix(in srgb, var(--chat-danger) 35%, transparent);
+  }
+  
