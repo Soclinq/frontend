@@ -151,65 +151,81 @@ class NearbyCommunitiesByLocationView(APIView):
             admin_units=admin_units,
         )
 
-        # -------------------------------------------------
-        # 6️⃣ Fetch ALL LGAs in user's state
-        # -------------------------------------------------
+        from community.models import CommunityHub, HubType, CommunityMembership
 
-        # 6️⃣ Fetch ALL LGAs (ADMIN_2) in user's state from AdminUnit
-        from community.models import CommunityHub, HubType
+        # ✅ get user's active memberships once
+        joined_hubs_qs = CommunityMembership.objects.filter(
+            user=request.user,
+            is_active=True,
+        ).values("hub_id", "role")
 
-# -------------------------------------------------
-# 6️⃣ Fetch ALL LGAs + their community hubs
-# -------------------------------------------------
+        joined_map = {str(m["hub_id"]): m["role"] for m in joined_hubs_qs}
 
         groups = []
-
-        state_unit = admin_units.get(1)  # ADMIN_1 (State)
+        state_unit = admin_units.get(1)
 
         if state_unit:
             lga_units = (
-                AdminUnit.objects.filter(
-                    level=2,
-                    parent=state_unit,
-                )
-                .select_related("hub")               # SYSTEM hub
-                .prefetch_related("hub__children")   # LOCAL hubs
+                AdminUnit.objects.filter(level=2, parent=state_unit)
+                .select_related("hub")
+                .prefetch_related("hub__children")
                 .order_by("name")
             )
 
             for lga in lga_units:
                 system_hub = getattr(lga, "hub", None)
 
-                subgroups = []
-                if system_hub:
-                    subgroups = [
+                # ✅ auto-create system hub if missing
+                if not system_hub:
+                    system_hub = CommunityHub.objects.create(
+                        admin_unit=lga,
+                        name=lga.name,
+                        hub_type=HubType.SYSTEM,
+                        is_active=True,
+                        is_verified=True,
+                    )
+
+                hubs_payload = []
+
+                if system_hub and system_hub.is_active:
+                    # ✅ SYSTEM hub first
+                    role = joined_map.get(str(system_hub.id))
+                    hubs_payload.append(
                         {
-                            "id": str(child.id),
-                            "name": child.name,
+                            "id": str(system_hub.id),
+                            "name": system_hub.name,
+                            "type": "SYSTEM",
+                            "joined": role is not None,
+                            "role": role,   # "MEMBER" | "LEADER" | "MODERATOR" | None
                         }
-                        for child in system_hub.children.filter(
-                            hub_type=HubType.LOCAL,
-                            is_active=True,
-                        ).order_by("name")
-                    ]
+                    )
+
+                    # ✅ LOCAL hubs under system hub
+                    local_hubs = system_hub.children.filter(
+                        hub_type=HubType.LOCAL,
+                        is_active=True,
+                    ).order_by("name")
+
+                    for child in local_hubs:
+                        child_role = joined_map.get(str(child.id))
+
+                        hubs_payload.append(
+                            {
+                                "id": str(child.id),
+                                "name": child.name,
+                                "type": "LOCAL",
+                                "joined": child_role is not None,
+                                "role": child_role,
+                            }
+                        )
 
                 groups.append(
                     {
-                        "lga": {
-                            "id": str(lga.id),
-                            "name": lga.name,
-                        },
-                        "hub": (
-                            {
-                                "id": str(system_hub.id),
-                                "name": system_hub.name,
-                                "type": system_hub.hub_type,
-                            }
-                            if system_hub
-                            else None
-                        )
+                        "lga": {"id": str(lga.id), "name": lga.name},
+                        "hubs": hubs_payload,
                     }
                 )
+
 
 
 

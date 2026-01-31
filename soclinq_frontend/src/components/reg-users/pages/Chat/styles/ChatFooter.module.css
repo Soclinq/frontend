@@ -1,0 +1,377 @@
+/* ChatFooter.module.css */
+
+/* =========================
+   ✅ WhatsApp Footer (Light)
+========================= */
+
+.footer {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  z-index: 50;
+
+  padding: 8px 10px 10px;
+  background: transparent;
+}
+
+/* =========================
+   ✅ Attachments Preview
+========================= */
+
+.attachPreview {
+  width: 100%;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.attachPreviewHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  margin-bottom: 8px;
+}
+
+.attachTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+.attachClearBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.attachClearBtn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.attachClearBtn:active {
+  transform: scale(0.96);
+}
+
+.attachClearBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.attachList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  max-height: 190px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.attachItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.attachIcon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.06);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.attachMeta {
+  flex: 1;
+  min-width: 0;
+}
+
+.attachName {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachSize {
+  margin-top: 2px;
+  font-size: 12px;
+  color: rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachRemoveBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: none;
+  background: rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  transition: transform 0.12s ease, background 0.12s ease;
+  flex: 0 0 auto;
+}
+
+.attachRemoveBtn:hover {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.attachRemoveBtn:active {
+  transform: scale(0.96);
+}
+
+.attachRemoveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =========================
+   ✅ Bottom Row Layout
+========================= */
+
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
+/* ✅ WhatsApp message bar container */
+.messageBar {
+  flex: 1;
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 8px 10px;
+
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+}
+
+/* icon buttons inside bar */
+.barIconBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+
+  border: none;
+  background: transparent;
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 20px;
+  color: rgba(0, 0, 0, 0.55);
+
+  transition: background 0.12s ease, transform 0.12s ease;
+}
+
+.barIconBtn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.barIconBtn:active {
+  transform: scale(0.96);
+}
+
+.barIconBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.active {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* input */
+.input {
+  flex: 1;
+  min-width: 0;
+
+  border: none;
+  outline: none;
+  background: transparent;
+
+  font-size: 14px;
+  color: rgba(0, 0, 0, 0.85);
+}
+
+.input::placeholder {
+  color: rgba(0, 0, 0, 0.45);
+}
+
+.input:disabled {
+  cursor: not-allowed;
+  opacity: 0.75;
+}
+
+/* =========================
+   ✅ Attachment Menu
+========================= */
+
+.attachWrap {
+  position: relative;
+}
+
+.attachMenu {
+  position: absolute;
+  bottom: 52px;
+  right: 0;
+
+  width: 170px;
+  padding: 8px;
+
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12);
+  z-index: 60;
+}
+
+.attachAction {
+  width: 100%;
+  border: none;
+  border-radius: 12px;
+
+  background: transparent;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 10px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.78);
+
+  transition: background 0.12s ease;
+}
+
+.attachAction:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.attachAction:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =========================
+   ✅ WhatsApp Send Button
+========================= */
+
+.sendBtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+
+  border: none;
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.55);
+
+  font-size: 18px;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+
+.sendActive {
+  background: #25d366;
+  color: #ffffff;
+}
+
+.sendBtn:hover {
+  filter: brightness(0.96);
+}
+
+.sendBtn:active {
+  transform: scale(0.96);
+}
+
+.sendBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================
+   ✅ Loader Spin
+========================= */
+
+.spin {
+  animation: spin 0.75s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================
+   ✅ Mobile Tweaks
+========================= */
+
+@media (max-width: 480px) {
+  .footer {
+    padding: 8px 8px 10px;
+  }
+
+  .messageBar {
+    padding: 7px 9px;
+  }
+
+  .barIconBtn {
+    width: 36px;
+    height: 36px;
+    font-size: 19px;
+  }
+
+  .sendBtn {
+    width: 44px;
+    height: 44px;
+  }
+}

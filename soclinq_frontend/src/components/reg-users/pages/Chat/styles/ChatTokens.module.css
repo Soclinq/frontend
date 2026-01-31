@@ -1,0 +1,99 @@
+/* =========================================================
+   CHAT DESIGN TOKENS (LIGHT THEME)
+   ✅ Shared across ALL chat modules
+   ✅ Ready for future Dark theme
+========================================================= */
+
+:root {
+    /* ---------------- Base surfaces ---------------- */
+    --chat-bg: #ffffff;
+    --chat-bg-soft: #f7f8fb;
+  
+    --chat-surface: #ffffff;
+    --chat-surface-2: #fbfbfd;
+  
+    /* ---------------- Text ---------------- */
+    --chat-text: #111827;         /* slate-900 */
+    --chat-text-soft: #1f2937;    /* slate-800 */
+    --chat-text-muted: #6b7280;   /* slate-500 */
+    --chat-text-faint: #9ca3af;   /* slate-400 */
+  
+    /* ---------------- Borders / dividers ---------------- */
+    --chat-border: rgba(17, 24, 39, 0.14);
+    --chat-border-soft: rgba(17, 24, 39, 0.10);
+  
+    /* ---------------- Shadows ---------------- */
+    --chat-shadow: 0 10px 24px rgba(17, 24, 39, 0.08);
+    --chat-shadow-soft: 0 6px 14px rgba(17, 24, 39, 0.06);
+  
+    /* ---------------- Brand / Accent (logo support) ----------------
+       ✅ Pick a calm "blue-teal" that fits most logos
+    */
+    --chat-brand: #2563eb;        /* blue-600 */
+    --chat-brand-2: #0ea5e9;      /* sky-500 */
+    --chat-brand-soft: rgba(37, 99, 235, 0.14);
+  
+    --chat-accent: #0ea5e9;       /* sky */
+    --chat-accent-soft: rgba(14, 165, 233, 0.12);
+  
+    /* ---------------- Focus / highlight ---------------- */
+    --chat-focus: #2563eb;
+    --chat-focus-soft: rgba(37, 99, 235, 0.12);
+  
+    /* ---------------- Success / Warning / Danger ---------------- */
+    --chat-success: #16a34a;      /* green-600 */
+    --chat-success-soft: rgba(22, 163, 74, 0.14);
+  
+    --chat-warning: #f59e0b;      /* amber-500 */
+    --chat-warning-soft: rgba(245, 158, 11, 0.14);
+  
+    --chat-danger: #ef4444;       /* red-500 */
+    --chat-danger-soft: rgba(239, 68, 68, 0.14);
+  
+    /* ---------------- Radii ---------------- */
+    --chat-radius-sm: 10px;
+    --chat-radius-md: 16px;
+    --chat-radius-lg: 22px;
+    --chat-radius-xl: 28px;
+  
+    /* ---------------- Layout sizes ---------------- */
+    --chat-header-height: 56px;
+    --chat-footer-min-height: 66px;
+  
+    /* ---------------- Bubble sizing ---------------- */
+    --chat-bubble-max-width: 78%;
+    --chat-bubble-radius: 18px;
+  
+    /* ---------------- Message spacing ---------------- */
+    --chat-message-gap: 10px;
+  
+    /* ---------------- Animations ---------------- */
+    --chat-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --chat-fast: 120ms var(--chat-ease);
+    --chat-mid: 220ms var(--chat-ease);
+  
+    /* ---------------- Blur overlays ---------------- */
+    --chat-overlay: rgba(0, 0, 0, 0.45);
+    --chat-overlay-soft: rgba(0, 0, 0, 0.28);
+  
+    /* ---------------- WhatsApp-like patterned background (light) ---------------- */
+    --chat-wallpaper: radial-gradient(
+        rgba(37, 99, 235, 0.05) 1px,
+        transparent 1px
+      ),
+      radial-gradient(rgba(14, 165, 233, 0.04) 1px, transparent 1px);
+    --chat-wallpaper-size: 22px 22px;
+    --chat-wallpaper-pos: 0 0, 11px 11px;
+  }
+  
+  /* =========================================================
+     Optional: prefer system fonts for clean UI
+  ========================================================= */
+  
+  .chatTheme {
+    color: var(--chat-text);
+    background: var(--chat-bg);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+  }
+  

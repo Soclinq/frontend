@@ -1,5 +1,6 @@
 import "./globals.css";
 import { Providers } from "./providers";
+import "./styles/chatTokens.module.css";
 
 export const metadata = {
   title: "LINQMI – Home",
@@ -25,7 +26,8 @@ export default function RootLayout({
         />
         <meta name="theme-color" content="#0a2b57" />
       </head>
-      <body><Providers>{children}</Providers></body>
+      <body><Providers>
+        {children}</Providers></body>
     </html>
   );
 }

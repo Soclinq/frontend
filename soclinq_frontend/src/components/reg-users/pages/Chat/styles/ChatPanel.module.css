@@ -1,0 +1,65 @@
+.footerStack {
+  position: sticky;
+  bottom: 0;
+  z-index: 50;
+
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+
+  padding: 0;
+}
+
+/* ✅ ChatFooter takes remaining space */
+.footerStack > :first-child {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* ✅ Recorder normally stays compact */
+.footerStack > :last-child {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: max-content;
+}
+
+/* ✅ WHEN AUDIO ACTIVE -> recorder becomes full width */
+.audioActive {
+  gap: 0;
+}
+
+.audioActive > :last-child {
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+}
+
+.footerEmojiPopup {
+  position: absolute;
+  bottom: 62px;
+  left: 10px;
+  z-index: 9999;
+
+  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.18);
+
+  animation: emojiPanelPop 140ms ease-out;
+  transform-origin: bottom left;
+}
+
+@keyframes emojiPanelPop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0px) scale(1);
+  }
+}
+

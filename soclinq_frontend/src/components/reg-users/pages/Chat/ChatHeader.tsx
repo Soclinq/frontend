@@ -5,10 +5,10 @@ import {
   FiX,
   FiSend,
   FiTrash2,
-  FiCheckSquare,
   FiSquare,
   FiChevronLeft,
   FiShare2,
+  FiCornerUpLeft,
 } from "react-icons/fi";
 import styles from "./styles/ChatHeader.module.css";
 
@@ -23,18 +23,19 @@ type Props = {
   selectionMode: boolean;
   selectedCount: number;
 
-  /** Needed to decide button states */
-  selectedMessagesCount: number;
-  selectableMessagesCount: number;
-
   /** Actions */
   onExitSelection: () => void;
-  onSelectAll: () => void;
+
+  /** ✅ only unselect all (clear all selection) */
   onUnselectAll: () => void;
 
+  /** Bulk actions */
   onForwardSelected: () => void;
   onShareSelected: () => void;
   onDeleteSelectedForMe: () => void;
+
+  /** ✅ reply when only ONE is selected */
+  onReplySelected?: () => void;
 };
 
 export default function ChatHeader({
@@ -46,23 +47,17 @@ export default function ChatHeader({
   selectionMode,
   selectedCount,
 
-  selectedMessagesCount,
-  selectableMessagesCount,
-
   onExitSelection,
-  onSelectAll,
   onUnselectAll,
 
   onForwardSelected,
   onShareSelected,
   onDeleteSelectedForMe,
+
+  onReplySelected,
 }: Props) {
-  const canSelectAll =
-    selectableMessagesCount > 0 && selectedCount < selectableMessagesCount;
-
-  const canUnselectAll = selectedCount > 0;
-
-  const hasSelected = selectedMessagesCount > 0;
+  const hasSelected = selectedCount > 0;
+  const canReply = selectedCount === 1;
 
   return (
     <header className={styles.header}>
@@ -80,29 +75,29 @@ export default function ChatHeader({
 
           <span className={styles.selectionCount}>{selectedCount} selected</span>
 
-          {/* Select all */}
-          <button
-            type="button"
-            className={styles.iconBtn}
-            onClick={onSelectAll}
-            disabled={!canSelectAll}
-            title="Select all"
-          >
-            <FiCheckSquare />
-          </button>
-
-          {/* Unselect all */}
+          {/* ✅ Unselect all (clear selection) */}
           <button
             type="button"
             className={styles.iconBtn}
             onClick={onUnselectAll}
-            disabled={!canUnselectAll}
+            disabled={!hasSelected}
             title="Unselect all"
           >
             <FiSquare />
           </button>
 
           <div className={styles.selectionActions}>
+            {/* ✅ Reply only if 1 selected */}
+            <button
+              type="button"
+              className={styles.iconBtn}
+              disabled={!canReply}
+              title={canReply ? "Reply" : "Reply (select 1 message)"}
+              onClick={onReplySelected}
+            >
+              <FiCornerUpLeft />
+            </button>
+
             {/* Forward */}
             <button
               type="button"

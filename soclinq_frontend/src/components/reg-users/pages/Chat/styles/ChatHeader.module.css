@@ -1,0 +1,192 @@
+/* ChatHeader.module.css */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+
+  height: var(--chat-header-height);
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+
+  padding: 0 12px;
+  background: var(--chat-surface);
+  border-bottom: 1px solid var(--chat-border-soft);
+
+  backdrop-filter: blur(8px);
+}
+
+/* =========================
+   NORMAL MODE
+========================= */
+
+.normalRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.backBtn {
+  height: 38px;
+  width: 38px;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+
+  display: grid;
+  place-items: center;
+
+  color: var(--chat-text-soft);
+  cursor: pointer;
+  transition: background var(--chat-fast), transform var(--chat-fast);
+}
+
+.backBtn:hover {
+  background: var(--chat-bg-soft);
+}
+
+.backBtn:active {
+  transform: scale(0.96);
+}
+
+.backBtn svg {
+  font-size: 20px;
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--chat-text);
+  letter-spacing: 0.2px;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================
+   SELECTION MODE
+========================= */
+
+.selectionRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Exit selection (X) */
+.closeSelectionBtn {
+  height: 38px;
+  width: 38px;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+
+  display: grid;
+  place-items: center;
+
+  color: var(--chat-text-soft);
+  cursor: pointer;
+  transition: background var(--chat-fast), transform var(--chat-fast);
+}
+
+.closeSelectionBtn:hover {
+  background: var(--chat-bg-soft);
+}
+
+.closeSelectionBtn:active {
+  transform: scale(0.96);
+}
+
+.closeSelectionBtn svg {
+  font-size: 20px;
+}
+
+/* selected count */
+.selectionCount {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--chat-text);
+}
+
+/* Actions container pushed to right */
+.selectionActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* shared icon button */
+.iconBtn {
+  height: 38px;
+  width: 38px;
+
+  display: grid;
+  place-items: center;
+
+  border: 1px solid var(--chat-border-soft);
+  background: var(--chat-surface-2);
+  border-radius: 999px;
+
+  color: var(--chat-text-soft);
+  cursor: pointer;
+
+  transition: transform var(--chat-fast),
+    background var(--chat-fast),
+    border-color var(--chat-fast),
+    box-shadow var(--chat-fast);
+}
+
+.iconBtn svg {
+  font-size: 18px;
+}
+
+.iconBtn:hover {
+  background: var(--chat-bg-soft);
+  border-color: var(--chat-border);
+  box-shadow: var(--chat-shadow-soft);
+}
+
+.iconBtn:active {
+  transform: scale(0.96);
+}
+
+/* disabled state */
+.iconBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.iconBtn:disabled:hover {
+  background: var(--chat-surface-2);
+  border-color: var(--chat-border-soft);
+}
+
+/* Danger action */
+.dangerBtn {
+  border-color: var(--chat-danger-soft);
+  color: var(--chat-danger);
+}
+
+.dangerBtn:hover {
+  background: var(--chat-danger-soft);
+  border-color: var(--chat-danger);
+}
+
+/* =========================
+   ACCESSIBILITY (FOCUS)
+========================= */
+
+.backBtn:focus-visible,
+.closeSelectionBtn:focus-visible,
+.iconBtn:focus-visible {
+  outline: 2px solid var(--chat-focus);
+  outline-offset: 2px;
+}

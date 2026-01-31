@@ -1,7 +1,7 @@
 "use client";
 
 import { FiArrowLeft } from "react-icons/fi";
-import ChatPanel from "./ChatPanel";
+import ChatPanel from "../Chat/Chatpanel";
 import styles from "./styles/GroupsPanel.module.css";
 
 interface Props {

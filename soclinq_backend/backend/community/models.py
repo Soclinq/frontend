@@ -6,6 +6,39 @@ from django.conf import settings
 from django.contrib.postgres.indexes import GistIndex 
 from django.utils import timezone
 
+class HubPrivacy(models.TextChoices):
+    PUBLIC = "PUBLIC", "Public"
+    PRIVATE = "PRIVATE", "Private"
+    INVITE_ONLY = "INVITE_ONLY", "Invite Only"
+
+
+class JoinMode(models.TextChoices):
+    OPEN = "OPEN", "Open"
+    REQUEST = "REQUEST", "Request"
+    APPROVAL = "APPROVAL", "Approval"
+
+
+class VerificationStatus(models.TextChoices):
+    UNVERIFIED = "UNVERIFIED", "Unverified"
+    PENDING = "PENDING", "Pending Review"
+    VERIFIED = "VERIFIED", "Verified"
+    REJECTED = "REJECTED", "Rejected"
+
+
+class HubPurpose(models.TextChoices):
+    SECURITY = "SECURITY", "Security"
+    EMERGENCY = "EMERGENCY", "Emergency"
+    COMMUNITY = "COMMUNITY", "Community"
+    TRAFFIC = "TRAFFIC", "Traffic"
+    ALERTS = "ALERTS", "Alerts"
+
+
+class AlertPriority(models.TextChoices):
+    LOW = "LOW", "Low"
+    MEDIUM = "MEDIUM", "Medium"
+    HIGH = "HIGH", "High"
+    CRITICAL = "CRITICAL", "Critical"
+
 
 class HubType(models.TextChoices):
     SYSTEM = "SYSTEM", "System (Geographic)"
@@ -86,13 +119,14 @@ class AdminUnit(models.Model):
 
 class CommunityHub(models.Model):
     """
-    Social community hub.
+    Security-grade community hub.
     - SYSTEM hubs map 1:1 to AdminUnit
-    - LOCAL hubs are user-created and belong under ADMIN_2 hubs
+    - LOCAL hubs are user-created under ADMIN_2 hubs
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
+    # ✅ geographic binding for SYSTEM hubs
     admin_unit = models.OneToOneField(
         "community.AdminUnit",
         null=True,
@@ -102,12 +136,27 @@ class CommunityHub(models.Model):
         help_text="Linked geographic admin unit (for SYSTEM hubs)",
     )
 
+    # ✅ identity
     name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    category = models.CharField(max_length=80, blank=True, default="General")
 
+    # ✅ tags + search
+    tags = models.JSONField(default=list, blank=True)
+
+    # ✅ media
+    cover_image = models.URLField(blank=True, null=True)
+    avatar_icon = models.URLField(blank=True, null=True)
+
+    # ✅ readable location label
+    location_label = models.CharField(max_length=255, blank=True, default="")
+
+    # ✅ hub type (system/local)
     hub_type = models.CharField(
         max_length=20,
         choices=HubType.choices,
         default=HubType.LOCAL,
+        db_index=True,
     )
 
     parent = models.ForeignKey(
@@ -118,10 +167,186 @@ class CommunityHub(models.Model):
         on_delete=models.CASCADE,
     )
 
+    # ✅ general status
+    is_default = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
 
+    # =====================================================
+    # ✅ TRUST / VERIFICATION (Security grade)
+    # =====================================================
+    verification_status = models.CharField(
+        max_length=20,
+        choices=VerificationStatus.choices,
+        default=VerificationStatus.UNVERIFIED,
+        db_index=True,
+    )
+
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verification_note = models.TextField(blank=True, default="")
+
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="verified_hubs",
+    )
+
+    trust_score = models.PositiveSmallIntegerField(default=0)  # 0 - 100
+
+    # =====================================================
+    # ✅ PRIVACY / ACCESS CONTROL
+    # =====================================================
+    privacy = models.CharField(
+        max_length=20,
+        choices=HubPrivacy.choices,
+        default=HubPrivacy.PUBLIC,
+        db_index=True,
+    )
+
+    join_mode = models.CharField(
+        max_length=20,
+        choices=JoinMode.choices,
+        default=JoinMode.OPEN,
+        db_index=True,
+    )
+
+    is_locked = models.BooleanField(default=False)
+    allow_guest_view = models.BooleanField(default=True)
+
+    requires_identity_verification = models.BooleanField(default=False)
+    requires_phone_verification = models.BooleanField(default=False)
+    requires_location_match = models.BooleanField(default=False)
+
+    min_age = models.PositiveSmallIntegerField(null=True, blank=True)
+    min_account_age_days = models.PositiveSmallIntegerField(default=0)
+
+    # ✅ forwarding / screenshots protection (optional)
+    allow_forwarding_messages = models.BooleanField(default=True)
+    allow_screenshots = models.BooleanField(default=True)
+
+    # =====================================================
+    # ✅ MODERATION / SAFETY
+    # =====================================================
+    rules = models.TextField(blank=True, default="")
+
+    report_count = models.PositiveIntegerField(default=0)
+    flagged_message_count = models.PositiveIntegerField(default=0)
+
+    auto_moderation_enabled = models.BooleanField(default=False)
+    profanity_filter_enabled = models.BooleanField(default=False)
+
+    banned_words = models.JSONField(default=list, blank=True)
+
+    allow_media = models.BooleanField(default=True)
+    allow_links = models.BooleanField(default=True)
+
+    link_whitelist_only = models.BooleanField(default=False)
+    link_whitelist = models.JSONField(default=list, blank=True)
+
+    slow_mode_seconds = models.PositiveIntegerField(default=0)
+    rate_limit_per_user_per_minute = models.PositiveIntegerField(default=60)
+
+    message_requires_approval = models.BooleanField(default=False)
+
+    max_file_size_mb = models.PositiveIntegerField(default=25)
+    max_daily_reports_per_user = models.PositiveIntegerField(default=10)
+
+    max_members = models.PositiveIntegerField(null=True, blank=True)
+
+    # =====================================================
+    # ✅ AUDIT / COMPLIANCE
+    # =====================================================
+    audit_enabled = models.BooleanField(default=True)
+    audit_retention_days = models.PositiveIntegerField(default=90)
+    export_logs_enabled = models.BooleanField(default=False)
+    last_security_reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    # =====================================================
+    # ✅ INCIDENT / EMERGENCY FEATURES
+    # =====================================================
+    hub_purpose = models.CharField(
+        max_length=20,
+        choices=HubPurpose.choices,
+        default=HubPurpose.COMMUNITY,
+        db_index=True,
+    )
+
+    alert_mode_enabled = models.BooleanField(default=False)
+
+    alert_priority_default = models.CharField(
+        max_length=20,
+        choices=AlertPriority.choices,
+        default=AlertPriority.MEDIUM,
+    )
+
+    allow_anonymous_reports = models.BooleanField(default=False)
+    allow_location_sharing = models.BooleanField(default=True)
+
+    emergency_contacts = models.JSONField(default=list, blank=True)
+    hotline_number = models.CharField(max_length=30, blank=True, default="")
+    rapid_response_team_enabled = models.BooleanField(default=False)
+
+    # =====================================================
+    # ✅ GEO-SECURITY / GEOFENCING
+    # =====================================================
+    geo_fenced = models.BooleanField(default=False)
+    geo_radius_km = models.DecimalField(
+        max_digits=6, decimal_places=2, null=True, blank=True
+    )
+
+    allowed_lga_ids = models.JSONField(default=list, blank=True)
+    allowed_state_ids = models.JSONField(default=list, blank=True)
+
+    # =====================================================
+    # ✅ OWNERSHIP / MANAGEMENT
+    # =====================================================
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_hubs",
+    )
+
+    last_updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="updated_hubs",
+    )
+
+    ownership_transfer_allowed = models.BooleanField(default=True)
+
+    # =====================================================
+    # ✅ ANALYTICS COUNTERS (Optional but useful)
+    # =====================================================
+    members_count = models.PositiveIntegerField(default=0)
+    messages_count = models.PositiveIntegerField(default=0)
+    attachments_count = models.PositiveIntegerField(default=0)
+
+    active_members_7d = models.PositiveIntegerField(default=0)
+    new_members_7d = models.PositiveIntegerField(default=0)
+    engagement_score = models.PositiveIntegerField(default=0)
+    trending_rank = models.PositiveIntegerField(default=0)
+
+    # =====================================================
+    # ✅ MONETIZATION (Optional)
+    # =====================================================
+    is_sponsored = models.BooleanField(default=False)
+    sponsor_name = models.CharField(max_length=120, blank=True, default="")
+
+    donation_enabled = models.BooleanField(default=False)
+    subscription_enabled = models.BooleanField(default=False)
+    ad_slots_enabled = models.BooleanField(default=False)
+
+    # =====================================================
+    # ✅ timestamps
+    # =====================================================
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
@@ -130,6 +355,13 @@ class CommunityHub(models.Model):
                 condition=models.Q(hub_type=HubType.SYSTEM),
                 name="unique_system_hub_per_admin_unit",
             )
+        ]
+        indexes = [
+            models.Index(fields=["hub_type", "is_active"]),
+            models.Index(fields=["privacy", "join_mode"]),
+            models.Index(fields=["verification_status"]),
+            models.Index(fields=["hub_purpose"]),
+            models.Index(fields=["name"]),
         ]
 
     def __str__(self):
@@ -193,13 +425,18 @@ class HubMessage(models.Model):
         related_name="seen_messages",
     )
 
+    is_forwarded = models.BooleanField(default=False)
+
     forwarded_from = models.ForeignKey(
         "self",
         null=True,
         blank=True,
+        related_name="forwards",
         on_delete=models.SET_NULL,
-        related_name="forwarded_copies",
     )
+
+    forwarded_count = models.PositiveIntegerField(default=0)
+
 
     is_forwarded = models.BooleanField(default=False)
 
@@ -270,6 +507,8 @@ class MessageAttachment(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
 
+    
+
     class Meta:
         indexes = [
             models.Index(fields=["message", "attachment_type"]),
@@ -277,6 +516,21 @@ class MessageAttachment(models.Model):
 
     def __str__(self):
         return f"{self.attachment_type} for {self.message_id}"
+
+def clone_attachments(old_message, new_message):
+    for a in old_message.attachments.all():
+        MessageAttachment.objects.create(
+            message=new_message,
+            attachment_type=a.attachment_type,
+            url=a.url,
+            thumbnail_url=a.thumbnail_url,
+            mime_type=a.mime_type,
+            file_name=a.file_name,
+            file_size=a.file_size,
+            width=a.width,
+            height=a.height,
+            duration_ms=a.duration_ms,
+        )
 
 class HubReadReceipt(models.Model):
     user = models.ForeignKey(
