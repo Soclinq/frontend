@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   MdLogin,
   MdLocationOn,
@@ -8,60 +8,26 @@ import {
   MdWarning,
   MdDownload,
   MdClose,
+  MdRefresh,
 } from "react-icons/md";
-import { useUser } from "@/context/UserContext";
+
 import styles from "./styles/ActivityHistorySection.module.css";
 
-/* ================= TYPES ================= */
-type ActivityType =
-  | "login"
-  | "location"
-  | "security"
-  | "device"
-  | "system";
+import { useNotify } from "@/components/utils/NotificationContext";
+import { authFetch } from "@/lib/authFetch";
+import { profileAdapter } from "@/lib/profileAdapter";
 
+/* ================= TYPES ================= */
+type ActivityType = "login" | "location" | "security" | "device" | "system";
 type Severity = "info" | "warning" | "critical";
 
-interface ActivityItem {
+export interface ActivityItem {
   id: string;
   type: ActivityType;
   action: string;
-  description?: string;
+  description?: string | null;
   timestamp: string; // ISO
   severity: Severity;
-}
-
-/* ================= PLACEHOLDER FETCH ================= */
-async function fetchActivityHistory(): Promise<ActivityItem[]> {
-  return new Promise((resolve) =>
-    setTimeout(() => {
-      resolve([
-        {
-          id: "1",
-          type: "login",
-          action: "Login from new device",
-          description: "Chrome on Linux • IP: 102.xxx.xxx.xx",
-          timestamp: new Date().toISOString(),
-          severity: "warning",
-        },
-        {
-          id: "2",
-          type: "security",
-          action: "Password changed",
-          timestamp: new Date(Date.now() - 86400000).toISOString(),
-          severity: "info",
-        },
-        {
-          id: "3",
-          type: "location",
-          action: "Live location shared",
-          description: "Shared with emergency contact",
-          timestamp: new Date(Date.now() - 3600000).toISOString(),
-          severity: "critical",
-        },
-      ]);
-    }, 700)
-  );
 }
 
 /* ================= HELPERS ================= */
@@ -89,19 +55,27 @@ function formatDate(iso: string) {
   }
 }
 
-function exportCSV(data: ActivityItem[]) {
-  const rows = [
-    ["Time", "Type", "Severity", "Action"],
-    ...data.map((a) => [
-      a.timestamp,
-      a.type,
-      a.severity,
-      `"${a.action}"`,
-    ]),
-  ];
+function escapeCSV(value: any) {
+  const s = String(value ?? "");
+  if (s.includes(",") || s.includes("\n") || s.includes('"')) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
 
-  const csv = rows.map((r) => r.join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv" });
+function exportCSV(rows: ActivityItem[]) {
+  const header = ["Time", "Type", "Severity", "Action", "Description"];
+  const data = rows.map((a) => [
+    a.timestamp,
+    a.type,
+    a.severity,
+    a.action,
+    a.description ?? "",
+  ]);
+
+  const csv = [header, ...data].map((r) => r.map(escapeCSV).join(",")).join("\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
 
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob);
@@ -111,54 +85,133 @@ function exportCSV(data: ActivityItem[]) {
 
 /* ================= COMPONENT ================= */
 export default function ActivityHistorySection() {
-  const { user } = useUser(); // ✅ READ-ONLY (future userId scoping)
+  const notify = useNotify();
 
-  /* ===== LOCAL STATE ===== */
   const [data, setData] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   /* FILTER STATE */
   const [type, setType] = useState<ActivityType | "all">("all");
   const [severity, setSeverity] = useState<Severity | "all">("all");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [from, setFrom] = useState(""); // yyyy-mm-dd
+  const [to, setTo] = useState(""); // yyyy-mm-dd
 
   /* MODAL */
   const [active, setActive] = useState<ActivityItem | null>(null);
+  const modalRef = useRef<HTMLDivElement | null>(null);
 
-  /* ================= FETCH ================= */
+  const fetchHistory = useCallback(async () => {
+    setError(null);
+
+    try {
+      const res = await authFetch(profileAdapter.activityHistory(), {
+        method: "GET",
+      });
+
+      const raw = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setData([]);
+        setError(raw?.error || "Failed to load activity history.");
+        return;
+      }
+
+      const items: ActivityItem[] = Array.isArray(raw?.activities)
+        ? raw.activities.map((a: any) => ({
+            id: String(a?.id ?? crypto.randomUUID()),
+            type: (a?.type ?? "system") as ActivityType,
+            action: String(a?.action ?? "Unknown activity"),
+            description: a?.description ?? null,
+            timestamp: String(a?.timestamp ?? new Date().toISOString()),
+            severity: (a?.severity ?? "info") as Severity,
+          }))
+        : [];
+
+      // newest first
+      items.sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+
+      setData(items);
+    } catch {
+      setData([]);
+      setError("Network error while loading activity history.");
+    }
+  }, []);
+
   useEffect(() => {
-    let mounted = true;
-
-    // later you can pass user.id here
-    fetchActivityHistory().then((res) => {
-      if (!mounted) return;
-      setData(res);
+    (async () => {
+      setLoading(true);
+      await fetchHistory();
       setLoading(false);
-    });
+    })();
+  }, [fetchHistory]);
 
-    return () => {
-      mounted = false;
-    };
-  }, [user]); // user dependency for future-proofing
-
-  /* ================= FILTER LOGIC ================= */
   const filtered = useMemo(() => {
+    const fromTime = from ? new Date(from).getTime() : null;
+
+    // ✅ include full "to" day by extending to 23:59:59
+    const toTime = to
+      ? new Date(`${to}T23:59:59.999`).getTime()
+      : null;
+
     return data.filter((a) => {
       if (type !== "all" && a.type !== type) return false;
       if (severity !== "all" && a.severity !== severity) return false;
 
       const time = new Date(a.timestamp).getTime();
-      if (from && time < new Date(from).getTime()) return false;
-      if (to && time > new Date(to).getTime()) return false;
+
+      if (fromTime !== null && time < fromTime) return false;
+      if (toTime !== null && time > toTime) return false;
 
       return true;
     });
   }, [data, type, severity, from, to]);
 
+  const refresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchHistory();
+    setRefreshing(false);
+
+    notify({
+      type: "success",
+      title: "Updated",
+      message: "Activity history refreshed ✅",
+      duration: 1500,
+    });
+  }, [fetchHistory, notify]);
+
+  // ✅ Close modal with ESC
+  useEffect(() => {
+    if (!active) return;
+
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setActive(null);
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [active]);
+
   return (
     <section className={styles.section}>
-      <h3>Activity History</h3>
+      <div className={styles.topRow}>
+        <div>
+          <h3>Activity History</h3>
+          <p className={styles.muted}>Security, login, and SOS actions on your account.</p>
+        </div>
+
+        <button
+          type="button"
+          className={styles.secondaryBtn}
+          onClick={refresh}
+          disabled={loading || refreshing}
+        >
+          <MdRefresh /> {refreshing ? "Refreshing…" : "Refresh"}
+        </button>
+      </div>
 
       {/* ===== FILTERS ===== */}
       <div className={styles.filters}>
@@ -168,6 +221,7 @@ export default function ActivityHistorySection() {
           <option value="security">Security</option>
           <option value="location">Location</option>
           <option value="device">Device</option>
+          <option value="system">System</option>
         </select>
 
         <select
@@ -180,18 +234,11 @@ export default function ActivityHistorySection() {
           <option value="critical">Critical</option>
         </select>
 
-        <input
-          type="date"
-          value={from}
-          onChange={(e) => setFrom(e.target.value)}
-        />
-        <input
-          type="date"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-        />
+        <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
 
         <button
+          type="button"
           className={styles.secondaryBtn}
           onClick={() => exportCSV(filtered)}
           disabled={filtered.length === 0}
@@ -200,10 +247,13 @@ export default function ActivityHistorySection() {
         </button>
       </div>
 
+      {/* ===== ERROR ===== */}
+      {error && <p className={styles.errorText}>{error}</p>}
+
       {/* ===== LIST ===== */}
       {loading && <p className={styles.muted}>Loading activity…</p>}
 
-      {!loading && filtered.length === 0 && (
+      {!loading && !error && filtered.length === 0 && (
         <p className={styles.muted}>No activity found.</p>
       )}
 
@@ -211,6 +261,7 @@ export default function ActivityHistorySection() {
         {filtered.map((a) => (
           <button
             key={a.id}
+            type="button"
             className={`${styles.activityItem} ${
               a.severity === "warning"
                 ? styles.warn
@@ -221,9 +272,7 @@ export default function ActivityHistorySection() {
             onClick={() => setActive(a)}
             aria-label="View activity details"
           >
-            <div className={styles.activityIcon}>
-              {iconFor(a.type)}
-            </div>
+            <div className={styles.activityIcon}>{iconFor(a.type)}</div>
 
             <div className={styles.activityContent}>
               <p>{a.action}</p>
@@ -235,22 +284,45 @@ export default function ActivityHistorySection() {
 
       {/* ===== DETAILS MODAL ===== */}
       {active && (
-        <div className={styles.overlay}>
-          <div className={styles.modal}>
+        <div
+          className={styles.overlay}
+          role="dialog"
+          aria-modal="true"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setActive(null);
+          }}
+        >
+          <div className={styles.modal} ref={modalRef}>
             <header className={styles.modalHeader}>
               <h4>Activity Details</h4>
-              <button onClick={() => setActive(null)}>
+
+              <button
+                type="button"
+                className={styles.iconBtn}
+                onClick={() => setActive(null)}
+                aria-label="Close activity details"
+              >
                 <MdClose />
               </button>
             </header>
 
-            <p><strong>Action:</strong> {active.action}</p>
-            <p><strong>Type:</strong> {active.type}</p>
-            <p><strong>Severity:</strong> {active.severity}</p>
-            <p><strong>Time:</strong> {formatDate(active.timestamp)}</p>
+            <p>
+              <strong>Action:</strong> {active.action}
+            </p>
+            <p>
+              <strong>Type:</strong> {active.type}
+            </p>
+            <p>
+              <strong>Severity:</strong> {active.severity}
+            </p>
+            <p>
+              <strong>Time:</strong> {formatDate(active.timestamp)}
+            </p>
 
             {active.description && (
-              <p><strong>Details:</strong> {active.description}</p>
+              <p>
+                <strong>Details:</strong> {active.description}
+              </p>
             )}
           </div>
         </div>

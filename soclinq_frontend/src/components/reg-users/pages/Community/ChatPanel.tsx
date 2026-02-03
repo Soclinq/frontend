@@ -18,6 +18,8 @@ import {
   FiSquare,
 
 } from "react-icons/fi";
+import type { ChatMessage as Message } from "@/types/chat";
+import type { ChatAdapter } from "@/types/chatAdapterTypes";
 import styles from "./styles/ChatPanel.module.css";
 import { authFetch } from "@/lib/authFetch";
 import data from "@emoji-mart/data";
@@ -26,70 +28,12 @@ import ChatFooter from "./ChatFooter";
 import CameraModal from "./CameraModal";
 /* ================= TYPES ================= */
 
-type AttachmentType = "IMAGE" | "AUDIO" | "VIDEO" | "FILE";
-
-type Attachment = {
-  id: string;
-  type: AttachmentType;
-  url: string;
-  thumbnailUrl?: string;
-  mimeType?: string;
-  fileName?: string;
-  fileSize?: number;
-  width?: number;
-  height?: number;
-  durationMs?: number;
-};
-
-type Sender = {
-  id: string;
-  name: string;
-  photo?: string | null;
-};
-
-type Reaction = {
-  emoji: string;
-  count: number;
-  reactedByMe?: boolean;
-};
 
 type ForwardTarget = {
   id: string;
   name: string;
   type?: string;
   photo?: string | null;
-};
-
-
-type Message = {
-  id: string;
-  clientTempId?: string;
-  hubId: string;
-
-  messageType: "TEXT" | "MEDIA" | "SYSTEM";
-  text?: string;
-
-  sender: Sender;
-  createdAt: string;
-  myReaction?: string | null;
-  editedAt?: string | null;
-  deletedAt?: string | null;
-
-
-
-  replyTo?: {
-    id: string;
-    text?: string;
-    senderName?: string;
-  } | null;
-
-  attachments?: Attachment[];
-
-  reactions?: Reaction[]; // ✅ new
-
-  // UI-only
-  isMine: boolean;
-  status?: "sending" | "sent" | "failed";
 };
 
 type WSIncoming =
@@ -102,9 +46,24 @@ type WSIncoming =
 
 
 
-interface Props {
-  groupId: string;
-}
+  type Props = {
+    threadId: string;
+    adapter: ChatAdapter;
+  
+    onSelectionChange?: (payload: {
+      active: boolean;
+      count: number;
+  
+      exit: () => void;
+      selectAll: () => void;
+      unselectAll: () => void;
+  
+      forward: () => void;
+      share: () => void;
+      del: () => void;
+    }) => void;
+  };
+  
 
 /* ================= HELPERS ================= */
 
@@ -240,7 +199,7 @@ const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "😡"];
 
 /* ================= COMPONENT ================= */
 
-export default function ChatPanel({ groupId }: Props) {
+export default function ChatPanel({ threadId, adapter, onSelectionChange }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [recentEmojis, setRecentEmojis] = useState<string[]>(QUICK_REACTIONS.slice(0, 5));
@@ -335,7 +294,7 @@ const selectedMessages = useMemo(() => {
     message: Message | null;
   }>({ open: false, message: null });
 
-  const LOCAL_DELETE_KEY = `soclinq_deleted_for_me_${groupId}`;
+  const LOCAL_DELETE_KEY = `soclinq_deleted_for_me_${threadId}`;
 
   const [infoModal, setInfoModal] = useState<{
     open: boolean;
@@ -456,6 +415,31 @@ const selectedMessages = useMemo(() => {
   }, []);
 
   useEffect(() => {
+    if (!onSelectionChange) return;
+  
+    onSelectionChange({
+      active: selectionMode && selectedCount > 0,
+      count: selectedCount,
+  
+      exit: clearSelection,
+      selectAll: selectAllMessages,
+      unselectAll: unselectAllMessages,
+  
+      forward: () => setForwardSheet({ open: true, messages: selectedMessages }),
+      share: async () => {
+        await shareExternallyBulk(selectedMessages);
+        clearSelection();
+      },
+      del: deleteSelectedForMe,
+    });
+  }, [
+    onSelectionChange,
+    selectionMode,
+    selectedCount,
+    selectedMessages,
+  ]);
+  
+  useEffect(() => {
     if (!forwardSheet.open) return;
   
     (async () => {
@@ -573,7 +557,7 @@ const selectedMessages = useMemo(() => {
   
   
   useEffect(() => {
-    if (!groupId) return;
+    if (!threadId) return;
 
     let cancelled = false;
 
@@ -586,7 +570,7 @@ const selectedMessages = useMemo(() => {
         setCursor(null);
         setHasMore(true);
 
-        const res = await authFetch(`/communities/chat/groups/${groupId}/messages/`, {
+        const res = await authFetch(`/communities/chat/groups/${threadId}/messages/`, {
           method: "GET",
           credentials: "include",
         });
@@ -617,14 +601,14 @@ const selectedMessages = useMemo(() => {
     return () => {
       cancelled = true;
     };
-  }, [groupId]);
+  }, [threadId]);
 
   /* ================= WS ================= */
 
   useEffect(() => {
-    if (!groupId) return;
+    if (!threadId) return;
 
-    const wsUrl = buildWsUrl(`/ws/chat/${groupId}/`);
+    const wsUrl = buildWsUrl(`/ws/chat/${threadId}/`);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
@@ -733,7 +717,7 @@ const selectedMessages = useMemo(() => {
       ws.close();
       wsRef.current = null;
     };
-  }, [groupId]);
+  }, [threadId]);
 
   /* ================= LOAD OLDER ================= */
 
@@ -836,7 +820,7 @@ const selectedMessages = useMemo(() => {
 
     try {
       const res = await authFetch(
-        `/communities/chat/groups/${groupId}/messages/?cursor=${encodeURIComponent(cursor)}`,
+        `/communities/chat/groups/${threadId}/messages/?cursor=${encodeURIComponent(cursor)}`,
         { method: "GET", credentials: "include" }
       );
 
@@ -994,7 +978,7 @@ const selectedMessages = useMemo(() => {
     const optimistic: Message = {
       id: clientTempId,
       clientTempId,
-      hubId: groupId,
+      hubId: threadId,
       messageType: hasFiles ? "MEDIA" : "TEXT",
       text: hasText ? text : "",
       sender: { id: "me", name: "You" },
@@ -1035,7 +1019,7 @@ const selectedMessages = useMemo(() => {
       let uploadedAttachments: any[] = [];
       if (hasFiles) uploadedAttachments = await uploadAttachmentsToBackend(pickedFiles);
 
-      const res = await authFetch(`/communities/chat/groups/${groupId}/messages/`, {
+      const res = await authFetch(`/communities/chat/groups/${threadId}/messages/`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -1875,7 +1859,7 @@ const selectedMessages = useMemo(() => {
               <div className={styles.forwardEmpty}>No hubs found</div>
             ) : (
               filteredForwardTargets.map((hub) => {
-                if (hub.id === groupId) return null;
+                if (hub.id === threadId) return null;
 
                 return (
                 <button

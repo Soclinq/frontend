@@ -740,7 +740,7 @@ export default function ChatMessages({
                         })}
                       </div>
                     ) : null}
-
+{/* 
                     {!selectionMode && !isDeleted && hoverMsgId === msg.id ? (
                       <div className={styles.msgHoverActions}>
                         <button
@@ -782,7 +782,7 @@ export default function ChatMessages({
                           <FiMoreVertical />
                         </button>
                       </div>
-                    ) : null}
+                    ) : null} */}
 
                     <div className={styles.metaRow}>
                       <span className={styles.time}>

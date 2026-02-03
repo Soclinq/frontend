@@ -425,7 +425,6 @@ class HubMessage(models.Model):
         related_name="seen_messages",
     )
 
-    is_forwarded = models.BooleanField(default=False)
 
     forwarded_from = models.ForeignKey(
         "self",
@@ -691,3 +690,294 @@ class HubMessageReaction(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["message", "user"], name="unique_one_reaction_per_user_per_message")
         ]
+
+
+# community/private_models.py (or community/models.py if you prefer)
+
+import uuid
+from django.db import models
+from django.conf import settings
+from django.utils import timezone
+
+
+class PrivateConversation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    user1 = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="private_conversations_as_user1",
+        db_index=True,
+    )
+    user2 = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="private_conversations_as_user2",
+        db_index=True,
+    )
+
+    # ✅ chat settings (WhatsApp-like)
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            # ✅ prevent duplicate conversations
+            models.UniqueConstraint(
+                fields=["user1", "user2"],
+                name="unique_private_conversation_pair",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["user1", "updated_at"]),
+            models.Index(fields=["user2", "updated_at"]),
+        ]
+
+    def __str__(self):
+        return f"PrivateConversation({self.user1_id} ↔ {self.user2_id})"
+
+
+class PrivateConversationMember(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="private_memberships",
+        db_index=True,
+    )
+
+    conversation = models.ForeignKey(
+        "community.PrivateConversation",
+        on_delete=models.CASCADE,
+        related_name="members",
+        db_index=True,
+    )
+
+    # ✅ WhatsApp controls
+    muted_until = models.DateTimeField(null=True, blank=True)
+    pinned_at = models.DateTimeField(null=True, blank=True)
+    archived_at = models.DateTimeField(null=True, blank=True)
+
+    # ✅ unread / read sync
+    last_read_at = models.DateTimeField(null=True, blank=True)
+    last_delivered_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "conversation")
+        indexes = [
+            models.Index(fields=["user", "pinned_at"]),
+            models.Index(fields=["user", "archived_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} in {self.conversation_id}"
+
+class PrivateMessageType(models.TextChoices):
+    TEXT = "TEXT", "Text"
+    MEDIA = "MEDIA", "Media"
+    SYSTEM = "SYSTEM", "System"
+
+
+class PrivateMessage(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    conversation = models.ForeignKey(
+        "community.PrivateConversation",
+        on_delete=models.CASCADE,
+        related_name="messages",
+        db_index=True,
+    )
+
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="private_sent_messages",
+        db_index=True,
+    )
+
+    message_type = models.CharField(
+        max_length=20,
+        choices=PrivateMessageType.choices,
+        default=PrivateMessageType.TEXT,
+        db_index=True,
+    )
+
+    text = models.TextField(blank=True)
+
+    # ✅ reply support
+    reply_to = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="replies",
+    )
+
+    # ✅ edit + soft delete
+    edited_at = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+
+    client_temp_id = models.CharField(max_length=100, blank=True, db_index=True)
+
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(fields=["conversation", "-created_at"]),
+            models.Index(fields=["sender", "-created_at"]),
+        ]
+
+    def __str__(self):
+        preview = self.text[:25] if self.text else "[media]"
+        return f"{self.sender_id} → {self.conversation_id}: {preview}"
+
+
+class PrivateMessageAttachment(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    message = models.ForeignKey(
+        "community.PrivateMessage",
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+
+    attachment_type = models.CharField(
+        max_length=20,
+        choices=AttachmentType.choices,  # ✅ reuse AttachmentType
+        db_index=True,
+    )
+
+    url = models.URLField()
+    s3_key = models.CharField(max_length=500, blank=True)
+
+    file_name = models.CharField(max_length=255, blank=True)
+    file_size = models.PositiveIntegerField(null=True, blank=True)
+    mime_type = models.CharField(max_length=100, blank=True)
+
+    width = models.PositiveIntegerField(null=True, blank=True)
+    height = models.PositiveIntegerField(null=True, blank=True)
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
+
+    thumbnail_url = models.URLField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["message", "attachment_type"]),
+        ]
+
+class PrivateMessageHidden(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    message = models.ForeignKey(
+        "community.PrivateMessage",
+        on_delete=models.CASCADE,
+        related_name="hidden_by",
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="hidden_private_messages",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("message", "user")
+
+class PrivateMessageReceipt(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    message = models.ForeignKey(
+        "community.PrivateMessage",
+        on_delete=models.CASCADE,
+        related_name="receipts",
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="private_message_receipts",
+    )
+
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("message", "user")
+        indexes = [
+            models.Index(fields=["message", "user"]),
+            models.Index(fields=["message", "read_at"]),
+        ]
+
+class PrivateMessageReaction(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    message = models.ForeignKey(
+        "community.PrivateMessage",
+        on_delete=models.CASCADE,
+        related_name="reactions",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="private_message_reactions",
+    )
+
+    emoji = models.CharField(max_length=16)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["message", "user"],
+                name="unique_one_private_reaction_per_user_per_message",
+            )
+        ]
+
+class UserBlock(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    blocker = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="blocked_users",
+    )
+    blocked = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="blocked_by_users",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("blocker", "blocked")
+
+class EmergencyShareSession(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sos_sessions",
+    )
+
+    shared_with = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sos_received_sessions",
+    )
+
+    is_active = models.BooleanField(default=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)

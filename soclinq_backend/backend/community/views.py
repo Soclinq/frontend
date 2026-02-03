@@ -36,31 +36,22 @@ def decode_cursor(cursor: str):
     except Exception:
         return None, None
 
+from django.contrib.gis.geos import Point
+from django.utils import timezone
+from django.db.models import Count, Max
+
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from community.models import AdminUnit, CommunityHub, HubType, CommunityMembership, HubMessage, HubReadReceipt
+from community.serializers import HubSerializer
+
 class NearbyCommunitiesByLocationView(APIView):
-    """
-    POST /communities/nearby/
-
-    Body:
-    {
-      "lat": number,
-      "lng": number,
-      "source": "GPS" | "IP" | "UNKNOWN",
-      "countryCode": "NG" (optional)
-    }
-
-    Returns:
-    {
-      "resolvedLocation": {...},
-      "groups": [...]   # ALL LGAs (ADMIN_2) in the user's state
-    }
-    """
-
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # -------------------------------------------------
-        # 1️⃣ Validate input
-        # -------------------------------------------------
         lat = request.data.get("lat")
         lng = request.data.get("lng")
         source = request.data.get("source", "UNKNOWN")
@@ -81,17 +72,11 @@ class NearbyCommunitiesByLocationView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # -------------------------------------------------
-        # 2️⃣ Resolve location → admin units
-        # -------------------------------------------------
-        resolver = LocationResolver(
-            lat=lat,
-            lng=lng,
-            country_code=country_code,
-        )
+        # ✅ Resolve location
+        resolver = LocationResolver(lat=lat, lng=lng, country_code=country_code)
         resolved = resolver.resolve()
 
-        admin_units = resolved.admin_units      # {0,1,2}
+        admin_units = resolved.admin_units
         confidence = resolved.confidence
 
         if not admin_units:
@@ -109,9 +94,7 @@ class NearbyCommunitiesByLocationView(APIView):
                 status=status.HTTP_200_OK,
             )
 
-        # -------------------------------------------------
-        # 3️⃣ Determine primary admin level
-        # -------------------------------------------------
+        # ✅ primary admin level
         if 2 in admin_units:
             primary_admin_level = 2
         elif 1 in admin_units:
@@ -119,9 +102,7 @@ class NearbyCommunitiesByLocationView(APIView):
         else:
             primary_admin_level = 0
 
-        # -------------------------------------------------
-        # 4️⃣ Persist location on user
-        # -------------------------------------------------
+        # ✅ persist
         user = request.user
         user.last_known_location = Point(lng, lat, srid=4326)
         user.location_source = source
@@ -143,23 +124,15 @@ class NearbyCommunitiesByLocationView(APIView):
             ]
         )
 
-        # -------------------------------------------------
-        # 5️⃣ Ensure SYSTEM hubs exist + auto-join user
-        # -------------------------------------------------
-        hubs = ensure_system_hubs_and_join(
-            user=user,
-            admin_units=admin_units,
+        # ✅ ensure system hubs exist for current admin units
+        hubs_by_level = ensure_system_hubs_and_join(user=user, admin_units=admin_units)
+
+        # ✅ user memberships
+        joined_rows = (
+            CommunityMembership.objects.filter(user=user, is_active=True)
+            .values("hub_id", "role")
         )
-
-        from community.models import CommunityHub, HubType, CommunityMembership
-
-        # ✅ get user's active memberships once
-        joined_hubs_qs = CommunityMembership.objects.filter(
-            user=request.user,
-            is_active=True,
-        ).values("hub_id", "role")
-
-        joined_map = {str(m["hub_id"]): m["role"] for m in joined_hubs_qs}
+        joined_map = {str(r["hub_id"]): r["role"] for r in joined_rows}
 
         groups = []
         state_unit = admin_units.get(1)
@@ -172,10 +145,11 @@ class NearbyCommunitiesByLocationView(APIView):
                 .order_by("name")
             )
 
+            # ✅ collect all hub ids for bulk stats
+            all_hubs = []
             for lga in lga_units:
                 system_hub = getattr(lga, "hub", None)
 
-                # ✅ auto-create system hub if missing
                 if not system_hub:
                     system_hub = CommunityHub.objects.create(
                         admin_unit=lga,
@@ -185,39 +159,110 @@ class NearbyCommunitiesByLocationView(APIView):
                         is_verified=True,
                     )
 
-                hubs_payload = []
+                all_hubs.append(system_hub)
 
-                if system_hub and system_hub.is_active:
-                    # ✅ SYSTEM hub first
-                    role = joined_map.get(str(system_hub.id))
-                    hubs_payload.append(
-                        {
-                            "id": str(system_hub.id),
-                            "name": system_hub.name,
-                            "type": "SYSTEM",
-                            "joined": role is not None,
-                            "role": role,   # "MEMBER" | "LEADER" | "MODERATOR" | None
-                        }
-                    )
-
-                    # ✅ LOCAL hubs under system hub
-                    local_hubs = system_hub.children.filter(
+                local_hubs = list(
+                    system_hub.children.filter(
                         hub_type=HubType.LOCAL,
                         is_active=True,
                     ).order_by("name")
+                )
+                all_hubs.extend(local_hubs)
 
-                    for child in local_hubs:
-                        child_role = joined_map.get(str(child.id))
+            hub_ids = [h.id for h in all_hubs]
 
-                        hubs_payload.append(
-                            {
-                                "id": str(child.id),
-                                "name": child.name,
-                                "type": "LOCAL",
-                                "joined": child_role is not None,
-                                "role": child_role,
-                            }
-                        )
+            # ✅ members_count (bulk)
+            members_rows = (
+                CommunityMembership.objects.filter(hub_id__in=hub_ids, is_active=True)
+                .values("hub_id")
+                .annotate(cnt=Count("id"))
+            )
+            members_map = {str(r["hub_id"]): r["cnt"] for r in members_rows}
+
+            # ✅ last message preview (bulk)
+            last_msg_time_rows = (
+                HubMessage.objects.filter(hub_id__in=hub_ids)
+                .values("hub_id")
+                .annotate(last_at=Max("created_at"))
+            )
+            last_at_map = {str(r["hub_id"]): r["last_at"] for r in last_msg_time_rows}
+
+            last_messages = (
+                HubMessage.objects.filter(hub_id__in=hub_ids)
+                .select_related("sender")
+                .order_by("-created_at")
+            )
+
+            last_msg_map = {}
+            for msg in last_messages:
+                hid = str(msg.hub_id)
+                if hid not in last_msg_map:
+                    last_msg_map[hid] = msg
+
+            # ✅ unread_count (per hub)
+            receipts_rows = (
+                HubReadReceipt.objects.filter(user=user, hub_id__in=hub_ids)
+                .values("hub_id", "last_seen_at")
+            )
+            last_seen_map = {str(r["hub_id"]): r["last_seen_at"] for r in receipts_rows}
+
+            unread_map = {}
+            for h in hub_ids:
+                hid = str(h)
+                last_seen = last_seen_map.get(hid)
+
+                if not last_seen:
+                    unread_map[hid] = HubMessage.objects.filter(hub_id=h).count()
+                else:
+                    unread_map[hid] = HubMessage.objects.filter(
+                        hub_id=h, created_at__gt=last_seen
+                    ).count()
+
+            # ✅ build LGA groups
+            for lga in lga_units:
+                system_hub = getattr(lga, "hub", None)
+                if not system_hub:
+                    continue
+
+                # ✅ build list: system + locals
+                local_hubs = list(
+                    system_hub.children.filter(
+                        hub_type=HubType.LOCAL,
+                        is_active=True,
+                    ).order_by("name")
+                )
+
+                hub_list = [system_hub] + local_hubs
+
+                hubs_payload = []
+                for hub in hub_list:
+                    base = HubSerializer(hub).data
+                    role = joined_map.get(str(hub.id))
+                    last_msg = last_msg_map.get(str(hub.id))
+
+                    base.update(
+                        {
+                            "user_joined": role is not None,
+                            "user_role": role,
+
+                            "members_count": members_map.get(str(hub.id), 0),
+                            "online_count": 0,
+                            "unread_count": unread_map.get(str(hub.id), 0),
+
+                            "last_message_text": getattr(last_msg, "text", None) if last_msg else None,
+                            "last_message_type": getattr(last_msg, "message_type", None) if last_msg else None,
+                            "last_message_at": last_msg.created_at.isoformat() if last_msg else None,
+                            "last_message_sender_name": (
+                                getattr(last_msg.sender, "username", None)
+                                if last_msg and last_msg.sender
+                                else None
+                            ),
+
+                            "pinned_message_id": None,
+                        }
+                    )
+
+                    hubs_payload.append(base)
 
                 groups.append(
                     {
@@ -226,12 +271,6 @@ class NearbyCommunitiesByLocationView(APIView):
                     }
                 )
 
-
-
-
-        # -------------------------------------------------
-        # 7️⃣ Build response payload
-        # -------------------------------------------------
         resolved_payload = {
             "source": source,
             "confidence": confidence,
@@ -245,11 +284,8 @@ class NearbyCommunitiesByLocationView(APIView):
                 for level, unit in admin_units.items()
             },
             "hubs": {
-                str(level): {
-                    "id": str(hub.id),
-                    "name": hub.name,
-                }
-                for level, hub in hubs.items()
+                str(level): {"id": str(hub.id), "name": hub.name}
+                for level, hub in hubs_by_level.items()
             },
         }
 
@@ -1079,3 +1115,364 @@ class MessageForwardView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+from django.db.models import Q, Count, Max
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from community.models import (
+    CommunityHub,
+    CommunityMembership,
+    HubMessage,
+    HubReadReceipt,
+    HubType,
+)
+from community.serializers import HubSerializer
+
+
+class CommunityHubSearchView(APIView):
+    """
+    GET /communities/search/?q=<text>
+
+    Returns:
+    {
+      "hubs": [HubPayload...]
+    }
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        q = (request.query_params.get("q") or "").strip()
+
+        if not q:
+            return Response({"hubs": []}, status=status.HTTP_200_OK)
+
+        # ✅ hub search (simple + fast)
+        hubs_qs = (
+            CommunityHub.objects.filter(is_active=True)
+            .filter(
+                Q(name__icontains=q)
+                | Q(category__icontains=q)
+                | Q(description__icontains=q)
+            )
+            .order_by("-is_verified", "name")[:20]
+        )
+
+        hubs = list(hubs_qs)
+        hub_ids = [h.id for h in hubs]
+
+        # ✅ joined state
+        joined_rows = (
+            CommunityMembership.objects.filter(user=user, is_active=True, hub_id__in=hub_ids)
+            .values("hub_id", "role")
+        )
+        joined_map = {str(r["hub_id"]): r["role"] for r in joined_rows}
+
+        # ✅ members_count
+        members_rows = (
+            CommunityMembership.objects.filter(hub_id__in=hub_ids, is_active=True)
+            .values("hub_id")
+            .annotate(cnt=Count("id"))
+        )
+        members_map = {str(r["hub_id"]): r["cnt"] for r in members_rows}
+
+        # ✅ last message preview
+        last_messages = (
+            HubMessage.objects.filter(hub_id__in=hub_ids)
+            .select_related("sender")
+            .order_by("-created_at")
+        )
+
+        last_msg_map = {}
+        for msg in last_messages:
+            hid = str(msg.hub_id)
+            if hid not in last_msg_map:
+                last_msg_map[hid] = msg
+
+        # ✅ unread_count
+        receipts_rows = (
+            HubReadReceipt.objects.filter(user=user, hub_id__in=hub_ids)
+            .values("hub_id", "last_seen_at")
+        )
+        last_seen_map = {str(r["hub_id"]): r["last_seen_at"] for r in receipts_rows}
+
+        unread_map = {}
+        for hub in hubs:
+            hid = str(hub.id)
+            last_seen = last_seen_map.get(hid)
+
+            if not last_seen:
+                unread_map[hid] = HubMessage.objects.filter(hub=hub).count()
+            else:
+                unread_map[hid] = HubMessage.objects.filter(
+                    hub=hub,
+                    created_at__gt=last_seen,
+                ).count()
+
+        # ✅ response hubs
+        payload = []
+        for hub in hubs:
+            base = HubSerializer(hub).data
+            role = joined_map.get(str(hub.id))
+            last_msg = last_msg_map.get(str(hub.id))
+
+            base.update(
+                {
+                    "user_joined": role is not None,
+                    "user_role": role,
+                    "members_count": members_map.get(str(hub.id), 0),
+                    "online_count": 0,
+                    "unread_count": unread_map.get(str(hub.id), 0),
+
+                    "last_message_text": getattr(last_msg, "text", None) if last_msg else None,
+                    "last_message_type": getattr(last_msg, "message_type", None) if last_msg else None,
+                    "last_message_at": last_msg.created_at.isoformat() if last_msg else None,
+                    "last_message_sender_name": (
+                        getattr(last_msg.sender, "username", None)
+                        if last_msg and last_msg.sender
+                        else None
+                    ),
+
+                    "pinned_message_id": None,
+                }
+            )
+
+            payload.append(base)
+
+        return Response({"hubs": payload}, status=status.HTTP_200_OK)
+
+
+from django.db import transaction
+from django.db.models import Count
+
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from community.models import (
+    CommunityHub,
+    CommunityMembership,
+    MembershipRole,
+)
+from community.serializers import HubSerializer
+
+
+class JoinCommunityHubView(APIView):
+    """
+    POST /communities/<hub_id>/join/
+
+    Rules:
+    - PUBLIC + OPEN => join immediately
+    - PRIVATE / INVITE_ONLY => block or request (future)
+    - REQUEST / APPROVAL => return "pending" (future)
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, hub_id):
+        user = request.user
+
+        try:
+            hub = CommunityHub.objects.get(id=hub_id)
+        except CommunityHub.DoesNotExist:
+            return Response({"error": "Hub not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        if not hub.is_active:
+            return Response({"error": "Hub is not active"}, status=status.HTTP_403_FORBIDDEN)
+
+        # ✅ privacy enforcement
+        if hub.privacy == "INVITE_ONLY":
+            return Response(
+                {"error": "This hub is invite-only"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if hub.privacy == "PRIVATE":
+            # ✅ for now block private hubs
+            # later: create a HubJoinRequest model
+            return Response(
+                {"error": "This hub is private. Join request required."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # ✅ join mode enforcement
+        if hub.join_mode in ["REQUEST", "APPROVAL"]:
+            return Response(
+                {
+                    "error": "This hub requires approval to join.",
+                    "join_mode": hub.join_mode,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # ✅ max members enforcement
+        if hub.max_members:
+            current_members = CommunityMembership.objects.filter(hub=hub, is_active=True).count()
+            if current_members >= hub.max_members:
+                return Response(
+                    {"error": "Hub is full"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        # ✅ join/create membership
+        with transaction.atomic():
+            membership, created = CommunityMembership.objects.get_or_create(
+                user=user,
+                hub=hub,
+                defaults={"role": MembershipRole.MEMBER, "is_active": True},
+            )
+
+            if not created and not membership.is_active:
+                membership.is_active = True
+                membership.save(update_fields=["is_active"])
+
+        # ✅ recompute members_count (optional but nice)
+        members_count = CommunityMembership.objects.filter(hub=hub, is_active=True).count()
+
+        # ✅ response hub payload
+        base = HubSerializer(hub).data
+        base.update(
+            {
+                "user_joined": True,
+                "user_role": membership.role,
+                "members_count": members_count,
+                "online_count": 0,
+                "unread_count": 0,
+
+                "last_message_text": None,
+                "last_message_type": None,
+                "last_message_at": None,
+                "last_message_sender_name": None,
+
+                "pinned_message_id": None,
+            }
+        )
+
+        return Response(
+            {
+                "message": "Joined successfully",
+                "hub": base,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+from django.db.models import OuterRef, Subquery, Count, Value, Q, F, Case, When
+from django.db.models.functions import Coalesce
+from django.utils.dateparse import parse_datetime
+
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from community.models import (
+    PrivateConversationMember,
+    PrivateMessage,
+    UserBlock,
+)
+
+
+class PrivateInboxView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        try:
+            blocked_ids = list(
+                UserBlock.objects.filter(blocker=user).values_list("blocked_id", flat=True)
+            )
+            blocked_by_ids = list(
+                UserBlock.objects.filter(blocked=user).values_list("blocker_id", flat=True)
+            )
+
+            qs = (
+                PrivateConversationMember.objects
+                .select_related("conversation", "conversation__user1", "conversation__user2")
+                .filter(user=user)
+                .filter(conversation__is_active=True)
+            )
+
+            last_msg_subq = (
+                PrivateMessage.objects
+                .filter(conversation_id=OuterRef("conversation_id"))
+                .filter(deleted_at__isnull=True)
+                .order_by("-created_at")
+            )
+
+            qs = qs.annotate(
+                last_message_text=Subquery(last_msg_subq.values("text")[:1]),
+                last_message_at=Subquery(last_msg_subq.values("created_at")[:1]),
+            )
+
+            unread_subq = (
+                PrivateMessage.objects
+                .filter(conversation_id=OuterRef("conversation_id"))
+                .filter(deleted_at__isnull=True)
+                .exclude(sender_id=user.id)
+                .filter(
+                    created_at__gt=Coalesce(
+                        OuterRef("last_read_at"),
+                        Value("1970-01-01T00:00:00Z"),
+                    )
+                )
+                .values("conversation_id")
+                .annotate(c=Count("id"))
+                .values("c")[:1]
+            )
+
+            qs = qs.annotate(
+                unread_count=Coalesce(Subquery(unread_subq), Value(0)),
+                other_user_id=Case(
+                    When(conversation__user1_id=user.id, then=F("conversation__user2_id")),
+                    default=F("conversation__user1_id"),
+                ),
+            )
+
+            qs = qs.exclude(other_user_id__in=blocked_ids).exclude(other_user_id__in=blocked_by_ids)
+
+            qs = qs.order_by(
+                F("pinned_at").desc(nulls_last=True),
+                F("last_message_at").desc(nulls_last=True),
+                F("created_at").desc(),
+            )
+
+            conversations = []
+            for m in qs[:250]:
+                convo = m.conversation
+                other_user = convo.user2 if convo.user1_id == user.id else convo.user1
+
+                conversations.append(
+                    {
+                        "conversation_id": str(convo.id),
+                        "other_user": {
+                            "id": str(other_user.id),
+                            "name": getattr(other_user, "get_full_name", lambda: "")() or getattr(other_user, "username", "User"),
+                            "photo": getattr(other_user, "photo", None) if hasattr(other_user, "photo") else None,
+                        },
+                        "last_message_text": m.last_message_text,
+                        "last_message_at": m.last_message_at,
+                        "unread_count": int(m.unread_count or 0),
+                    }
+                )
+
+            return Response(
+                {
+                    "conversations": conversations,
+                    "count": len(conversations),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception:
+            return Response(
+                {"error": "Unable to load private inbox"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

@@ -2,9 +2,7 @@
 
 import styles from "./styles/Community.module.css";
 import { useCommunityStore } from "@/hooks/useCommunityStore";
-
-import CommunityHeader from "./CommunityHeader";
-import GroupsContainer from "./GroupsContainer";
+import ChatShell from "./ChatShell";
 
 import AnnouncementsPanel from "./AnnouncementsPanel";
 import NearbySupportPanel from "./NearbySupportPanel";
@@ -15,13 +13,9 @@ export default function Community(): ReactElement {
 
   return (
     <section className={styles.community}>
-      {/* Page header */}
-      <CommunityHeader />
-
-      {/* Membership */}
-      <section className={styles.section}>
-        <GroupsContainer
-        />
+      {/* ✅ Chat should be full height */}
+      <section className={styles.chatWrap}>
+        <ChatShell />
       </section>
 
       {/* Core interaction */}

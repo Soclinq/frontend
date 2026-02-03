@@ -1,202 +1,425 @@
+/* AccountSection.module.css */
+
 .section {
-    background: #ffffff;
-    border-radius: 16px;
-    padding: 1.5rem;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
-  }
-  
-  .section h3 {
-    margin-bottom: 1.25rem;
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: #1f2937;
-  }
-  
-  /* ================= AVATAR ================= */
-  
-  .avatarRow {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .avatar {
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: #ffffff;
-    font-size: 1.8rem;
-    font-weight: 600;
-    overflow: hidden;
-  }
-  
-  .avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-  
-  /* ================= CARD ================= */
-  
-  .card {
-    background: #f9fafb;
-    border-radius: 14px;
-    padding: 1.25rem;
-    border: 1px solid #e5e7eb;
-  }
-  
-  /* ================= FORM ================= */
-  
-  .card label {
-    display: flex;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+/* ================= TOP ROW ================= */
+.topRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: var(--line-tight);
+  font-weight: var(--weight-bold);
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.subtext {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  line-height: var(--line-relaxed);
+  color: var(--text-muted);
+}
+
+/* ================= AVATAR ROW ================= */
+.avatarRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-7);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xs);
+  backdrop-filter: var(--glass-blur);
+}
+
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--surface-3);
+  border: 1px solid var(--border-soft);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.fallbackAvatar {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-weight: var(--weight-bold);
+  color: var(--text-soft);
+  background: var(--gradient-soft);
+  letter-spacing: 0.02em;
+}
+
+.avatarInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.avatarName {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.avatarMeta {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ================= CARD ================= */
+.card {
+  width: 100%;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  padding: var(--space-10);
+  box-shadow: var(--card-shadow);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+
+  position: relative;
+  overflow: hidden;
+}
+
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--gradient-soft);
+  opacity: 0.9;
+}
+
+/* Keep inner content above the gradient overlay */
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ================= FORM ELEMENTS ================= */
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-soft);
+}
+
+.input {
+  width: 100%;
+  height: var(--input-height);
+  padding: 0 var(--space-8);
+
+  border-radius: var(--input-radius);
+  border: 1px solid var(--input-border);
+  background: var(--input-bg);
+
+  font-size: var(--text-md);
+  font-weight: var(--weight-medium);
+  color: var(--text);
+  outline: none;
+
+  transition:
+    border-color var(--fast),
+    box-shadow var(--fast),
+    transform var(--fast),
+    opacity var(--fast);
+}
+
+.input::placeholder {
+  color: var(--input-placeholder);
+}
+
+.input:focus {
+  border-color: var(--focus);
+  box-shadow: var(--ring);
+}
+
+.input:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.input[readonly] {
+  background: rgba(248, 250, 252, 0.7); /* slate-50 feel */
+  border-color: var(--divider);
+  color: var(--text-muted);
+}
+
+/* ================= BUTTONS ================= */
+.primaryBtn,
+.secondaryBtn {
+  height: var(--btn-height);
+  padding: 0 var(--btn-padding-x);
+  border-radius: var(--btn-radius);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+
+  font-size: var(--btn-font-size);
+  font-weight: var(--weight-semibold);
+
+  cursor: pointer;
+  user-select: none;
+
+  transition:
+    transform var(--fast),
+    box-shadow var(--fast),
+    background var(--fast),
+    border-color var(--fast),
+    color var(--fast),
+    opacity var(--fast);
+}
+
+.primaryBtn {
+  border: 1px solid transparent;
+  background: var(--gradient-brand);
+  color: var(--text-invert);
+  box-shadow: var(--shadow-sm);
+}
+
+.primaryBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.primaryBtn:active {
+  transform: translateY(0px);
+  box-shadow: var(--shadow-sm);
+}
+
+.primaryBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.secondaryBtn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  box-shadow: var(--shadow-xs);
+}
+
+.secondaryBtn:hover {
+  border-color: rgba(37, 99, 235, 0.28);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+
+.secondaryBtn:active {
+  transform: translateY(0px);
+}
+
+.secondaryBtn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Make icons crisp */
+.primaryBtn svg,
+.secondaryBtn svg {
+  font-size: 18px;
+  color: currentColor;
+}
+
+/* ================= USERNAME HINTS ================= */
+.goodHint,
+.badHint {
+  margin-top: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  font-size: var(--text-xs);
+  line-height: var(--line-normal);
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-pill);
+  width: fit-content;
+}
+
+.goodHint {
+  color: var(--success);
+  background: var(--success-soft);
+  border: 1px solid rgba(22, 163, 74, 0.18);
+}
+
+.badHint {
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid rgba(239, 68, 68, 0.22);
+}
+
+/* ================= OTP ================= */
+.otpBox {
+  margin-top: var(--space-2);
+  padding: var(--space-7);
+  background: rgba(14, 165, 233, 0.06);
+  border: 1px solid rgba(14, 165, 233, 0.18);
+  border-radius: var(--radius-xl);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.otpRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.otpInput {
+  flex: 1;
+  height: var(--input-height);
+  padding: 0 var(--space-8);
+
+  border-radius: var(--input-radius);
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.08em;
+  color: var(--text);
+  outline: none;
+
+  transition:
+    border-color var(--fast),
+    box-shadow var(--fast);
+}
+
+.otpInput::placeholder {
+  letter-spacing: normal;
+  color: var(--input-placeholder);
+}
+
+.otpInput:focus {
+  border-color: var(--focus);
+  box-shadow: var(--ring);
+}
+
+.muted {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+/* ================= PHONE VERIFIED ================= */
+.success {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  font-size: var(--text-xs);
+  color: var(--success);
+  background: var(--success-soft);
+
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius-pill);
+  width: fit-content;
+  border: 1px solid rgba(22, 163, 74, 0.18);
+}
+
+.success svg {
+  font-size: 16px;
+}
+
+/* ================= ACTION ROW ================= */
+.actionRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-6);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--divider);
+}
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 600px) {
+  .topRow {
     flex-direction: column;
-    gap: 0.35rem;
-    font-size: 0.85rem;
-    font-weight: 500;
-    color: #374151;
-    margin-bottom: 1rem;
+    align-items: stretch;
   }
-  
-  .card input {
-    padding: 0.6rem 0.7rem;
-    border-radius: 10px;
-    border: 1px solid #d1d5db;
-    font-size: 0.9rem;
-    background: #ffffff;
-    transition: border-color 0.2s, box-shadow 0.2s;
+
+  .avatarRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-6);
   }
-  
-  .card input:read-only {
-    background: #f3f4f6;
-    color: #6b7280;
+
+  .avatarInfo {
+    align-items: flex-start;
   }
-  
-  .card input:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.15);
-  }
-  
-  /* ================= OTP ================= */
-  
-  .otp {
-    margin-top: 0.75rem;
-    padding: 0.75rem;
-    border-radius: 12px;
-    background: #eef2ff;
-    border: 1px dashed #c7d2fe;
-    display: flex;
-    gap: 0.5rem;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-  
-  .otp input {
-    flex: 1;
-  }
-  
-  .otp button {
-    padding: 0.45rem 0.7rem;
-    border-radius: 8px;
-    border: none;
-    background: #4f46e5;
-    color: #ffffff;
-    font-size: 0.8rem;
-    cursor: pointer;
-  }
-  
-  .otp button:hover {
-    background: #4338ca;
-  }
-  
-  .otp small {
-    width: 100%;
-    font-size: 0.75rem;
-    color: #6b7280;
-  }
-  
-  /* ================= SUCCESS ================= */
-  
-  .success {
-    margin-top: 0.5rem;
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    font-size: 0.8rem;
-    color: #059669;
-  }
-  
-  /* ================= BUTTONS ================= */
-  
-  .primaryBtn {
-    background: linear-gradient(135deg, #6366f1, #4f46e5);
-    color: #ffffff;
-    border: none;
-    border-radius: 12px;
-    padding: 0.55rem 1rem;
-    font-size: 0.85rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  
-  .primaryBtn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 20px rgba(79, 70, 229, 0.25);
-  }
-  
-  .primaryBtn:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-  }
-  
-  .secondaryBtn {
-    background: #ffffff;
-    color: #374151;
-    border: 1px solid #d1d5db;
-    border-radius: 12px;
-    padding: 0.55rem 1rem;
-    font-size: 0.85rem;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    cursor: pointer;
-  }
-  
-  .secondaryBtn:hover {
-    background: #f9fafb;
-  }
-  
-  /* ================= ACTION ROW ================= */
-  
+
   .actionRow {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 1rem;
+    flex-direction: column;
+    align-items: stretch;
   }
-  
-  /* ================= RESPONSIVE ================= */
-  
-  @media (max-width: 480px) {
-    .section {
-      padding: 1rem;
-    }
-  
-    .avatar {
-      width: 60px;
-      height: 60px;
-      font-size: 1.4rem;
-    }
-  
-    .actionRow {
-      flex-direction: column;
-    }
+
+  .primaryBtn,
+  .secondaryBtn {
+    width: 100%;
   }
-  
+
+  .otpRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .otpInput {
+    width: 100%;
+  }
+}
+
+/* Make it feel premium on larger screens */
+@media (min-width: 1025px) {
+  .card {
+    padding: var(--space-12);
+  }
+
+  .avatarRow {
+    padding: var(--space-8);
+  }
+}

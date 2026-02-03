@@ -201,3 +201,303 @@ class OTP(models.Model):
 
     def is_expired(self):
         return (timezone.now() - self.created_at).seconds > 12300  # 5 minutes
+
+
+import uuid
+import re
+from django.db import models
+from django.conf import settings
+from django.utils import timezone
+
+
+USERNAME_RE = re.compile(r"^[a-zA-Z0-9_]{3,32}$")
+
+
+class UsernameEntityType(models.TextChoices):
+    USER = "USER", "User"
+    HUB = "HUB", "Community Hub"
+    ORG = "ORG", "Organization"
+    RESPONDER = "RESPONDER", "Responder"
+    SYSTEM = "SYSTEM", "System"
+
+
+class UsernameTier(models.TextChoices):
+    PUBLIC = "PUBLIC", "Public"
+    RESTRICTED = "RESTRICTED", "Restricted"
+    SYSTEM = "SYSTEM", "System Reserved"
+
+
+class UsernameStatus(models.TextChoices):
+    ACTIVE = "ACTIVE", "Active"
+    DISABLED = "DISABLED", "Disabled"
+    LOCKED = "LOCKED", "Locked"
+
+
+class UsernameRegistry(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    username = models.CharField(max_length=32, unique=True)
+    username_lower = models.CharField(max_length=32, unique=True, db_index=True)
+
+    entity_type = models.CharField(max_length=20, choices=UsernameEntityType.choices)
+    tier = models.CharField(max_length=20, choices=UsernameTier.choices, default=UsernameTier.PUBLIC)
+    status = models.CharField(max_length=20, choices=UsernameStatus.choices, default=UsernameStatus.ACTIVE)
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="public_username",
+    )
+
+    hub = models.OneToOneField(
+        "community.CommunityHub",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="public_username",
+    )
+
+    organization = models.OneToOneField(
+        "accounts.Organization",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="public_username",
+    )
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="usernames_created",
+    )
+
+    approved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="usernames_approved",
+    )
+
+    note = models.CharField(max_length=255, blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_changed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["username_lower"]),
+            models.Index(fields=["tier"]),
+            models.Index(fields=["entity_type"]),
+            models.Index(fields=["status"]),
+        ]
+
+    def clean_username(self, value: str) -> str:
+        u = (value or "").strip()
+
+        if not USERNAME_RE.match(u):
+            raise ValueError("Username must be 3-32 chars and contain only letters, numbers, underscore")
+
+        if u.startswith("_") or u.endswith("_"):
+            raise ValueError("Username cannot start or end with underscore")
+
+        if "__" in u:
+            raise ValueError("Username cannot contain repeated underscores")
+
+        return u
+
+    def save(self, *args, **kwargs):
+        if self.username:
+            self.username = self.clean_username(self.username)
+            self.username_lower = self.username.lower()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.username} ({self.entity_type}, {self.tier})"
+
+
+import uuid
+from django.db import models
+
+
+class ReservedUsernameType(models.TextChoices):
+    SYSTEM = "SYSTEM", "System Only"
+    RESTRICTED = "RESTRICTED", "Restricted"
+    BLOCKED = "BLOCKED", "Blocked"
+
+
+class ReservedUsername(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    username_lower = models.CharField(max_length=32, unique=True, db_index=True)
+    reserved_type = models.CharField(max_length=20, choices=ReservedUsernameType.choices)
+
+    reason = models.CharField(max_length=255, blank=True, default="")
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.username_lower} ({self.reserved_type})"
+
+
+import uuid
+from django.db import models
+from django.conf import settings
+
+
+class EmergencyContact(models.Model):
+    RELATIONSHIP_CHOICES = [
+        ("FAMILY", "Family"),
+        ("FRIEND", "Friend"),
+        ("NEIGHBOR", "Neighbor"),
+        ("COLLEAGUE", "Colleague"),
+        ("OTHER", "Other"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="emergency_contacts",
+    )
+
+    name = models.CharField(max_length=255)
+    phone = models.CharField(max_length=30)
+
+    relationship = models.CharField(
+        max_length=20,
+        choices=RELATIONSHIP_CHOICES,
+        blank=True,
+        null=True,
+    )
+
+    priority = models.PositiveSmallIntegerField(blank=True, null=True)
+    verified = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["priority", "-created_at"]
+        indexes = [
+            models.Index(fields=["user"]),
+            models.Index(fields=["verified"]),
+        ]
+
+    def __str__(self):
+        return f"{self.name} ({self.phone})"
+
+
+import uuid
+from django.db import models
+from django.conf import settings
+
+
+import uuid
+from django.db import models
+from django.conf import settings
+
+
+class ProfileSettings(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile_settings",
+    )
+
+    # -------------------------
+    # Emergency mode
+    # -------------------------
+    emergency_mode_enabled = models.BooleanField(default=False)
+
+    # -------------------------
+    # Device/location
+    # -------------------------
+    tracking_enabled = models.BooleanField(default=True)
+    location_enabled = models.BooleanField(default=True)
+
+    # -------------------------
+    # Privacy & permissions
+    # -------------------------
+    allow_location_sharing = models.BooleanField(default=True)
+    allow_anonymous_reports = models.BooleanField(default=True)
+    allow_push_notifications = models.BooleanField(default=True)
+
+    allow_messages_from = models.CharField(
+        max_length=20,
+        choices=[
+            ("EVERYONE", "Everyone"),
+            ("CONTACTS_ONLY", "Contacts Only"),
+            ("VERIFIED_ONLY", "Verified Only"),
+        ],
+        default="EVERYONE",
+    )
+
+    allow_device_binding = models.BooleanField(default=True)
+    allow_media_upload = models.BooleanField(default=True)
+
+    searchable_by_username = models.BooleanField(default=True)
+    hide_last_seen = models.BooleanField(default=False)
+
+    # -------------------------
+    # SOS features
+    # -------------------------
+    sos_silent_mode = models.BooleanField(default=False)
+    sos_countdown_seconds = models.PositiveIntegerField(default=5)
+
+    sos_auto_call_enabled = models.BooleanField(default=False)
+    sos_auto_share_location = models.BooleanField(default=True)
+    sos_auto_record_audio = models.BooleanField(default=False)
+
+    # -------------------------
+    # Quiet hours
+    # -------------------------
+    quiet_hours_enabled = models.BooleanField(default=False)
+    quiet_hours_start = models.CharField(max_length=10, blank=True, null=True)  # "22:00"
+    quiet_hours_end = models.CharField(max_length=10, blank=True, null=True)    # "06:00"
+
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Settings({self.user_id})"
+
+
+import uuid
+from django.db import models
+from django.conf import settings
+
+
+class AccountDeletionRequest(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="deletion_requests",
+    )
+
+    reason = models.TextField(blank=True, default="")
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("PENDING", "Pending"),
+            ("APPROVED", "Approved"),
+            ("REJECTED", "Rejected"),
+            ("CANCELLED", "Cancelled"),
+        ],
+        default="PENDING",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["user", "status", "created_at"])]
+
+    def __str__(self):
+        return f"DeletionRequest({self.user_id}, {self.status})"

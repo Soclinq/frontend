@@ -70,3 +70,27 @@ class RegisterSubmitSerializer(serializers.Serializer):
                 )
 
         return attrs
+
+from rest_framework import serializers
+
+
+class DeviceSettingsUpdateSerializer(serializers.Serializer):
+    # ✅ settings toggles (snake_case)
+    tracking_enabled = serializers.BooleanField(required=False)
+    location_enabled = serializers.BooleanField(required=False)
+
+    allow_location_sharing = serializers.BooleanField(required=False)
+    allow_push_notifications = serializers.BooleanField(required=False)
+
+    # ✅ optional: device meta
+    push_token = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    platform = serializers.ChoiceField(
+        choices=["WEB", "ANDROID", "IOS"],
+        required=False,
+        allow_null=True,
+    )
+    app_version = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+
+    imei = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    sim_number = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+    phone_model = serializers.CharField(required=False, allow_null=True, allow_blank=True)

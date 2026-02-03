@@ -1,4 +1,4 @@
-import { ChatAdapter } from "./adapterTypes";
+import { ChatAdapter } from "./chatAdapterTypes";
 
 export type ChatThreadProps = {
     threadId: string;         // groupId or conversationId

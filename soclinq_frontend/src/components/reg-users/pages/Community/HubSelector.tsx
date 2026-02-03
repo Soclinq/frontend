@@ -8,9 +8,6 @@ import {
   FiSearch,
   FiX,
   FiLayers,
-  FiUsers,
-  FiCheckCircle,
-  FiLock,
 } from "react-icons/fi";
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./styles/HubSelector.module.css";
@@ -19,33 +16,10 @@ import ChangeLGAModal from "./ChangeLGAModal";
 import CreateHubModal from "./CreateHubModal";
 import type { CreateHubPayload } from "./CreateHubModal";
 
+import HubCard from "./HubCard"; // ✅ NEW
+import type { Hub } from "@/types/hub"; // ✅ Official Hub type
+
 /* ================= TYPES ================= */
-
-export type HubRole = "MEMBER" | "LEADER" | "MODERATOR";
-
-export type Hub = {
-  id: string;
-  name: string;
-  type: "SYSTEM" | "LOCAL";
-
-  description?: string;
-  category?: string;
-  cover_image?: string | null;
-
-  members_count?: number;
-  unread_count?: number;
-
-  joined: boolean;
-  role: HubRole | null;
-
-  last_message_text?: string | null;
-  last_message_sender_name?: string | null;
-  last_message_at?: string | null;
-
-  privacy?: "PUBLIC" | "PRIVATE" | "INVITE_ONLY";
-  is_verified?: boolean;
-  is_active?: boolean;
-};
 
 export type LGAGroupBlock = {
   lga: { id: string; name: string };
@@ -108,8 +82,10 @@ export default function HubSelector({
   const hubs = useMemo(() => currentLGA?.hubs ?? [], [currentLGA]);
 
   const joinedFirst = useMemo(() => {
-    // ✅ show joined hubs first (better UX)
-    return [...hubs].sort((a, b) => Number(b.joined) - Number(a.joined));
+    // ✅ joined hubs first (better UX)
+    return [...hubs].sort(
+      (a, b) => Number(b.user_joined) - Number(a.user_joined)
+    );
   }, [hubs]);
 
   /* ✅ Auto search */
@@ -211,6 +187,7 @@ export default function HubSelector({
           <div className={styles.searchWrap} ref={dropdownRef}>
             <div className={styles.searchBox}>
               <FiSearch className={styles.searchIcon} />
+
               <input
                 className={styles.searchInput}
                 placeholder="Search hubs..."
@@ -291,111 +268,15 @@ export default function HubSelector({
             <p className={styles.empty}>No hubs found in this LGA</p>
           ) : (
             <div className={styles.hubGrid}>
-              {joinedFirst.map((hub) => {
-                const unread = hub.unread_count ?? 0;
-                const members = hub.members_count ?? 0;
-                const isPrivate = hub.privacy && hub.privacy !== "PUBLIC";
-
-                return (
-                  <article key={hub.id} className={styles.hubCard}>
-                    {/* Cover */}
-                    <div className={styles.hubCover}>
-                      {hub.cover_image ? (
-                        <img
-                          src={hub.cover_image}
-                          alt={hub.name}
-                          className={styles.coverImg}
-                        />
-                      ) : (
-                        <div className={styles.coverFallback}>
-                          <FiLayers />
-                        </div>
-                      )}
-
-                      {unread > 0 && (
-                        <span className={styles.unreadBadge}>{unread}</span>
-                      )}
-                    </div>
-
-                    {/* Body */}
-                    <div className={styles.hubBody}>
-                      <div className={styles.hubTitleRow}>
-                        <h4 className={styles.hubName}>{hub.name}</h4>
-
-                        {hub.is_verified && (
-                          <span className={styles.verifiedIcon}>
-                            <FiCheckCircle />
-                          </span>
-                        )}
-                      </div>
-
-                      <div className={styles.hubBadges}>
-                        <span className={styles.typeBadge}>
-                          {hub.type === "SYSTEM" ? "LGA Hub" : "Local Hub"}
-                        </span>
-
-                        {hub.category && (
-                          <span className={styles.categoryBadge}>
-                            {hub.category}
-                          </span>
-                        )}
-
-                        {isPrivate && (
-                          <span className={styles.privateBadge}>
-                            <FiLock />
-                            Private
-                          </span>
-                        )}
-                      </div>
-
-                      {hub.description ? (
-                        <p className={styles.hubDesc}>{hub.description}</p>
-                      ) : (
-                        <p className={styles.hubDescMuted}>
-                          No description yet
-                        </p>
-                      )}
-
-                      {hub.last_message_text ? (
-                        <p className={styles.hubPreview}>
-                          <strong className={styles.previewStrong}>
-                            {hub.last_message_sender_name || "Someone"}:
-                          </strong>{" "}
-                          {hub.last_message_text}
-                        </p>
-                      ) : (
-                        <p className={styles.hubPreviewMuted}>
-                          No messages yet
-                        </p>
-                      )}
-
-                      <div className={styles.hubMetaRow}>
-                        <span className={styles.metaStat}>
-                          <FiUsers />
-                          {members} members
-                        </span>
-
-                        {hub.joined && hub.role && (
-                          <span className={styles.roleChip}>{hub.role}</span>
-                        )}
-                      </div>
-
-                      {/* CTA */}
-                      <div className={styles.hubFooter}>
-                        <button
-                          className={
-                            hub.joined ? styles.openBtn : styles.joinBtn
-                          }
-                          disabled={disabledAll}
-                          onClick={() => openHubChat(hub)}
-                        >
-                          {hub.joined ? "Open" : "Join"}
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+              {joinedFirst.map((hub) => (
+                <HubCard
+                  key={hub.id}
+                  hub={hub}
+                  onJoin={() => openHubChat(hub)} // ✅ for now same click
+                  onOpen={() => openHubChat(hub)}
+                  disabled={disabledAll} // ✅ optional prop (see HubCard below)
+                />
+              ))}
             </div>
           )}
         </section>

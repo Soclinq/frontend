@@ -1,92 +1,158 @@
+/* ChatContextMenu.module.css */
+
+/* =========================
+   WhatsApp-like Context Menu
+   ✅ Premium glass card
+   ✅ Perfect spacing & contrast
+   ✅ Smooth animation
+========================= */
+
 .overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 999;
-  
-    background: transparent;
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+
+  /* WhatsApp-like dim */
+  background: rgba(0, 0, 0, 0.28);
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+
+  /* allows click outside */
+  padding: 12px;
+}
+
+/* Menu container */
+.menu {
+  position: fixed;
+
+  min-width: 210px;
+  max-width: 260px;
+
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 16px;
+
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(14px);
+
+  overflow: hidden;
+
+  /* smooth appear animation */
+  transform-origin: top left;
+  animation: popIn 160ms var(--ease);
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
   }
-  
-  /* WhatsApp-like floating menu */
+  to {
+    opacity: 1;
+    transform: translateY(0px) scale(1);
+  }
+}
+
+/* each menu item */
+.item {
+  width: 100%;
+  border: none;
+  background: transparent;
+
+  padding: 11px 12px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  cursor: pointer;
+  text-align: left;
+
+  color: rgba(15, 23, 42, 0.92);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+
+  transition: background var(--fast), transform var(--fast);
+}
+
+.item svg {
+  font-size: 18px;
+  opacity: 0.88;
+}
+
+/* Hover */
+.item:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.item:active {
+  transform: scale(0.99);
+}
+
+/* Disabled */
+.item:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.item:disabled:hover {
+  background: transparent;
+  transform: none;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: rgba(15, 23, 42, 0.10);
+  margin: 6px 0;
+}
+
+/* Danger item */
+.danger {
+  color: rgba(239, 68, 68, 0.95);
+}
+
+.danger:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.danger svg {
+  opacity: 1;
+}
+
+/* =========================
+   Mobile improvements
+========================= */
+@media (max-width: 520px) {
+  .overlay {
+    padding: 10px;
+  }
+
   .menu {
-    position: fixed;
-    min-width: 210px;
-    max-width: 240px;
-  
-    padding: 8px;
-    border-radius: var(--chat-radius-lg);
-  
-    background: var(--chat-surface);
-    border: 1px solid var(--chat-border-soft);
-    box-shadow: var(--chat-shadow);
-  
-    transform-origin: top left;
-    animation: pop 0.12s ease;
+    min-width: 200px;
+    max-width: 85vw;
+    border-radius: 18px;
   }
-  
-  @keyframes pop {
-    from {
-      transform: scale(0.98);
-      opacity: 0.6;
-    }
-    to {
-      transform: scale(1);
-      opacity: 1;
-    }
-  }
-  
+
   .item {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  
-    padding: 10px 10px;
-    border-radius: 14px;
-  
-    border: 1px solid transparent;
-    background: transparent;
-  
-    color: var(--chat-text);
-    font-size: 13px;
-    font-weight: 900;
-  
-    cursor: pointer;
-    text-align: left;
-  
-    transition: background 0.18s ease, border 0.18s ease, transform 0.08s ease;
+    padding: 12px 14px;
+    font-size: var(--text-md);
   }
-  
+
   .item svg {
-    font-size: 18px;
-    opacity: 0.9;
+    font-size: 19px;
   }
-  
-  .item:hover {
-    background: var(--chat-accent-soft);
-    border-color: color-mix(in srgb, var(--chat-accent) 30%, transparent);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .menu {
+    animation: none !important;
   }
-  
-  .item:active {
-    transform: scale(0.99);
+
+  .item {
+    transition: none !important;
   }
-  
-  .item:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-  
-  .divider {
-    height: 1px;
-    background: var(--chat-border-soft);
-    margin: 6px 4px;
-  }
-  
-  .danger {
-    color: var(--chat-danger);
-  }
-  
-  .danger:hover {
-    background: var(--chat-danger-soft);
-    border-color: color-mix(in srgb, var(--chat-danger) 35%, transparent);
-  }
-  
+}

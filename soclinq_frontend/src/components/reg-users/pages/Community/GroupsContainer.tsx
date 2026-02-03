@@ -1,98 +1,192 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
 import { usePreciseLocation } from "@/hooks/usePreciseLocation";
 import { useNotify } from "@/components/utils/NotificationContext";
 import { authFetch } from "@/lib/authFetch";
-import type { CreateHubPayload } from "./CreateHubModal";
+
+import type { Hub } from "@/types/hub";
+import type { PrivateInboxItem } from "@/types/privateInbox";
+
 import { normalizeHub } from "@/components/utils/normalizehub";
-import HubSelector from "./HubSelector";
-import ChatView from "./ChatView";
+
+import CreateHubModal from "./CreateHubModal";
+import type { CreateHubPayload } from "./CreateHubModal";
+
+import InboxRow from "./InboxRow";
+
+import styles from "./styles/GroupsContainer.module.css";
 
 /* ================= TYPES ================= */
 
-export type Hub = {
-  id: string;
-  name: string;
-  type: "SYSTEM" | "LOCAL";
-  joined: boolean;
-  role: "MEMBER" | "LEADER" | "MODERATOR" | null;
-};
-
 export type LGAGroupBlock = {
-  lga: {
-    id: string;
-    name: string;
-  };
+  lga: { id: string; name: string };
   hubs: Hub[];
 };
 
-export type Group = {
-  id: string;
-  name: string;
-  type: "LGA_MAIN";
+export type ActiveChat =
+  | { kind: "COMMUNITY"; id: string }
+  | { kind: "PRIVATE"; id: string }
+  | null;
+
+type InboxItem =
+  | { kind: "COMMUNITY"; hub: Hub; lastTs: number; lastISO: string | null }
+  | { kind: "PRIVATE"; chat: PrivateInboxItem; lastTs: number; lastISO: string | null };
+
+type Props = {
+  currentLGA: LGAGroupBlock | null;
+  setCurrentLGA: (lga: LGAGroupBlock | null) => void;
+
+  setLgaGroups: (blocks: LGAGroupBlock[]) => void; // ✅ comes from ChatShell
+
+  onOpenChat: (chat: Exclude<ActiveChat, null>) => void;
+  searchValue?: string;
 };
 
-type ViewMode = "GROUPS" | "CHAT";
+/* ================= HELPERS ================= */
 
-/* ✅ search result item */
-export type HubSearchItem = {
-  id: string;
-  name: string;
+function tsFromISO(iso?: string | null) {
+  if (!iso) return 0;
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
 
-  // optional (nice for UI)
-  lga?: { id: string; name: string };
-};
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+function dayDiffFromNow(iso?: string | null) {
+  if (!iso) return 9999;
+  const d = new Date(iso);
+  const now = new Date();
+  return Math.round((startOfDay(now) - startOfDay(d)) / (1000 * 60 * 60 * 24));
+}
+
+function formatDayLabel(iso?: string | null) {
+  if (!iso) return "Older";
+  const d = new Date(iso);
+  const diff = dayDiffFromNow(iso);
+
+  if (diff === 0) return "Today";
+  if (diff === 1) return "Yesterday";
+  if (diff >= 2 && diff <= 7) return d.toLocaleDateString([], { weekday: "long" });
+
+  return d.toLocaleDateString([], {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function metersBetween(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+  const R = 6371000;
+  const toRad = (x: number) => (x * Math.PI) / 180;
+
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+
+  const lat1 = toRad(a.lat);
+  const lat2 = toRad(b.lat);
+
+  const sin1 = Math.sin(dLat / 2);
+  const sin2 = Math.sin(dLng / 2);
+
+  const c =
+    2 *
+    Math.asin(
+      Math.sqrt(sin1 * sin1 + Math.cos(lat1) * Math.cos(lat2) * sin2 * sin2)
+    );
+
+  return R * c;
+}
 
 /* ================= COMPONENT ================= */
 
-export default function GroupsContainer() {
+export default function GroupsContainer({
+  currentLGA,
+  setCurrentLGA,
+  setLgaGroups,
+  onOpenChat,
+  searchValue = "",
+}: Props) {
   const notify = useNotify();
   const { location, loading: locationLoading, source } = usePreciseLocation();
-
-  const [hubOpen] = useState(true);
 
   const [loading, setLoading] = useState(false);
   const [creatingHub, setCreatingHub] = useState(false);
 
-  const [lgaGroups, setLgaGroups] = useState<LGAGroupBlock[]>([]);
-  const [currentLGA, setCurrentLGA] = useState<LGAGroupBlock | null>(null);
+  const [privateInbox, setPrivateInbox] = useState<PrivateInboxItem[]>([]);
+  const [createHubModalOpen, setCreateHubModalOpen] = useState(false);
 
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("GROUPS");
+  const lastLoadedRef = useRef<{ lat: number; lng: number } | null>(null);
 
-  /* ================= LOAD COMMUNITIES ================= */
+  const disabledAll = loading || creatingHub || locationLoading;
+
+  /* ================= FETCH ================= */
 
   async function loadCommunities(lat: number, lng: number) {
     const res = await authFetch("/communities/nearby/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        lat,
-        lng,
-        source: source ?? "UNKNOWN",
-      }),
+      body: JSON.stringify({ lat, lng, source: source ?? "UNKNOWN" }),
     });
 
     const data = await res.json().catch(() => ({}));
-
     if (!res.ok) throw new Error(data?.error || "Unable to load communities");
 
-    // ✅ ensure correct shape always
     const blocks: LGAGroupBlock[] = (data?.groups ?? []).map((g: any) => ({
       lga: {
-        id: g.lga.id,
-        name: g.lga.name,
+        id: String(g?.lga?.id ?? ""),
+        name: String(g?.lga?.name ?? ""),
       },
-      hubs: Array.isArray(g.hubs)
-        ? g.hubs.map(normalizeHub)
-        : [],
+      hubs: Array.isArray(g?.hubs) ? g.hubs.map(normalizeHub) : [],
     }));
-    
+
     const resolvedLgaId: string | undefined =
       data?.resolvedLocation?.adminUnits?.["2"]?.id;
 
     return { blocks, resolvedLgaId };
+  }
+
+  async function loadPrivateInbox() {
+    const res = await authFetch("/communities/private/inbox/", { method: "GET" });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) return [];
+    return (data?.conversations ?? []) as PrivateInboxItem[];
+  }
+
+  async function reloadAll() {
+    if (!location) return;
+
+    try {
+      setLoading(true);
+
+      const [{ blocks, resolvedLgaId }, dmInbox] = await Promise.all([
+        loadCommunities(location.lat, location.lng),
+        loadPrivateInbox(),
+      ]);
+
+      // ✅ now store LGAs in ChatShell
+      setLgaGroups(blocks);
+
+      setPrivateInbox(dmInbox);
+
+      const autoSelected =
+        (resolvedLgaId && blocks.find((b) => b.lga.id === resolvedLgaId)) ||
+        blocks[0];
+
+      setCurrentLGA(autoSelected ?? null);
+    } catch {
+      notify({
+        type: "error",
+        title: "Refresh failed",
+        message: "Unable to refresh chats.",
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   /* ================= CREATE HUB ================= */
@@ -130,21 +224,7 @@ export default function GroupsContainer() {
         message: `"${data?.name ?? payload.name}" created successfully ✅`,
       });
 
-      // ✅ reload communities after creating hub
-      if (location) {
-        const { blocks, resolvedLgaId } = await loadCommunities(
-          location.lat,
-          location.lng
-        );
-
-        setLgaGroups(blocks);
-
-        const autoSelected =
-          (resolvedLgaId && blocks.find((b) => b.lga.id === resolvedLgaId)) ||
-          blocks[0];
-
-        setCurrentLGA(autoSelected ?? null);
-      }
+      await reloadAll();
     } catch {
       notify({
         type: "error",
@@ -156,109 +236,168 @@ export default function GroupsContainer() {
     }
   }
 
-  /* ================= HUB SEARCH ENDPOINT ================= */
-  async function searchHubs(q: string): Promise<HubSearchItem[]> {
-    try {
-      const res = await authFetch(
-        `/communities/search/?q=${encodeURIComponent(q)}`,
-        { method: "GET" }
-      );
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) return [];
-
-      // ✅ backend recommended: { hubs: [{id,name,lga:{id,name}}] }
-      return (data?.hubs ?? []).map((h: any) => ({
-        id: String(h?.id ?? ""),
-        name: String(h?.name ?? ""),
-        lga: h?.lga?.id
-          ? { id: String(h.lga.id), name: String(h.lga.name ?? "") }
-          : undefined,
-      }));
-    } catch {
-      return [];
-    }
-  }
-
   /* ================= INITIAL LOAD ================= */
 
   useEffect(() => {
     if (!location || locationLoading) return;
 
-    async function load() {
-      try {
-        setLoading(true);
+    reloadAll();
+    lastLoadedRef.current = { lat: location.lat, lng: location.lng };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location?.lat, location?.lng, locationLoading]);
 
-        const { blocks, resolvedLgaId } = await loadCommunities(
-          location.lat,
-          location.lng
-        );
+  useEffect(() => {
+    if (!location) return;
 
-        if (!blocks.length) {
-          notify({
-            type: "warning",
-            title: "No communities",
-            message: "No communities found near you.",
-            duration: 4000,
-          });
-          return;
-        }
+    const last = lastLoadedRef.current;
+    if (!last) return;
 
-        setLgaGroups(blocks);
+    const moved = metersBetween(last, { lat: location.lat, lng: location.lng });
 
-        const autoSelected =
-          (resolvedLgaId && blocks.find((b) => b.lga.id === resolvedLgaId)) ||
-          blocks[0];
-
-        setCurrentLGA(autoSelected ?? null);
-        setViewMode("GROUPS");
-        setActiveGroupId(null);
-      } catch {
-        notify({
-          type: "error",
-          title: "Location error",
-          message: "Unable to load communities.",
-        });
-      } finally {
-        setLoading(false);
-      }
+    if (moved > 650) {
+      lastLoadedRef.current = { lat: location.lat, lng: location.lng };
+      reloadAll();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location?.lat, location?.lng]);
 
-    load();
-  }, [location, locationLoading, source, notify]);
+  /* ================= MIXED INBOX ================= */
 
-  /* ================= HANDLERS ================= */
+  const mixedInbox = useMemo<InboxItem[]>(() => {
+    const hubs = currentLGA?.hubs ?? [];
 
-  function openChat(group: Group) {
-    setActiveGroupId(group.id);
-    setViewMode("CHAT");
-  }
+    const communityItems: InboxItem[] = hubs.map((h) => ({
+      kind: "COMMUNITY",
+      hub: h,
+      lastISO: h.last_message_at ?? null,
+      lastTs: tsFromISO(h.last_message_at),
+    }));
 
-  function backToGroups() {
-    setViewMode("GROUPS");
-  }
+    const privateItems: InboxItem[] = privateInbox.map((c) => ({
+      kind: "PRIVATE",
+      chat: c,
+      lastISO: c.last_message_at ?? null,
+      lastTs: tsFromISO(c.last_message_at),
+    }));
 
-  function switchLGA(block: LGAGroupBlock) {
-    setCurrentLGA(block);
-    setViewMode("GROUPS");
-    setActiveGroupId(null);
-  }
+    const all = [...privateItems, ...communityItems];
+    all.sort((a, b) => b.lastTs - a.lastTs);
+
+    return all;
+  }, [currentLGA, privateInbox]);
+
+  const filteredInbox = useMemo(() => {
+    const q = searchValue.trim().toLowerCase();
+    if (!q) return mixedInbox;
+
+    return mixedInbox.filter((x) => {
+      if (x.kind === "COMMUNITY") {
+        return (x.hub.name || "").toLowerCase().includes(q);
+      }
+
+      return (
+        (x.chat.other_user?.name || "").toLowerCase().includes(q) ||
+        (x.chat.last_message_text || "").toLowerCase().includes(q)
+      );
+    });
+  }, [mixedInbox, searchValue]);
 
   /* ================= RENDER ================= */
 
-  return viewMode === "GROUPS" ? (
-    <HubSelector
-      open={hubOpen}
-      loading={loading || locationLoading}
-      lgaGroups={lgaGroups}
-      currentLGA={currentLGA}
-      creatingHub={creatingHub}
-      onCreateHub={createHub}
-      onSelectGroup={(group) => openChat(group)}
-      onSwitchLGA={switchLGA}
-      searchHubs={searchHubs}
-    />
-  ) : (
-    <ChatView groupId={activeGroupId!} onBack={backToGroups} />
+  return (
+    <div className={styles.page}>
+      <section className={styles.listArea}>
+        <div className={styles.listHeader}>
+          <h3 className={styles.listTitle}>Inbox</h3>
+
+          <button
+            type="button"
+            className={styles.createBtn}
+            disabled={disabledAll || !currentLGA}
+            onClick={() => setCreateHubModalOpen(true)}
+          >
+            + Create Hub
+          </button>
+        </div>
+
+        <div className={styles.quickActions}>
+          <button
+            type="button"
+            className={styles.quickBtn}
+            onClick={reloadAll}
+            disabled={disabledAll}
+          >
+            Refresh
+          </button>
+        </div>
+
+        {filteredInbox.length === 0 ? (
+          <p className={styles.empty}>
+            {disabledAll ? "Loading chats…" : "No chats yet"}
+          </p>
+        ) : (
+          <div className={styles.rows}>
+            {(() => {
+              let lastLabel = "";
+
+              return filteredInbox.map((item) => {
+                const label = formatDayLabel(item.lastISO);
+                const showDivider = label !== lastLabel;
+                lastLabel = label;
+
+                const key =
+                  item.kind === "COMMUNITY"
+                    ? `c_${item.hub.id}`
+                    : `p_${item.chat.conversation_id}`;
+
+                return (
+                  <div key={key}>
+                    {showDivider && (
+                      <div className={styles.dayDivider}>
+                        <span>{label}</span>
+                      </div>
+                    )}
+
+                    {item.kind === "COMMUNITY" ? (
+                      <InboxRow
+                        kind="COMMUNITY"
+                        hub={item.hub}
+                        active={false}
+                        onClick={() =>
+                          onOpenChat({ kind: "COMMUNITY", id: item.hub.id })
+                        }
+                      />
+                    ) : (
+                      <InboxRow
+                        kind="PRIVATE"
+                        chat={item.chat}
+                        active={false}
+                        onClick={() =>
+                          onOpenChat({
+                            kind: "PRIVATE",
+                            id: item.chat.conversation_id,
+                          })
+                        }
+                      />
+                    )}
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        )}
+      </section>
+
+      <CreateHubModal
+        open={createHubModalOpen}
+        currentLGA={currentLGA as any}
+        creating={creatingHub}
+        onClose={() => setCreateHubModalOpen(false)}
+        onSubmit={async (payload) => {
+          await createHub(payload);
+          setCreateHubModalOpen(false);
+        }}
+      />
+    </div>
   );
 }

@@ -1,0 +1,211 @@
+.header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  
+    height: 56px;
+    width: 100%;
+  
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  
+    padding: 0 12px;
+  
+    background: #ffffff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+  
+  /* ✅ LEFT BUTTON (Back / LGA) */
+  .leftBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  
+    padding: 8px 8px;
+    border-radius: 10px;
+  
+    color: #111;
+    font-weight: 600;
+    font-size: 14px;
+  
+    transition: background 0.15s ease;
+  }
+  
+  .leftBtn:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+  
+  .leftBtn svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  /* Text beside icon */
+  .leftText {
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  /* ✅ SEARCH AREA */
+  .searchWrap {
+    flex: 1;
+    min-width: 0;
+  
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  
+    background: #f0f2f5;
+    border-radius: 999px;
+  
+    padding: 8px 12px;
+  }
+  
+  .searchIcon {
+    width: 16px;
+    height: 16px;
+    color: rgba(0, 0, 0, 0.55);
+    flex-shrink: 0;
+  }
+  
+  .searchInput {
+    flex: 1;
+    min-width: 0;
+  
+    border: none;
+    outline: none;
+    background: transparent;
+  
+    font-size: 14px;
+    color: #111;
+  }
+  
+  .searchInput::placeholder {
+    color: rgba(0, 0, 0, 0.45);
+  }
+  
+  /* ✅ HOME BUTTON */
+  .homeBtn {
+    width: 40px;
+    height: 40px;
+  
+    border-radius: 50%;
+    border: none;
+  
+    background: transparent;
+    cursor: pointer;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    color: #111;
+  
+    transition: background 0.15s ease;
+  }
+  
+  .homeBtn:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
+  
+  .homeBtn svg {
+    width: 20px;
+    height: 20px;
+  }
+  
+  /* =======================================================
+     ✅ WHATSAPP STYLE SELECTION MODE
+  ======================================================= */
+  
+  .selectionActions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  /* Selection header overrides */
+  .header:has(.selectionActions) {
+    background: #075e54; /* WhatsApp dark green */
+    border-bottom: none;
+  }
+  
+  .header:has(.selectionActions) .leftBtn {
+    color: white;
+  }
+  
+  .header:has(.selectionActions) .leftBtn:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  
+  .header:has(.selectionActions) .leftBtn svg {
+    color: white;
+  }
+  
+  /* selection icon buttons */
+  .iconBtn {
+    width: 40px;
+    height: 40px;
+  
+    border-radius: 50%;
+    border: none;
+  
+    background: transparent;
+    cursor: pointer;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    color: white;
+  
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  
+  .iconBtn:hover {
+    background: rgba(255, 255, 255, 0.12);
+  }
+  
+  .iconBtn:active {
+    transform: scale(0.92);
+  }
+  
+  .iconBtn svg {
+    width: 19px;
+    height: 19px;
+  }
+  
+  /* delete button highlight */
+  .danger {
+    color: #ffdddd;
+  }
+  
+  .danger:hover {
+    background: rgba(255, 80, 80, 0.18);
+  }
+  
+  /* =======================================================
+     ✅ MOBILE TUNING
+  ======================================================= */
+  
+  @media (max-width: 420px) {
+    .leftText {
+      max-width: 120px;
+    }
+  
+    .searchWrap {
+      padding: 7px 10px;
+    }
+  
+    .searchInput {
+      font-size: 13px;
+    }
+  }
+  

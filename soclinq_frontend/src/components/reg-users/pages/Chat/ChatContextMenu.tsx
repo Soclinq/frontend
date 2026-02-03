@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   FiCornerUpLeft,
   FiInfo,
@@ -56,9 +56,15 @@ type Props = {
   onEdit?: (msg: ChatMessage) => void;
   onDelete: (msg: ChatMessage) => void;
 
-  /** notify (passed from ChatPanel) */
+  /** notify */
   notify?: NotifyFn;
 };
+
+/* ---------------- Helpers ---------------- */
+
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
 
 export default function ChatContextMenu({
   menu,
@@ -77,7 +83,13 @@ export default function ChatContextMenu({
 }: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
 
-  // ✅ Close if clicking outside
+  // ✅ corrected position
+  const [pos, setPos] = useState<{ left: number; top: number }>({
+    left: menu.x,
+    top: menu.y,
+  });
+
+  /* ✅ Close if clicking outside */
   useEffect(() => {
     if (!menu.open) return;
 
@@ -92,7 +104,7 @@ export default function ChatContextMenu({
     return () => window.removeEventListener("mousedown", onDown);
   }, [menu.open, onClose]);
 
-  // ✅ Close on ESC
+  /* ✅ Close on ESC */
   useEffect(() => {
     if (!menu.open) return;
 
@@ -103,6 +115,49 @@ export default function ChatContextMenu({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [menu.open, onClose]);
+
+  /**
+   * ✅ WhatsApp-smart positioning:
+   * - open above finger if near bottom
+   * - open left if near right
+   * - always clamp inside viewport
+   */
+  useLayoutEffect(() => {
+    if (!menu.open) return;
+
+    const el = ref.current;
+    if (!el) return;
+
+    // First place at raw touch/click point (so we can measure accurately)
+    setPos({ left: menu.x, top: menu.y });
+
+    requestAnimationFrame(() => {
+      const rect = el.getBoundingClientRect();
+
+      const padding = 10; // screen edge padding
+      const gap = 8; // tiny spacing from finger point
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      // ✅ Decide direction (left/right + above/below)
+      const openLeft = menu.x > vw * 0.62; // near right side
+      const openUp = menu.y > vh * 0.62; // near bottom
+
+      // ✅ compute target left/top relative to click
+      let left = openLeft ? menu.x - rect.width - gap : menu.x + gap;
+      let top = openUp ? menu.y - rect.height - gap : menu.y + gap;
+
+      // ✅ clamp into viewport so it NEVER goes out
+      const maxLeft = vw - rect.width - padding;
+      const maxTop = vh - rect.height - padding;
+
+      left = clamp(left, padding, Math.max(padding, maxLeft));
+      top = clamp(top, padding, Math.max(padding, maxTop));
+
+      setPos({ left, top });
+    });
+  }, [menu.open, menu.x, menu.y]);
 
   if (!menu.open || !menu.message) return null;
 
@@ -118,8 +173,8 @@ export default function ChatContextMenu({
         ref={ref}
         className={styles.menu}
         style={{
-          left: menu.x,
-          top: menu.y,
+          left: pos.left,
+          top: pos.top,
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -202,7 +257,8 @@ export default function ChatContextMenu({
             type="button"
             className={styles.item}
             onClick={() => {
-              onReact({ x: menu.x, y: menu.y }, msg);
+              // ✅ use menu position (not original click point)
+              onReact({ x: pos.left, y: pos.top }, msg);
               onClose();
             }}
           >
@@ -235,7 +291,6 @@ export default function ChatContextMenu({
           className={`${styles.item} ${styles.danger}`}
           onClick={() => {
             onDelete(msg);
-            // keep menu open? WhatsApp closes -> close
             onClose();
           }}
         >

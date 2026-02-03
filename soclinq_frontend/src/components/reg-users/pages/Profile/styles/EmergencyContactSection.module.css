@@ -120,6 +120,22 @@
   
   /* ================= BUTTONS ================= */
   
+  .phoneWrapper {
+    width: 100%;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: white;
+  }
+  
+  .phoneWrapper input {
+    width: 100%;
+    border: none;
+    outline: none;
+    font-size: 14px;
+    background: transparent;
+  }
+  
   .primaryBtn {
     background: linear-gradient(135deg, #6366f1, #4f46e5);
     color: #ffffff;

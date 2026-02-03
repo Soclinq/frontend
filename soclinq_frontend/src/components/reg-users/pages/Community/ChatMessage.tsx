@@ -10,6 +10,7 @@ import {
   FiShield,
   FiUser,
 } from "react-icons/fi";
+import type { ChatMessage as Message } from "@/types/chat";
 
 /* ================= TYPES ================= */
 

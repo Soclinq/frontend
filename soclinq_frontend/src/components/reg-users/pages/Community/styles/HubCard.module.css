@@ -1,0 +1,334 @@
+/* HubCard.module.css */
+
+/* =========================================================
+   ✅ Hub Card (WhatsApp clean + modern)
+   ✅ Works with your HubCard.tsx structure
+========================================================= */
+
+.card {
+    width: 100%;
+    overflow: hidden;
+  
+    border-radius: 18px;
+    background: var(--chat-surface);
+    border: 1px solid var(--chat-border-soft);
+  
+    box-shadow: var(--chat-shadow-soft);
+    transition: transform var(--chat-fast), box-shadow var(--chat-fast),
+      border-color var(--chat-fast);
+  
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--chat-shadow);
+    border-color: var(--chat-border);
+  }
+  
+  /* =========================
+     Cover
+  ========================= */
+  
+  .coverWrap {
+    position: relative;
+    width: 100%;
+    height: 96px;
+    overflow: hidden;
+  
+    background: rgba(17, 24, 39, 0.06);
+  }
+  
+  .coverImg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+  
+  .coverFallback {
+    width: 100%;
+    height: 100%;
+  
+    display: grid;
+    place-items: center;
+  
+    color: var(--chat-text-muted);
+    font-size: 24px;
+  }
+  
+  /* unread badge */
+  .unreadBadge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+  
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+  
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  
+    background: var(--chat-brand);
+    color: #fff;
+  
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+  
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.35);
+  }
+  
+  /* =========================
+     Body
+  ========================= */
+  
+  .body {
+    padding: 12px 12px 12px;
+  
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  /* Title row */
+  .titleRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  
+  .name {
+    margin: 0;
+    font-size: 14.5px;
+    font-weight: 900;
+    color: var(--chat-text);
+  
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* verified icon */
+  .verified {
+    display: grid;
+    place-items: center;
+  
+    color: var(--chat-accent);
+    font-size: 16px;
+  }
+  
+  /* =========================
+     Badges row
+  ========================= */
+  
+  .badgesRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  
+  .typeBadge,
+  .categoryBadge,
+  .privateBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  
+    font-size: 11px;
+    font-weight: 800;
+  
+    padding: 4px 8px;
+    border-radius: 999px;
+  
+    border: 1px solid var(--chat-border-soft);
+    background: rgba(17, 24, 39, 0.05);
+  
+    color: var(--chat-text-soft);
+  }
+  
+  .privateBadge {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.25);
+    color: var(--chat-danger);
+  }
+  
+  .privateBadge svg {
+    font-size: 13px;
+  }
+  
+  /* =========================
+     Description + Preview
+  ========================= */
+  
+  .desc,
+  .descMuted {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.35;
+  
+    color: var(--chat-text-soft);
+  
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .descMuted {
+    color: var(--chat-text-muted);
+    font-style: italic;
+  }
+  
+  .preview,
+  .previewMuted {
+    margin: 0;
+    font-size: 12.8px;
+    line-height: 1.35;
+  
+    color: var(--chat-text-muted);
+  
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .previewStrong {
+    font-weight: 900;
+    color: var(--chat-text-soft);
+  }
+  
+  /* =========================
+     Meta row
+  ========================= */
+  
+  .metaRow {
+    margin-top: 2px;
+  
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  
+  .metaStat {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--chat-text-muted);
+  }
+  
+  .metaStat svg {
+    font-size: 14px;
+  }
+  
+  /* role chip */
+  .roleChip {
+    font-size: 11px;
+    font-weight: 900;
+  
+    padding: 4px 10px;
+    border-radius: 999px;
+  
+    background: var(--chat-brand-soft);
+    color: var(--chat-brand);
+    border: 1px solid rgba(37, 99, 235, 0.25);
+  }
+  
+  /* =========================
+     Footer + CTA button
+  ========================= */
+  
+  .footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
+  }
+  
+  .joinBtn,
+  .openBtn {
+    border: none;
+    cursor: pointer;
+  
+    height: 38px;
+    padding: 0 14px;
+  
+    border-radius: 999px;
+  
+    font-size: 13px;
+    font-weight: 900;
+  
+    transition: transform var(--chat-fast), background var(--chat-fast),
+      box-shadow var(--chat-fast), opacity var(--chat-fast);
+  }
+  
+  /* Join = primary */
+  .joinBtn {
+    background: var(--chat-brand);
+    color: #fff;
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.25);
+  }
+  
+  .joinBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 26px rgba(37, 99, 235, 0.32);
+  }
+  
+  /* Open = soft */
+  .openBtn {
+    background: rgba(22, 163, 74, 0.12);
+    color: rgba(22, 163, 74, 0.95);
+    border: 1px solid rgba(22, 163, 74, 0.22);
+  }
+  
+  .openBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(22, 163, 74, 0.18);
+  }
+  
+  .joinBtn:active,
+  .openBtn:active {
+    transform: scale(0.98);
+  }
+  
+  /* Disabled */
+  .joinBtn:disabled,
+  .openBtn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+  
+  /* Focus */
+  .joinBtn:focus-visible,
+  .openBtn:focus-visible {
+    outline: 2px solid var(--chat-focus);
+    outline-offset: 2px;
+  }
+  
+  /* =========================
+     Mobile tweaks
+  ========================= */
+  
+  @media (max-width: 520px) {
+    .coverWrap {
+      height: 84px;
+    }
+  
+    .body {
+      padding: 11px;
+    }
+  
+    .name {
+      font-size: 14px;
+    }
+  }
+  

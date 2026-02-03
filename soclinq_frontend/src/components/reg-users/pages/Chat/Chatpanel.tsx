@@ -27,7 +27,7 @@ import ChatForwardSheet from "./ChatForwardSheet";
 import CameraModal from "./CameraModal";
 import ChatAudioRecorder from "./ChatAudioRecorder";
 
-import type { ChatAdapter } from "@/types/adapterTypes";
+import type { ChatAdapter } from "@/types/chatAdapterTypes";
 /* ================= TYPES ================= */
 
 type AttachmentType = "IMAGE" | "AUDIO" | "VIDEO" | "FILE";
@@ -111,10 +111,24 @@ type WSIncoming =
   | { type: "message:edit"; payload: Message }
   | { type: "ERROR"; message: string };
 
-type Props = {
-  threadId: string;     // ✅ groupId OR conversationId
-  adapter: ChatAdapter; // ✅ communityAdapter OR privateAdapter
-};
+  type Props = {
+    threadId: string;     // ✅ groupId OR conversationId
+    adapter: ChatAdapter; // ✅ communityAdapter OR privateAdapter
+  
+    onSelectionChange?: (payload: {
+      active: boolean;
+      count: number;
+  
+      onExit: () => void;
+      onSelectAll: () => void;
+      onUnselectAll: () => void;
+  
+      onForward: () => void;
+      onShare: () => void;
+      onDelete: () => void;
+    }) => void;
+  };
+  
 
 /* ================= CONSTANTS / HELPERS ================= */
 
@@ -173,9 +187,11 @@ function canDeleteForEveryone(msg: Message) {
 
 /* ================= COMPONENT ================= */
 
-export default function ChatThread({ threadId, adapter }: Props) {
+export default function ChatThread({ threadId, adapter, onSelectionChange }: Props) {
   const notify = useNotify();
 
+
+  
   /* ---------- Primary State ---------- */
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -196,6 +212,7 @@ export default function ChatThread({ threadId, adapter }: Props) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
 
   const hideScrollBtnTimer = useRef<NodeJS.Timeout | null>(null);
+
 
   /* ---------- UI refs ---------- */
   const wsRef = useRef<WebSocket | null>(null);
@@ -313,6 +330,37 @@ export default function ChatThread({ threadId, adapter }: Props) {
   /* ================= Local delete store ================= */
 
   useEffect(() => {
+    if (!onSelectionChange) return;
+  
+    const active = selectionMode && selectedCount > 0;
+  
+    onSelectionChange({
+      active,
+      count: selectedCount,
+  
+      onExit: clearSelection,
+      onSelectAll: () => {
+        setSelectionMode(true);
+        setSelectedMsgIds(selectableMessageIds);
+      },
+      onUnselectAll: unselectAllMessages,
+  
+      onForward: () => setForwardSheet({ open: true, messages: selectedMessages }),
+      onShare: async () => {
+        await shareExternallyBulk(selectedMessages);
+        clearSelection();
+      },
+      onDelete: deleteSelectedForMe,
+    });
+  }, [
+    onSelectionChange,
+    selectionMode,
+    selectedCount,
+    selectableMessageIds,
+    selectedMessages,
+  ]);
+  
+  useEffect(() => {
     if (selectedMsgIds.length === 0) {
       setSelectionMode(false);
       lastSelectedMsgIdRef.current = null;
@@ -329,6 +377,107 @@ export default function ChatThread({ threadId, adapter }: Props) {
       return new Set();
     }
   }
+
+  function onMessageClick(e: React.MouseEvent, msg: Message) {
+    if (selectionMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSelectMessage(msg.id);
+    }
+  }
+  
+
+  async function copyMessage(msg: Message) {
+    const text = msg.text || "";
+    if (!text.trim()) return;
+    await navigator.clipboard.writeText(text);
+    notify({
+      type: "success",
+      title: "Copied",
+      message: "Message copied to clipboard",
+      duration: 1500,
+    });
+  }
+
+  async function shareExternallyBulk(msgs: Message[]) {
+    const text = msgs
+      .filter((m) => !m.deletedAt)
+      .map((m) => m.text)
+      .filter(Boolean)
+      .join("\n\n");
+  
+    if (!text.trim()) return;
+  
+    if (navigator.share) {
+      await navigator.share({ text });
+    } else {
+      await navigator.clipboard.writeText(text);
+      notify({
+        type: "info",
+        title: "Copied",
+        message: "Share not supported. Copied instead.",
+        duration: 2000,
+      });
+    }
+  }
+
+  async function forwardSelectedMessagesToHubs() {
+    if (!adapter.features.forward) return;
+  
+    if (forwardSelectedIds.length === 0) {
+      notify({
+        type: "warning",
+        title: "No target selected",
+        message: "Select at least one target.",
+        duration: 2000,
+      });
+      return;
+    }
+  
+    // TODO: implement your backend forwarding logic
+    notify({
+      type: "info",
+      title: "Forwarding",
+      message: "Forward endpoint not wired yet.",
+      duration: 2000,
+    });
+  }
+  
+  
+  
+  
+
+  async function deleteSelectedForMe() {
+    if (selectedMsgIds.length === 0) return;
+  
+    setMessages((prev) => prev.filter((m) => !selectedMsgIds.includes(m.id)));
+  
+    selectedMsgIds.forEach((id) => markDeletedForMe(id));
+  
+    try {
+      
+        // fallback: delete one by one
+        await Promise.all(
+          selectedMsgIds.map((id) =>
+            authFetch(adapter.deleteForMe(id), {
+              method: "POST",
+              credentials: "include",
+            })
+          )
+        );
+      }
+     catch (e) {
+      notify({
+        type: "warning",
+        title: "Delete may not sync",
+        message: "Deleted locally, but server sync failed.",
+        duration: 2500,
+      });
+    }
+  
+    clearSelection();
+  }
+  
 
   function markDeletedForMe(messageId: string) {
     try {
@@ -411,8 +560,10 @@ export default function ChatThread({ threadId, adapter }: Props) {
 
   useEffect(() => {
     function onGlobalClick() {
+      if (selectionMode) return;
       if (menu.open || reactionPicker.open || emojiMart.open) closeMenu();
     }
+    
     window.addEventListener("click", onGlobalClick);
     return () => window.removeEventListener("click", onGlobalClick);
   }, [menu.open, reactionPicker.open, emojiMart.open]);
@@ -964,26 +1115,28 @@ export default function ChatThread({ threadId, adapter }: Props) {
   return (
     <div className={styles.chat}>
       {/* ✅ Header */}
-      <ChatHeader
-          selectionMode={selectionMode}
-          selectedCount={selectedCount}
-          onExitSelection={clearSelection}
-          onUnselectAll={unselectAllMessages}
-          onForwardSelected={() =>
-            setForwardSheet({ open: true, messages: selectedMessages })
-          }
-          onShareSelected={async () => {
-            await shareExternallyBulk(selectedMessages);
-            clearSelection();
-          }}
-          onDeleteSelectedForMe={deleteSelectedForMe}
-          onReplySelected={() => {
-            // ✅ reply only if one message
-            if (selectedMessages.length !== 1) return;
-            startReply(selectedMessages[0]);
-            clearSelection();
-          }}
-        />
+      {selectionMode && selectedCount > 0 && (
+  <ChatHeader
+    selectionMode={selectionMode}
+    selectedCount={selectedCount}
+    onExitSelection={clearSelection}
+    onUnselectAll={unselectAllMessages}
+    onForwardSelected={() =>
+      setForwardSheet({ open: true, messages: selectedMessages })
+    }
+    onShareSelected={async () => {
+      await shareExternallyBulk(selectedMessages);
+      clearSelection();
+    }}
+    onDeleteSelectedForMe={deleteSelectedForMe}
+    onReplySelected={() => {
+      if (selectedMessages.length !== 1) return;
+      startReply(selectedMessages[0]);
+      clearSelection();
+    }}
+  />
+      )}
+
 
 
       {/* ✅ Messages */}

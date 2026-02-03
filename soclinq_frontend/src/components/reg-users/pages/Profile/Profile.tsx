@@ -1,46 +1,79 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { MdArrowBack } from "react-icons/md";
+import { useCallback, useEffect, useState } from "react";
 
-import { useUser } from "@/context/UserContext";
-import ProfileHeader from "./ProfileHeader";
-import ProfileTabs from "./ProfileTabs";
-import styles from "./styles/Profile.module.css";
-import DeviceTrackingSection from "./DeviceTrackingSection";
-import AccountSection from "./AccountSection";
-import EmergencyContactsSection from "./EmergencyContactSection";
-import ActivityHistorySection from "./ActivityHistorySection";
-export default function Profile() {
-  const router = useRouter();
-  const { user, loading } = useUser();
-  const [tab, setTab] = useState("account");
+import ProfileTabs, { type ProfileTabKey } from "./ProfileTabs";
 
-  if (loading) {
-    return <p className={styles.loading}>Loading profile…</p>;
-  }
+import { authFetch } from "@/lib/authFetch";
+import { profileAdapter } from "@/lib/profileAdapter";
+import { normalizeProfile } from "@/components/utils/normalizeProfile";
+import type { UserProfile } from "@/types/profile";
+import type { UserProfileApi } from "@/types/profileApi";
 
-//   if (!user) {
-//     return <p className={styles.loading}>No user session found.</p>;
-//   }
+type PatchFn = (prev: UserProfile) => UserProfile;
+
+export default function ProfileTabsContainer() {
+  const [tab, setTab] = useState<ProfileTabKey>("account");
+
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false); // ✅ optional but useful
+  const [error, setError] = useState<string | null>(null);
+
+  const patchProfile = useCallback((fn: PatchFn) => {
+    setProfile((prev) => {
+      if (!prev) return prev;
+      return fn(prev);
+    });
+  }, []);
+
+  const refreshProfile = useCallback(async () => {
+    setRefreshing(true);
+    setError(null);
+
+    try {
+      const res = await authFetch(profileAdapter.me(), { method: "GET" });
+      const raw = (await res.json().catch(() => ({}))) as Partial<UserProfileApi>;
+
+      if (!res.ok) {
+        setError((raw as any)?.error || "Failed to refresh profile.");
+        setProfile(null);
+        return;
+      }
+
+      
+      console.log(raw)
+      setProfile(normalizeProfile(raw as UserProfileApi));
+      console.log(profile)
+    } catch {
+      setError("Network error while refreshing profile.");
+      setProfile(null);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  // ✅ initial load
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      await refreshProfile();
+      setLoading(false);
+    })();
+  }, [refreshProfile]);
+
+  if (loading) return <div style={{ padding: 16 }}>Loading profile…</div>;
+  if (error) return <div style={{ padding: 16, color: "red" }}>{error}</div>;
+  if (!profile) return <div style={{ padding: 16 }}>No profile found.</div>;
 
   return (
-    <section className={styles.profile}>
-      <button
-        className={styles.backBtn}
-        onClick={() => router.back()}
-        aria-label="Go back"
-      >
-        <MdArrowBack />
-        Back
-      </button>
-
-      <ProfileHeader />
-      <AccountSection />
-      <EmergencyContactsSection />
-      <ActivityHistorySection />
-      <DeviceTrackingSection />
-    </section>
+    <ProfileTabs
+      tab={tab}
+      setTab={setTab}
+      profile={profile}
+      patchProfile={patchProfile}
+      refreshProfile={refreshProfile}
+      refreshing={refreshing}
+    />
   );
 }

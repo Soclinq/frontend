@@ -111,3 +111,54 @@ def get_ip_location(ip_address):
         }
     except Exception:
         return None
+
+
+import re
+
+USERNAME_RE = re.compile(r"^[a-zA-Z0-9_]{3,32}$")
+
+def normalize_username(username: str) -> str:
+    return (username or "").strip()
+
+def validate_username_format(username: str):
+    if not username:
+        return "Username is required"
+
+    if not USERNAME_RE.match(username):
+        return "Username must be 3-32 characters and contain only letters, numbers, underscore"
+
+    if username.startswith("_") or username.endswith("_"):
+        return "Username cannot start or end with underscore"
+
+    if "__" in username:
+        return "Username cannot contain consecutive underscores"
+
+    return None
+
+from rest_framework import serializers
+from .models import User
+
+class MeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "email",
+            "phone_number",
+            "username",
+            "full_name",
+            "role",
+            "preferred_language",
+            "live_photo",
+            "is_active",
+            "is_suspended",
+            "failed_login_attempts",
+            "lock_until",
+            "is_staff",
+            "is_verified",
+            "date_joined",
+            "last_updated",
+        ]
+
+
+
