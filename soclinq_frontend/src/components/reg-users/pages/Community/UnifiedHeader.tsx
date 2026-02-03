@@ -20,39 +20,58 @@ import {
   FiInfo,
   FiBellOff,
   FiLogOut,
+  FiStar,
+  FiArchive,
+  FiUser,
+  FiSlash,
+  FiShare2,
+  FiCheckCircle,
 } from "react-icons/fi";
 
 import styles from "./styles/UnifiedHeader.module.css";
 
+type SelectionKind = "GROUP_ONLY" | "PRIVATE_ONLY" | "MIXED";
+
+/** ✅ NEW: supports NEW_CHAT selection/header */
+type SelectionContext = "CHAT" | "INBOX" | "NEW_CHAT";
+
+/** ✅ NEW: supports NEW_CHAT mode */
+type HeaderMode = "INBOX" | "CHAT" | "NEW_CHAT";
+
 type Props = {
   hidden?: boolean;
 
-  mode: "INBOX" | "CHAT";
+  mode: HeaderMode;
   locationName?: string;
 
-  // ✅ group/chat display
+  // CHAT header
   chatTitle?: string;
-  chatSubtitle?: string; // e.g "12 members" or "online"
+  chatSubtitle?: string;
   chatAvatarUrl?: string;
 
+  // Shared search state (inbox/new chat)
   searchValue: string;
   onSearchChange: (v: string) => void;
 
   disabledAll?: boolean;
 
+  // Left actions
   onBack?: () => void;
   onOpenLocation?: () => void;
 
+  /** ✅ NEW: close new chat picker */
+  onCloseNewChat?: () => void;
+
+  // Menu actions
   onOpenSettings?: () => void;
   onNewGroup?: () => void;
   onNewChat?: () => void;
   onHelp?: () => void;
 
-  // inbox controls
   onRefresh?: () => void;
   onCreateHub?: () => void;
 
-  // ✅ Group actions (CHAT menu)
+  // Chat menu actions
   onOpenGroupInfo?: () => void;
   onOpenGroupMedia?: () => void;
   onMuteNotifications?: () => void;
@@ -61,12 +80,41 @@ type Props = {
   selection?: {
     active: boolean;
     count: number;
+
+    /** ✅ CHAT selection OR INBOX selection OR NEW_CHAT selection */
+    context?: SelectionContext;
+
+    /** ✅ INBOX selection meta */
+    kind?: SelectionKind;
+    canDelete?: boolean;
+    markLabel?: string;
+
+    /** shared */
     onExit: () => void;
-    onSelectAll: () => void;
-    onUnselectAll: () => void;
-    onForward: () => void;
-    onShare: () => void;
-    onDelete: () => void;
+
+    /** optional actions */
+    onSelectAll?: () => void;
+    onUnselectAll?: () => void;
+
+    /** CHAT actions */
+    onForward?: () => void;
+    onShare?: () => void;
+
+    /** INBOX actions */
+    onPin?: () => void;
+    onMute?: () => void;
+    onArchive?: () => void;
+    onMarkReadUnread?: () => void;
+
+    onShareGroup?: () => void;
+    onOpenGroupInfo?: () => void;
+    onExitGroup?: () => void;
+
+    onViewContact?: () => void;
+    onBlockContact?: () => void;
+
+    /** delete for both */
+    onDelete?: () => void;
   };
 };
 
@@ -81,10 +129,13 @@ export default function UnifiedHeader({
 
   searchValue,
   onSearchChange,
+
   disabledAll = false,
 
   onBack,
   onOpenLocation,
+  onCloseNewChat,
+
   onOpenSettings,
   onNewGroup,
   onNewChat,
@@ -104,6 +155,9 @@ export default function UnifiedHeader({
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   const isChat = mode === "CHAT";
+  const isInbox = mode === "INBOX";
+  const isNewChat = mode === "NEW_CHAT";
+
   const selectionActive = Boolean(selection?.active);
 
   // ✅ close dropdown on outside click
@@ -121,21 +175,252 @@ export default function UnifiedHeader({
   // ✅ close menu when switching view
   useEffect(() => {
     setMenuOpen(false);
-  }, [mode]);
+  }, [mode, selectionActive]);
 
   if (hidden) return null;
+
+  const selectionContext: SelectionContext = selection?.context || "CHAT";
+  const selectionKind = selection?.kind || "MIXED";
+  const markLabel = selection?.markLabel || "Mark as read";
+  const canDelete = !!selection?.canDelete;
 
   /* ===============================
      ✅ SELECTION HEADER
   =============================== */
   if (selectionActive && selection) {
+    const isInboxSelection = selectionContext === "INBOX";
+    const isNewChatSelection = selectionContext === "NEW_CHAT";
+
+    // ✅ NEW_CHAT selection header
+    if (isNewChatSelection) {
+      return (
+        <header className={styles.header}>
+          {/* LEFT */}
+          <button
+            type="button"
+            className={styles.leftBtn}
+            onClick={selection.onExit}
+            title="Exit selection"
+            disabled={disabledAll}
+          >
+            <FiX />
+            <span className={styles.leftText}>{selection.count} selected</span>
+          </button>
+
+          <div className={styles.selectionActions}>
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={selection.onSelectAll}
+              title="Select all"
+              disabled={disabledAll}
+            >
+              <FiCheckSquare />
+            </button>
+
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={selection.onUnselectAll}
+              title="Unselect all"
+              disabled={disabledAll}
+            >
+              <FiSquare />
+            </button>
+
+            {/* ✅ reuse onForward as "Create group" */}
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={selection.onForward}
+              title="Create group"
+              disabled={disabledAll}
+            >
+              <FiUsers />
+            </button>
+          </div>
+        </header>
+      );
+    }
+
+    // ✅ INBOX selection header
+    if (isInboxSelection) {
+      return (
+        <header className={styles.header}>
+          {/* LEFT */}
+          <button
+            type="button"
+            className={styles.leftBtn}
+            onClick={selection.onExit}
+            title="Exit selection"
+            disabled={disabledAll}
+          >
+            <FiX />
+            <span className={styles.leftText}>{selection.count} selected</span>
+          </button>
+
+          <div className={styles.selectionActions}>
+            {/* ✅ Delete OUTSIDE MORE (only if allowed) */}
+            {canDelete ? (
+              <button
+                type="button"
+                className={`${styles.iconBtn} ${styles.danger}`}
+                onClick={() => selection.onDelete?.()}
+                title="Delete"
+                disabled={disabledAll}
+              >
+                <FiTrash2 />
+              </button>
+            ) : null}
+
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={() => selection.onPin?.()}
+              title="Pin"
+              disabled={disabledAll}
+            >
+              <FiStar />
+            </button>
+
+            <button
+              type="button"
+              className={styles.iconBtn}
+              onClick={() => selection.onMute?.()}
+              title="Mute"
+              disabled={disabledAll}
+            >
+              <FiBellOff />
+            </button>
+
+            {/* ✅ More menu */}
+            <div className={styles.moreWrap} ref={menuRef}>
+              <button
+                type="button"
+                className={styles.moreBtn}
+                title="More"
+                disabled={disabledAll}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen((p) => !p);
+                }}
+              >
+                <FiMoreVertical />
+              </button>
+
+              {menuOpen && (
+                <div className={styles.moreMenu}>
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    disabled={disabledAll}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      selection.onMarkReadUnread?.();
+                    }}
+                  >
+                    <FiCheckCircle /> {markLabel}
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    disabled={disabledAll}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      selection.onArchive?.();
+                    }}
+                  >
+                    <FiArchive /> Archive chat
+                  </button>
+
+                  <div className={styles.moreDivider} />
+
+                  {selectionKind === "GROUP_ONLY" ? (
+                    <>
+                      <button
+                        type="button"
+                        className={styles.moreItem}
+                        disabled={disabledAll}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          selection.onOpenGroupInfo?.();
+                        }}
+                      >
+                        <FiInfo /> Group info
+                      </button>
+
+                      <button
+                        type="button"
+                        className={styles.moreItem}
+                        disabled={disabledAll}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          selection.onShareGroup?.();
+                        }}
+                      >
+                        <FiShare2 /> Share group
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`${styles.moreItem} ${styles.dangerItem}`}
+                        disabled={disabledAll}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          selection.onExitGroup?.();
+                        }}
+                      >
+                        <FiLogOut /> Exit group
+                      </button>
+                    </>
+                  ) : null}
+
+                  {selectionKind === "PRIVATE_ONLY" ? (
+                    <>
+                      <button
+                        type="button"
+                        className={styles.moreItem}
+                        disabled={disabledAll}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          selection.onViewContact?.();
+                        }}
+                      >
+                        <FiUser /> View contact
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`${styles.moreItem} ${styles.dangerItem}`}
+                        disabled={disabledAll}
+                        onClick={() => {
+                          setMenuOpen(false);
+                          selection.onBlockContact?.();
+                        }}
+                      >
+                        <FiSlash /> Block contact
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+      );
+    }
+
+    // ✅ CHAT selection header (messages selection)
     return (
       <header className={styles.header}>
+        {/* LEFT */}
         <button
           type="button"
           className={styles.leftBtn}
           onClick={selection.onExit}
           title="Exit selection"
+          disabled={disabledAll}
         >
           <FiX />
           <span className={styles.leftText}>{selection.count} selected</span>
@@ -147,6 +432,7 @@ export default function UnifiedHeader({
             className={styles.iconBtn}
             onClick={selection.onSelectAll}
             title="Select all"
+            disabled={disabledAll}
           >
             <FiCheckSquare />
           </button>
@@ -156,6 +442,7 @@ export default function UnifiedHeader({
             className={styles.iconBtn}
             onClick={selection.onUnselectAll}
             title="Unselect all"
+            disabled={disabledAll}
           >
             <FiSquare />
           </button>
@@ -165,6 +452,7 @@ export default function UnifiedHeader({
             className={styles.iconBtn}
             onClick={selection.onForward}
             title="Forward"
+            disabled={disabledAll}
           >
             <FiSend />
           </button>
@@ -174,6 +462,7 @@ export default function UnifiedHeader({
             className={styles.iconBtn}
             onClick={selection.onShare}
             title="Share"
+            disabled={disabledAll}
           >
             📤
           </button>
@@ -183,6 +472,7 @@ export default function UnifiedHeader({
             className={`${styles.iconBtn} ${styles.danger}`}
             onClick={selection.onDelete}
             title="Delete"
+            disabled={disabledAll}
           >
             <FiTrash2 />
           </button>
@@ -200,14 +490,16 @@ export default function UnifiedHeader({
       <button
         type="button"
         className={styles.leftBtn}
-        onClick={isChat ? onBack : onOpenLocation}
-        title={isChat ? "Back" : "Change LGA"}
+        onClick={
+          isChat ? onBack : isNewChat ? onCloseNewChat : onOpenLocation
+        }
+        title={isChat ? "Back" : isNewChat ? "Close" : "Change LGA"}
         disabled={disabledAll}
       >
-        {isChat ? <FiArrowLeft /> : <FiMapPin />}
+        {isChat ? <FiArrowLeft /> : isNewChat ? <FiX /> : <FiMapPin />}
       </button>
 
-      {/* ✅ CHAT TITLE AREA */}
+      {/* ✅ MAIN AREA */}
       {isChat ? (
         <button
           type="button"
@@ -233,190 +525,190 @@ export default function UnifiedHeader({
           </div>
         </button>
       ) : (
-        /* ✅ INBOX SEARCH */
         <div className={styles.searchWrap}>
           <FiSearch className={styles.searchIcon} />
           <input
             className={styles.searchInput}
-            placeholder={"Search inbox..."}
+            placeholder={isNewChat ? "Search name, phone or email..." : "Search inbox..."}
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
             disabled={disabledAll}
+            autoFocus={isNewChat}
           />
         </div>
       )}
 
-     
-      {/* ✅ MORE MENU */}
-      <div className={styles.moreWrap} ref={menuRef}>
-        <button
-          type="button"
-          className={styles.moreBtn}
-          title="More"
-          disabled={disabledAll}
-          onClick={(e) => {
-            e.stopPropagation();
-            setMenuOpen((p) => !p);
-          }}
-        >
-          <FiMoreVertical />
-        </button>
+      {/* ✅ MORE MENU (hidden in NEW_CHAT mode) */}
+      {!isNewChat && (
+        <div className={styles.moreWrap} ref={menuRef}>
+          <button
+            type="button"
+            className={styles.moreBtn}
+            title="More"
+            disabled={disabledAll}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((p) => !p);
+            }}
+          >
+            <FiMoreVertical />
+          </button>
 
-        {menuOpen && (
-          <div className={styles.moreMenu}>
-            {/* ✅ CHAT MENU */}
-            {isChat ? (
-              <>
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  disabled={disabledAll}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onOpenGroupInfo?.();
-                  }}
-                >
-                  <FiInfo /> Group info
-                </button>
+          {menuOpen && (
+            <div className={styles.moreMenu}>
+              {/* ✅ CHAT MENU */}
+              {isChat ? (
+                <>
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    disabled={disabledAll}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onOpenGroupInfo?.();
+                    }}
+                  >
+                    <FiInfo /> Group info
+                  </button>
 
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  disabled={disabledAll}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onOpenGroupMedia?.();
-                  }}
-                >
-                  <FiImage /> Group media
-                </button>
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    disabled={disabledAll}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onOpenGroupMedia?.();
+                    }}
+                  >
+                    <FiImage /> Group media
+                  </button>
 
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  disabled={disabledAll}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    // focus search input or open search UI
-                  }}
-                >
-                  <FiSearch /> Search
-                </button>
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    disabled={disabledAll}
+                    onClick={() => {
+                      setMenuOpen(false);
+                    }}
+                  >
+                    <FiSearch /> Search
+                  </button>
 
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  disabled={disabledAll}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onMuteNotifications?.();
-                  }}
-                >
-                  <FiBellOff /> Mute notifications
-                </button>
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    disabled={disabledAll}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onMuteNotifications?.();
+                    }}
+                  >
+                    <FiBellOff /> Mute notifications
+                  </button>
 
-                <div className={styles.moreDivider} />
+                  <div className={styles.moreDivider} />
 
-                <button
-                  type="button"
-                  className={`${styles.moreItem} ${styles.dangerItem}`}
-                  disabled={disabledAll}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onExitGroup?.();
-                  }}
-                >
-                  <FiLogOut /> Exit group
-                </button>
-              </>
-            ) : (
-              /* ✅ INBOX MENU */
-              <>
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  disabled={disabledAll}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onRefresh?.();
-                  }}
-                >
-                  <FiRefreshCw /> Refresh
-                </button>
+                  <button
+                    type="button"
+                    className={`${styles.moreItem} ${styles.dangerItem}`}
+                    disabled={disabledAll}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onExitGroup?.();
+                    }}
+                  >
+                    <FiLogOut /> Exit group
+                  </button>
+                </>
+              ) : (
+                /* ✅ INBOX MENU */
+                <>
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    disabled={disabledAll}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onRefresh?.();
+                    }}
+                  >
+                    <FiRefreshCw /> Refresh
+                  </button>
 
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  disabled={disabledAll}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onCreateHub?.();
-                  }}
-                >
-                  <FiPlus /> Create Hub
-                </button>
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    disabled={disabledAll}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onCreateHub?.();
+                    }}
+                  >
+                    <FiPlus /> Create Hub
+                  </button>
 
-                <div className={styles.moreDivider} />
+                  <div className={styles.moreDivider} />
 
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onNewChat?.();
-                  }}
-                >
-                  <FiPlus /> New chat
-                </button>
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onNewChat?.();
+                    }}
+                  >
+                    <FiPlus /> New chat
+                  </button>
 
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onNewGroup?.();
-                  }}
-                >
-                  <FiUsers /> New group
-                </button>
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onNewGroup?.();
+                    }}
+                  >
+                    <FiUsers /> New group
+                  </button>
 
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onOpenLocation?.();
-                  }}
-                >
-                  <FiMapPin /> Change location
-                </button>
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onOpenLocation?.();
+                    }}
+                  >
+                    <FiMapPin /> Change location
+                  </button>
 
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onOpenSettings?.();
-                  }}
-                >
-                  <FiSettings /> Settings
-                </button>
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onOpenSettings?.();
+                    }}
+                  >
+                    <FiSettings /> Settings
+                  </button>
 
-                <button
-                  type="button"
-                  className={styles.moreItem}
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onHelp?.();
-                  }}
-                >
-                  <FiHelpCircle /> Help
-                </button>
-              </>
-            )}
-          </div>
-        )}
-      </div>
+                  <button
+                    type="button"
+                    className={styles.moreItem}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onHelp?.();
+                    }}
+                  >
+                    <FiHelpCircle /> Help
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </header>
   );
 }

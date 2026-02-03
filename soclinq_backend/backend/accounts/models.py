@@ -415,6 +415,8 @@ class ProfileSettings(models.Model):
     # Emergency mode
     # -------------------------
     emergency_mode_enabled = models.BooleanField(default=False)
+    preferred_language = models.CharField(max_length=20, default="en")
+
 
     # -------------------------
     # Device/location

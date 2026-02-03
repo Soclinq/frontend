@@ -1,149 +1,283 @@
-/* InboxRow.module.css */
+/* =========================================================
+   Inbox Row (Token-based)
+========================================================= */
 
 .row {
-    width: 100%;
-    border: none;
-    cursor: pointer;
-    text-align: left;
-  
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  
-    padding: 12px;
-  
-    background: var(--chat-surface);
-    border-bottom: 1px solid var(--chat-border-soft);
-  
-    transition: background var(--chat-fast);
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+
+  padding: var(--space-6) var(--space-6);
+  border: 1px solid transparent;
+  outline: none;
+
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+
+  border-radius: var(--radius-lg);
+
+  transition: background var(--mid), transform var(--fast), border-color var(--mid),
+    box-shadow var(--mid);
+}
+
+.row:hover {
+  background: var(--surface-3);
+  border-color: var(--divider);
+}
+
+.row:active {
+  transform: scale(0.99);
+}
+
+/* Active (opened chat) */
+.active {
+  background: var(--brand-soft);
+  border-color: rgba(37, 99, 235, 0.22);
+}
+
+/* Selected (long-press multi select) */
+.selected {
+  background: var(--success-soft);
+  border-color: rgba(22, 163, 74, 0.24);
+}
+
+.row:focus-visible {
+  box-shadow: var(--ring);
+}
+
+/* =========================================================
+   Avatar
+========================================================= */
+
+.avatar {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+
+  position: relative;
+
+  display: grid;
+  place-items: center;
+
+  background: var(--surface-3);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-xs);
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.avatarFallback {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  color: var(--text-soft);
+}
+
+/* Community badge (bottom-left) */
+.communityMark {
+  position: absolute;
+  left: -4px;
+  bottom: -4px;
+
+  width: 22px;
+  height: 22px;
+
+  border-radius: var(--radius-pill);
+
+  display: grid;
+  place-items: center;
+
+  background: var(--brand);
+  color: var(--text-invert);
+
+  border: 2px solid var(--surface);
+  box-shadow: var(--shadow-xs);
+
+  font-size: var(--text-xs);
+}
+
+/* Online Dot (bottom-right) */
+.onlineDot {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+
+  width: 11px;
+  height: 11px;
+
+  border-radius: var(--radius-pill);
+  background: var(--success);
+
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+
+/* =========================================================
+   Main Content
+========================================================= */
+
+.main {
+  flex: 1;
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Top row: Name left, Time right */
+.topLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+
+.name {
+  font-size: var(--text-md);
+  font-weight: var(--weight-bold);
+  color: var(--text);
+
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.time {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Bottom row: Preview left, Unread right */
+.bottomLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+
+.preview {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  color: var(--text-muted);
+
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Unread Badge */
+.unread {
+  flex: 0 0 auto;
+
+  min-width: 22px;
+  height: 22px;
+  padding: 0 var(--space-3);
+
+  border-radius: var(--radius-pill);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  background: var(--success);
+  color: var(--text-invert);
+
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+
+  box-shadow: var(--shadow-xs);
+}
+
+/* =========================================================
+   Small screens polish
+========================================================= */
+
+/* =========================================================
+   Typing Indicator
+========================================================= */
+
+.typing {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--brand);
+  font-weight: var(--weight-semibold);
+}
+
+.typingText {
+  font-size: inherit;
+}
+
+.typingDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.typingDots span {
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--brand);
+  opacity: 0.35;
+  animation: typingDot 1s infinite ease-in-out;
+}
+
+.typingDots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typingDots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes typingDot {
+  0%,
+  100% {
+    transform: translateY(0px);
+    opacity: 0.35;
   }
-  
-  .row:hover {
-    background: var(--chat-bg-soft);
+  50% {
+    transform: translateY(-3px);
+    opacity: 0.9;
   }
-  
-  .active {
-    background: rgba(22, 163, 74, 0.1);
+}
+
+
+@media (max-width: 480px) {
+  .row {
+    padding: var(--space-5);
+    border-radius: var(--radius-md);
   }
-  
-  /* Avatar */
+
   .avatar {
-    width: 46px;
-    height: 46px;
-    border-radius: 999px;
-    overflow: hidden;
-  
-    background: rgba(17, 24, 39, 0.06);
-    border: 1px solid var(--chat-border-soft);
-  
-    position: relative;
-    flex: 0 0 auto;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 42px;
   }
-  
-  .avatarImg {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-  
-  .avatarFallback {
-    width: 100%;
-    height: 100%;
-    display: grid;
-    place-items: center;
-  
-    font-weight: 900;
-    color: var(--chat-text-soft);
-  }
-  
-  /* Community marker */
-  .communityMark {
-    position: absolute;
-    right: -3px;
-    bottom: -3px;
-  
-    width: 18px;
-    height: 18px;
-    border-radius: 999px;
-  
-    display: grid;
-    place-items: center;
-  
-    background: var(--chat-surface);
-    border: 1px solid var(--chat-border-soft);
-  
-    color: var(--chat-text-muted);
-    font-size: 12px;
-  }
-  
-  /* Main */
-  .main {
-    flex: 1;
-    min-width: 0;
-  
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  
-  .topLine {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-  }
-  
+
   .name {
-    font-size: 14px;
-    font-weight: 900;
-    color: var(--chat-text);
-  
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: var(--text-sm);
   }
-  
-  .time {
-    font-size: 11px;
-    font-weight: 800;
-    color: var(--chat-text-muted);
-    flex: 0 0 auto;
-  }
-  
-  .bottomLine {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-  
+
   .preview {
-    font-size: 13px;
-    color: var(--chat-text-muted);
-  
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: var(--text-xs);
   }
-  
-  /* ✅ WhatsApp green unread badge */
-  .unread {
-    min-width: 22px;
-    height: 22px;
-    padding: 0 7px;
-  
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-  
-    border-radius: 999px;
-  
-    background: rgba(22, 163, 74, 0.95);
-    color: #fff;
-  
-    font-size: 12px;
-    font-weight: 900;
-  
-    box-shadow: 0 10px 18px rgba(22, 163, 74, 0.25);
+
+  .time {
+    font-size: var(--text-xs);
   }
-  
+}

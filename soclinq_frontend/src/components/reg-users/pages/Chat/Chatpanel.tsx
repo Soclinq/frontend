@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./styles/ChatPanel.module.css";
-
+import { useChatThreadWS } from "@/hooks/useChatThreadWS";
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
 
@@ -22,8 +22,7 @@ import ChatEmojiMartPopup from "./ChatEmojiMartPopup";
 
 import ChatMessageInfoModal from "./ChatMessageInfoModal";
 import ChatDeleteSheet from "./ChatDeleteSheet";
-import ChatForwardSheet from "./ChatForwardSheet";
-
+import ChatForwardPicker from "./ChatForwardPicker";
 import CameraModal from "./CameraModal";
 import ChatAudioRecorder from "./ChatAudioRecorder";
 
@@ -91,25 +90,6 @@ type ForwardTarget = {
   type?: string;
   photo?: string | null;
 };
-
-type WSIncoming =
-  | { type: "message:new"; payload: Message }
-  | {
-      type: "reaction:update";
-      payload: {
-        messageId: string;
-        emoji: string;
-        userId: string;
-        action: "added" | "removed";
-      };
-    }
-  | {
-      type: "typing:update";
-      payload: { userId: string; name: string; isTyping: boolean };
-    }
-  | { type: "message:delete"; payload: { messageId: string; deletedAt?: string } }
-  | { type: "message:edit"; payload: Message }
-  | { type: "ERROR"; message: string };
 
   type Props = {
     threadId: string;     // ✅ groupId OR conversationId
@@ -206,7 +186,6 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
   const [input, setInput] = useState("");
   const [pickedFiles, setPickedFiles] = useState<File[]>([]);
 
-  const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [replyTo, setReplyTo] = useState<Message | null>(null);
 
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -215,13 +194,10 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
 
 
   /* ---------- UI refs ---------- */
-  const wsRef = useRef<WebSocket | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const inputBarRef = useRef<HTMLDivElement | null>(null);
 
-  const typingTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // ✅ IMPORTANT: key depends on threadId now
   const LOCAL_DELETE_KEY = `soclinq_deleted_for_me_${adapter.mode}_${threadId}`;
@@ -329,6 +305,26 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
 
   /* ================= Local delete store ================= */
 
+  const messagesRef = useRef<Message[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  
+  useEffect(() => {
+    return () => {
+      messagesRef.current.forEach((m) => {
+        m.attachments?.forEach((a) => {
+          if (a.url?.startsWith("blob:")) {
+            try {
+              URL.revokeObjectURL(a.url);
+            } catch {}
+          }
+        });
+      });
+    };
+  }, []);
+  
+  
   useEffect(() => {
     if (!onSelectionChange) return;
   
@@ -489,10 +485,6 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
 
   /* ================= Scrolling ================= */
 
-  const scrollToBottom = (smooth = true) => {
-    bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
-  };
-
   function scrollToMessage(messageId: string) {
     const el = document.getElementById(`msg-${messageId}`);
     if (!el) return;
@@ -613,7 +605,7 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
       } finally {
         if (!cancelled) {
           setLoading(false);
-          setTimeout(() => scrollToBottom(false), 50);
+          scrollToBottom(false);
         }
       }
     }
@@ -650,133 +642,30 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
 
   /* ================= WebSocket ================= */
 
-  useEffect(() => {
-    if (!threadId) return;
-
-    const wsUrl = buildWsUrl(adapter.wsPath(threadId));
-    const ws = new WebSocket(wsUrl);
-
-    wsRef.current = ws;
-
-    ws.onmessage = (event) => {
-      try {
-        const payload: WSIncoming = JSON.parse(event.data);
-
-        if (payload.type === "ERROR") return;
-
-        if (payload.type === "message:new") {
-          const msg = payload.payload;
-
-          setMessages((prev) => {
-            if (msg.clientTempId) {
-              const idx = prev.findIndex((m) => m.clientTempId === msg.clientTempId);
-              if (idx !== -1) {
-                const copy = [...prev];
-                copy[idx] = { ...msg, status: "sent" };
-                return copy;
-              }
-            }
-            return [...prev, { ...msg, status: "sent" }];
-          });
-
-          scrollToBottom();
-          return;
-        }
-
-        if (payload.type === "reaction:update") {
-          const { messageId, emoji, action } = payload.payload;
-
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.id !== messageId) return m;
-
-              const reactions = m.reactions ? [...m.reactions] : [];
-              const idx = reactions.findIndex((r) => r.emoji === emoji);
-
-              if (idx === -1 && action === "added") {
-                reactions.push({ emoji, count: 1 });
-              } else if (idx !== -1) {
-                const current = reactions[idx];
-                const nextCount = action === "added" ? current.count + 1 : current.count - 1;
-
-                if (nextCount <= 0) reactions.splice(idx, 1);
-                else reactions[idx] = { ...current, count: nextCount };
-              }
-
-              return { ...m, reactions };
-            })
-          );
-          return;
-        }
-
-        if (payload.type === "typing:update") {
-          const { name, isTyping } = payload.payload;
-
-          setTypingUsers((prev) =>
-            isTyping ? [...new Set([...prev, name])] : prev.filter((n) => n !== name)
-          );
-          return;
-        }
-
-        if (payload.type === "message:delete") {
-          const { messageId, deletedAt } = payload.payload;
-
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === messageId
-                ? {
-                    ...m,
-                    deletedAt: deletedAt || new Date().toISOString(),
-                    text: "",
-                    attachments: [],
-                    reactions: [],
-                    myReaction: null,
-                  }
-                : m
-            )
-          );
-          return;
-        }
-
-        if (payload.type === "message:edit") {
-          const edited = payload.payload;
-          setMessages((prev) => prev.map((m) => (m.id === edited.id ? { ...m, ...edited } : m)));
-          return;
-        }
-      } catch {}
-    };
-
-    ws.onclose = () => {
-      setTypingUsers([]);
-      wsRef.current = null;
-    };
-
-    return () => {
-      ws.close();
-      wsRef.current = null;
-    };
-  }, [threadId, adapter]);
-
+  const {
+    containerRef,
+    connected,
+    wsState,
+    typingUsers,
+    bottomRef,
+    scrollToBottom,
+    typing,
+    typingStop,
+  } = useChatThreadWS({
+    threadId,
+    adapter,
+    setMessages,
+  });
+  
   /* ================= Typing ================= */
 
   const handleTyping = (value: string) => {
     setInput(value);
-
+  
     if (!adapter.features.typing) return;
-
-    try {
-      wsRef.current?.send(JSON.stringify({ type: "typing:start", payload: {} }));
-    } catch {}
-
-    if (typingTimeout.current) clearTimeout(typingTimeout.current);
-
-    typingTimeout.current = setTimeout(() => {
-      try {
-        wsRef.current?.send(JSON.stringify({ type: "typing:stop", payload: {} }));
-      } catch {}
-    }, 800);
+    typing(); // ✅ safe typing (no spam)
   };
-
+  
   /* ================= Upload ================= */
 
   async function uploadAttachmentsToBackend(files: File[]) {
@@ -942,6 +831,7 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
 
       setEditingMessageId(null);
       setInput("");
+      typingStop();
 
       setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, text: newText } : m)));
 
@@ -951,6 +841,8 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: newText }),
       });
+
+      
 
       if (!res.ok) {
         notify({
@@ -1006,6 +898,7 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
     setInput("");
     setPickedFiles([]);
     setReplyTo(null);
+    typingStop();
     scrollToBottom();
 
     try {
@@ -1141,40 +1034,43 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
 
       {/* ✅ Messages */}
       <ChatMessages
-  messages={messages}
-  loading={loading}
-  error={error}
-  selectionMode={selectionMode}
-  isSelected={isSelected}
-  onMessageClick={onMessageClick}
-  toggleSelectMessage={toggleSelectMessage}
-  hoverMsgId={hoverMsgId}
-  setHoverMsgId={setHoverMsgId}
-  startReply={startReply}
-  scrollToMessage={scrollToMessage}
-  highlightMsgId={highlightMsgId}
-  loadOlder={loadOlder}
-  reactToMessage={reactToMessage}
-  recentEmojis={recentEmojis}
-  setReactionPicker={setReactionPicker}
-  onOpenFullEmojiPicker={(msg, pos) => {
-    setEmojiMart({
-      open: true,
-      message: msg,
-      x: pos.x,
-      y: pos.y,
-    });
-  }}
-  onOpenContextMenu={(pos, msg) => {
-    setMenu({
-      open: true,
-      x: pos.x,
-      y: pos.y,
-      message: msg,
-    });
-  }}
-  bottomRef={bottomRef}
-/>
+        messages={messages}
+        loading={loading}
+        error={error}
+        selectionMode={selectionMode}
+        isSelected={isSelected}
+        onMessageClick={onMessageClick}
+        toggleSelectMessage={toggleSelectMessage}
+        hoverMsgId={hoverMsgId}
+        setHoverMsgId={setHoverMsgId}
+        startReply={startReply}
+        scrollToMessage={scrollToMessage}
+        highlightMsgId={highlightMsgId}
+        loadOlder={loadOlder}
+        reactToMessage={reactToMessage}
+        recentEmojis={recentEmojis}
+        setReactionPicker={setReactionPicker}
+        onOpenFullEmojiPicker={(msg, pos) => {
+          setEmojiMart({
+            open: true,
+            message: msg,
+            x: pos.x,
+            y: pos.y,
+          });
+        }}
+        onOpenContextMenu={(pos, msg) => {
+          setMenu({
+            open: true,
+            x: pos.x,
+            y: pos.y,
+            message: msg,
+          });
+        }}
+        bottomRef={bottomRef}
+        containerRef={containerRef}   // ✅ ADD THIS
+        notify={notify}               // ✅ optional (but you already use notify inside)
+      />
+
 
 
       {/* ✅ Typing */}
@@ -1455,30 +1351,25 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
       />
 
       {/* ✅ Forward Sheet */}
-      <ChatForwardSheet
-        sheet={{
-          open: forwardSheet.open,
-          messages: forwardSheet.messages.map((m) => ({
-            id: m.id,
-            text: m.text,
-            deletedAt: m.deletedAt,
-            attachments: m.attachments,
-          })),
-        }}
-        currentThreadId={threadId}
-        targets={filteredForwardTargets}
-        loading={forwardLoading}
-        selectedIds={forwardSelectedIds}
-        setSelectedIds={setForwardSelectedIds}
-        notify={notify}
-        onClose={() => setForwardSheet({ open: false, messages: [] })}
-        onForward={async () => {
-          await forwardSelectedMessagesToHubs();
-          setForwardSheet({ open: false, messages: [] });
-          setForwardSelectedIds([]);
-          setForwardSearch("");
-        }}
-      />
+      <ChatForwardPicker
+  open={forwardSheet.open}
+  onClose={() => setForwardSheet({ open: false, messages: [] })}
+  mode="FORWARD"
+  adapter={adapter}
+  currentThreadId={threadId}
+  forwardMessages={forwardSheet.messages.map((m) => ({
+    id: m.id,
+    text: m.text || "",
+    deletedAt: m.deletedAt,
+    attachments: m.attachments || [],
+  }))}
+  onForwardDone={() => {
+    setForwardSheet({ open: false, messages: [] });
+    setForwardSelectedIds([]);
+    setForwardSearch("");
+  }}
+/>
+
     </div>
   );
 }

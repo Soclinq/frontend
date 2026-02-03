@@ -1,9 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { FiUsers } from "react-icons/fi";
+
 import type { Hub } from "@/types/hub";
-import { PrivateInboxItem } from "@/types/privateInbox";
+import type { PrivateInboxItem } from "@/types/privateInbox";
+
 import styles from "./styles/InboxRow.module.css";
 
 type Props =
@@ -12,61 +14,165 @@ type Props =
       hub: Hub;
       active?: boolean;
       onClick: () => void;
+      onLongPress?: () => void;
+      selected?: boolean;
     }
   | {
       kind: "PRIVATE";
       chat: PrivateInboxItem;
       active?: boolean;
       onClick: () => void;
+      onLongPress?: () => void;
+      selected?: boolean;
     };
 
-function formatTime(iso?: string | null) {
+function formatSmartDate(iso?: string | null) {
   if (!iso) return "";
+
   try {
     const d = new Date(iso);
-    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const now = new Date();
+
+    const diffMs = now.getTime() - d.getTime();
+    const diffHours = diffMs / (1000 * 60 * 60);
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+    if (diffHours < 24) {
+      return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+
+    if (diffDays >= 1 && diffDays < 2) return "Yesterday";
+
+    if (diffDays < 7) {
+      return d.toLocaleDateString([], { weekday: "long" });
+    }
+
+    return d.toLocaleDateString([], {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
   } catch {
     return "";
   }
 }
 
+function getTypingName(props: Props) {
+  if (props.kind === "PRIVATE") return props.chat.other_user.name;
+  return props.hub.name;
+}
+
 export default function InboxRow(props: Props) {
-  const active = props.active;
+  const pressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ✅ blocks click if long-press already selected
+  const didLongPressRef = useRef(false);
+
+  const active = !!props.active;
 
   const title =
     props.kind === "COMMUNITY" ? props.hub.name : props.chat.other_user.name;
 
-  const preview =
+  const photo =
     props.kind === "COMMUNITY"
-      ? props.hub.last_message_text
-        ? `${props.hub.last_message_sender_name || "Someone"}: ${
-            props.hub.last_message_text
-          }`
-        : props.hub.description || "No messages yet"
-      : props.chat.last_message_text || "No messages yet";
-
-  const time =
-    props.kind === "COMMUNITY"
-      ? formatTime(props.hub.last_message_at)
-      : formatTime(props.chat.last_message_at);
+      ? props.hub.cover_image
+      : props.chat.other_user.photo;
 
   const unread =
     props.kind === "COMMUNITY"
       ? props.hub.unread_count ?? 0
       : props.chat.unread_count ?? 0;
 
-  const photo =
-    props.kind === "COMMUNITY" ? props.hub.cover_image : props.chat.other_user.photo;
+  const time =
+    props.kind === "COMMUNITY"
+      ? formatSmartDate(props.hub.last_message_at)
+      : formatSmartDate(props.chat.last_message_at);
+
+  const typing =
+    props.kind === "COMMUNITY" ? !!props.hub.is_typing : !!props.chat.is_typing;
+
+  const typingName = getTypingName(props);
+
+  const preview = typing ? (
+    <span className={styles.typing}>
+      <span className={styles.typingText}>
+        {props.kind === "PRIVATE" ? "Typing" : `${typingName} typing`}
+      </span>
+      <span className={styles.typingDots} aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </span>
+    </span>
+  ) : props.kind === "COMMUNITY" ? (
+    props.hub.last_message_text ? (
+      `${props.hub.last_message_sender_name || "Someone"}: ${props.hub.last_message_text}`
+    ) : (
+      props.hub.description || "No messages yet"
+    )
+  ) : (
+    props.chat.last_message_text || "No messages yet"
+  );
+
+  const isOnline =
+    props.kind === "PRIVATE" ? !!props.chat.other_user.is_online : false;
+
+  function startPress() {
+    if (!props.onLongPress) return;
+
+    // ✅ reset
+    didLongPressRef.current = false;
+
+    // ✅ avoid duplicates
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+
+    pressTimerRef.current = setTimeout(() => {
+      didLongPressRef.current = true;
+      props.onLongPress?.();
+    }, 380);
+  }
+
+  function endPress() {
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    pressTimerRef.current = null;
+  }
+
+  function handleClickSafe() {
+    // ✅ if long press already happened, block click once
+    if (didLongPressRef.current) return;
+    props.onClick();
+  }
+
+  // ✅ cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    };
+  }, []);
 
   return (
     <button
       type="button"
-      className={[styles.row, active ? styles.active : ""].join(" ")}
-      onClick={props.onClick}
+      className={[
+        styles.row,
+        active ? styles.active : "",
+        props.selected ? styles.selected : "",
+      ].join(" ")}
+      onClick={handleClickSafe}
+      onPointerDown={startPress}
+      onPointerUp={endPress}
+      onPointerCancel={endPress}
+      onPointerLeave={endPress}
+      // ✅ removes annoying browser tap delay / weird selection behaviour
+      style={{
+        touchAction: "manipulation",
+        WebkitTapHighlightColor: "transparent",
+      }}
     >
       {/* Avatar */}
       <div className={styles.avatar}>
         {photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img src={photo} alt={title} className={styles.avatarImg} />
         ) : (
           <span className={styles.avatarFallback}>
@@ -74,7 +180,12 @@ export default function InboxRow(props: Props) {
           </span>
         )}
 
-        {/* small icon for community */}
+        {/* ✅ Online Dot */}
+        {props.kind === "PRIVATE" && isOnline ? (
+          <span className={styles.onlineDot} title="Online" />
+        ) : null}
+
+        {/* ✅ Community Icon */}
         {props.kind === "COMMUNITY" ? (
           <span className={styles.communityMark} title="Community Hub">
             <FiUsers />
@@ -86,15 +197,12 @@ export default function InboxRow(props: Props) {
       <div className={styles.main}>
         <div className={styles.topLine}>
           <span className={styles.name}>{title}</span>
-          <span className={styles.time}>{time}</span>
+          {time ? <span className={styles.time}>{time}</span> : null}
         </div>
 
         <div className={styles.bottomLine}>
           <span className={styles.preview}>{preview}</span>
-
-          {unread > 0 ? (
-            <span className={styles.unread}>{unread}</span>
-          ) : null}
+          {unread > 0 ? <span className={styles.unread}>{unread}</span> : null}
         </div>
       </div>
     </button>
