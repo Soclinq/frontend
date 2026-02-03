@@ -1,211 +1,336 @@
 .header {
+    height: var(--chat-header-height);
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+  
+    padding: 0 var(--space-8);
+  
+    background: var(--glass-bg);
+    border-bottom: 1px solid var(--divider);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+  
     position: sticky;
     top: 0;
-    z-index: 50;
-  
-    height: 56px;
-    width: 100%;
-  
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  
-    padding: 0 12px;
-  
-    background: #ffffff;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    z-index: var(--z-sticky);
   }
   
-  /* ✅ LEFT BUTTON (Back / LGA) */
+  /* ---------------- LEFT BUTTON (Back / Location / Selection Exit) ---------------- */
   .leftBtn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-4);
   
-    border: none;
-    background: transparent;
+    height: 40px;
+    padding: 0 var(--space-6);
+  
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-pill);
+    background: var(--surface);
+  
+    color: var(--text);
+    font-weight: var(--weight-medium);
+  
+    box-shadow: var(--shadow-xs);
     cursor: pointer;
   
-    padding: 8px 8px;
-    border-radius: 10px;
-  
-    color: #111;
-    font-weight: 600;
-    font-size: 14px;
-  
-    transition: background 0.15s ease;
+    transition: transform var(--fast), background var(--fast), border-color var(--fast);
   }
   
   .leftBtn:hover {
-    background: rgba(0, 0, 0, 0.05);
+    background: var(--surface-2);
+    border-color: var(--border);
+  }
+  
+  .leftBtn:active {
+    transform: scale(0.98);
   }
   
   .leftBtn svg {
-    width: 20px;
-    height: 20px;
+    font-size: 18px;
+    color: var(--icon);
   }
   
-  /* Text beside icon */
   .leftText {
-    max-width: 160px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    font-size: var(--text-sm);
+    color: var(--text-soft);
     white-space: nowrap;
   }
   
-  /* ✅ SEARCH AREA */
+  /* ---------------- SEARCH ---------------- */
   .searchWrap {
     flex: 1;
     min-width: 0;
   
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--space-4);
   
-    background: #f0f2f5;
-    border-radius: 999px;
+    height: var(--input-height);
+    padding: 0 var(--space-7);
   
-    padding: 8px 12px;
+    border-radius: var(--input-radius);
+    border: 1px solid var(--input-border);
+    background: var(--input-bg);
+  
+    box-shadow: var(--shadow-xs);
   }
   
   .searchIcon {
-    width: 16px;
-    height: 16px;
-    color: rgba(0, 0, 0, 0.55);
-    flex-shrink: 0;
+    font-size: 18px;
+    color: var(--icon-muted);
   }
   
   .searchInput {
-    flex: 1;
-    min-width: 0;
+    width: 100%;
+    height: 100%;
   
     border: none;
     outline: none;
     background: transparent;
   
-    font-size: 14px;
-    color: #111;
+    font-size: var(--text-md);
+    font-family: var(--font-sans);
+    color: var(--text);
   }
   
   .searchInput::placeholder {
-    color: rgba(0, 0, 0, 0.45);
+    color: var(--input-placeholder);
   }
   
-  /* ✅ HOME BUTTON */
-  .homeBtn {
-    width: 40px;
-    height: 40px;
-  
-    border-radius: 50%;
-    border: none;
-  
-    background: transparent;
-    cursor: pointer;
-  
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  
-    color: #111;
-  
-    transition: background 0.15s ease;
-  }
-  
-  .homeBtn:hover {
-    background: rgba(0, 0, 0, 0.05);
-  }
-  
-  .homeBtn svg {
-    width: 20px;
-    height: 20px;
-  }
-  
-  /* =======================================================
-     ✅ WHATSAPP STYLE SELECTION MODE
-  ======================================================= */
-  
-  .selectionActions {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  
-  /* Selection header overrides */
-  .header:has(.selectionActions) {
-    background: #075e54; /* WhatsApp dark green */
-    border-bottom: none;
-  }
-  
-  .header:has(.selectionActions) .leftBtn {
-    color: white;
-  }
-  
-  .header:has(.selectionActions) .leftBtn:hover {
-    background: rgba(255, 255, 255, 0.12);
-  }
-  
-  .header:has(.selectionActions) .leftBtn svg {
-    color: white;
-  }
-  
-  /* selection icon buttons */
+  /* ---------------- ICON BUTTONS ---------------- */
   .iconBtn {
-    width: 40px;
     height: 40px;
+    width: 40px;
   
-    border-radius: 50%;
-    border: none;
-  
-    background: transparent;
-    cursor: pointer;
-  
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
   
-    color: white;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-soft);
+    background: var(--surface);
   
-    transition: background 0.15s ease, transform 0.15s ease;
+    box-shadow: var(--shadow-xs);
+    cursor: pointer;
+  
+    transition: transform var(--fast), background var(--fast), border-color var(--fast);
   }
   
   .iconBtn:hover {
-    background: rgba(255, 255, 255, 0.12);
+    background: var(--surface-2);
+    border-color: var(--border);
   }
   
   .iconBtn:active {
-    transform: scale(0.92);
+    transform: scale(0.98);
   }
   
   .iconBtn svg {
-    width: 19px;
-    height: 19px;
+    font-size: 18px;
+    color: var(--icon);
   }
   
-  /* delete button highlight */
   .danger {
-    color: #ffdddd;
+    border-color: rgba(239, 68, 68, 0.35);
   }
   
   .danger:hover {
-    background: rgba(255, 80, 80, 0.18);
+    background: var(--danger-soft);
+    border-color: rgba(239, 68, 68, 0.55);
   }
   
-  /* =======================================================
-     ✅ MOBILE TUNING
-  ======================================================= */
+  /* ---------------- SELECTION MODE RIGHT ACTIONS ---------------- */
+  .selectionActions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
   
-  @media (max-width: 420px) {
+  /* ---------------- MORE MENU ---------------- */
+  .moreWrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .moreBtn {
+    height: 40px;
+    width: 40px;
+  
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-soft);
+    background: var(--surface);
+  
+    box-shadow: var(--shadow-xs);
+    cursor: pointer;
+  
+    transition: transform var(--fast), background var(--fast), border-color var(--fast);
+  }
+  
+  .moreBtn:hover {
+    background: var(--surface-2);
+    border-color: var(--border);
+  }
+  
+  .moreBtn:active {
+    transform: scale(0.98);
+  }
+  
+  .moreBtn svg {
+    font-size: 18px;
+    color: var(--icon);
+  }
+  
+  /* Dropdown */
+  .moreMenu {
+    position: absolute;
+    top: calc(100% + var(--space-4));
+    right: 0;
+  
+    min-width: 200px;
+    background: var(--surface);
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-lg);
+  
+    box-shadow: var(--shadow-md);
+    padding: var(--space-3);
+  
+    z-index: var(--z-dropdown);
+  
+    animation: popIn var(--mid) var(--ease);
+  }
+  
+  @keyframes popIn {
+    from {
+      transform: translateY(-6px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0px);
+      opacity: 1;
+    }
+  }
+  
+  .moreItem {
+    width: 100%;
+    height: 44px;
+  
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+  
+    padding: 0 var(--space-6);
+  
+    border: none;
+    background: transparent;
+    cursor: pointer;
+  
+    border-radius: var(--radius-md);
+  
+    font-size: var(--text-md);
+    font-weight: var(--weight-medium);
+  
+    color: var(--text);
+    transition: background var(--fast);
+  }
+  
+  .moreItem:hover {
+    background: var(--surface-3);
+  }
+  
+  .moreItem svg {
+    font-size: 18px;
+    color: var(--icon-muted);
+  }
+  .chatTitleBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  background: transparent;
+  border: none;
+  padding: 6px 8px;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.chatAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
+  display: grid;
+  place-items: center;
+}
+
+.chatAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.chatAvatarFallback {
+  font-size: 16px;
+}
+
+.chatMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.chatName {
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.chatSubtitle {
+  font-size: 12px;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* Chat search can be smaller */
+.searchWrapChat {
+  flex: 1;
+  max-width: 320px;
+}
+
+.dangerItem {
+  color: #ff6b6b;
+}
+
+  
+  /* Make menu look nice on small screens */
+  @media (max-width: 430px) {
+    .header {
+      padding: 0 var(--space-6);
+      gap: var(--space-5);
+    }
+  
     .leftText {
-      max-width: 120px;
+      display: none;
     }
   
-    .searchWrap {
-      padding: 7px 10px;
-    }
-  
-    .searchInput {
-      font-size: 13px;
+    .moreMenu {
+      min-width: 180px;
     }
   }
   

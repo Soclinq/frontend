@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import UnifiedHeader from "./UnifiedHeader";
 import NewChatFab from "./NewChatFab";
@@ -9,8 +9,8 @@ import GroupsContainer, {
   type ActiveChat,
   type LGAGroupBlock,
 } from "./GroupsContainer";
-import ChatView from "./ChatView";
 
+import ChatView from "./ChatView";
 import ChangeLGAModal from "./ChangeLGAModal";
 
 export default function ChatShell() {
@@ -21,6 +21,9 @@ export default function ChatShell() {
   const [currentLGA, setCurrentLGA] = useState<LGAGroupBlock | null>(null);
 
   const [changeLGAModalOpen, setChangeLGAModalOpen] = useState(false);
+
+  // ✅ Create hub modal is now controlled here (header controls it)
+  const [createHubModalOpen, setCreateHubModalOpen] = useState(false);
 
   const mode = activeChat ? "CHAT" : "INBOX";
 
@@ -38,6 +41,9 @@ export default function ChatShell() {
     count: 0,
   });
 
+  // ✅ GroupsContainer exposes its reload function to ChatShell
+  const reloadInboxRef = useRef<null | (() => void)>(null);
+
   const locationName = useMemo(() => {
     return currentLGA?.lga?.name ?? "Select LGA";
   }, [currentLGA]);
@@ -50,16 +56,30 @@ export default function ChatShell() {
   return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
       <UnifiedHeader
-        hidden={chatSelection.active}  // ✅ HIDE WHEN SELECTING
         mode={mode}
         locationName={locationName}
         searchValue={search}
         onSearchChange={setSearch}
         onBack={() => setActiveChat(null)}
-        onHome={() => setActiveChat(null)}
         onOpenLocation={() => setChangeLGAModalOpen(true)}
-        />
-
+        onRefresh={() => reloadInboxRef.current?.()} // ✅ Refresh in header
+        onCreateHub={() => setCreateHubModalOpen(true)} // ✅ Create Hub in header
+        disabledAll={false}
+        selection={
+          chatSelection.active
+            ? {
+                active: true,
+                count: chatSelection.count,
+                onExit: chatSelection.onExit || (() => setChatSelection({ active: false, count: 0 })),
+                onSelectAll: chatSelection.onSelectAll || (() => {}),
+                onUnselectAll: chatSelection.onUnselectAll || (() => {}),
+                onDelete: chatSelection.onDelete || (() => {}),
+                onForward: chatSelection.onForward || (() => {}),
+                onShare: chatSelection.onShare || (() => {}),
+              }
+            : undefined
+        }
+      />
 
       {/* CONTENT */}
       <div style={{ flex: 1, minHeight: 0 }}>
@@ -74,6 +94,13 @@ export default function ChatShell() {
               setSearch("");
               setChatSelection({ active: false, count: 0 });
             }}
+            // ✅ controlled from ChatShell
+            createHubModalOpen={createHubModalOpen}
+            setCreateHubModalOpen={setCreateHubModalOpen}
+            // ✅ expose reloadAll to header
+            exposeReload={(fn) => {
+              reloadInboxRef.current = fn;
+            }}
           />
         ) : (
           <ChatView
@@ -81,17 +108,17 @@ export default function ChatShell() {
             groupId={activeChat.kind === "COMMUNITY" ? activeChat.id : undefined}
             conversationId={activeChat.kind === "PRIVATE" ? activeChat.id : undefined}
             onSelectionChange={(payload) => {
-                setChatSelection({
-                  active: payload.active,
-                  count: payload.count,
-                  onExit: payload.onExit,
-                  onSelectAll: payload.onSelectAll,
-                  onUnselectAll: payload.onUnselectAll,
-                  onDelete: payload.onDelete,
-                  onForward: payload.onForward,
-                  onShare: payload.onShare,
-                });
-              }}
+              setChatSelection({
+                active: payload.active,
+                count: payload.count,
+                onExit: payload.onExit,
+                onSelectAll: payload.onSelectAll,
+                onUnselectAll: payload.onUnselectAll,
+                onDelete: payload.onDelete,
+                onForward: payload.onForward,
+                onShare: payload.onShare,
+              });
+            }}
           />
         )}
       </div>

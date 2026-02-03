@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { FiX, FiUploadCloud } from "react-icons/fi";
-import styles from "./styles/HubSelector.module.css";
+import styles from "./styles/CreateHub.module.css";
 import type { LGAGroupBlock } from "./HubSelector";
 
 export type HubCategory = "ESTATE" | "CAMPUS" | "STREET" | "OTHERS";

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import PullToRefresh from "react-simple-pull-to-refresh";
 
 import { usePreciseLocation } from "@/hooks/usePreciseLocation";
 import { useNotify } from "@/components/utils/NotificationContext";
@@ -42,6 +43,13 @@ type Props = {
 
   onOpenChat: (chat: Exclude<ActiveChat, null>) => void;
   searchValue?: string;
+
+  // ✅ Controlled from ChatShell/Header
+  createHubModalOpen: boolean;
+  setCreateHubModalOpen: (v: boolean) => void;
+
+  // ✅ expose reload to header
+  exposeReload?: (fn: () => void) => void;
 };
 
 /* ================= HELPERS ================= */
@@ -109,6 +117,11 @@ export default function GroupsContainer({
   setLgaGroups,
   onOpenChat,
   searchValue = "",
+
+  createHubModalOpen,
+  setCreateHubModalOpen,
+
+  exposeReload,
 }: Props) {
   const notify = useNotify();
   const { location, loading: locationLoading, source } = usePreciseLocation();
@@ -117,7 +130,6 @@ export default function GroupsContainer({
   const [creatingHub, setCreatingHub] = useState(false);
 
   const [privateInbox, setPrivateInbox] = useState<PrivateInboxItem[]>([]);
-  const [createHubModalOpen, setCreateHubModalOpen] = useState(false);
 
   const lastLoadedRef = useRef<{ lat: number; lng: number } | null>(null);
 
@@ -168,11 +180,13 @@ export default function GroupsContainer({
         loadPrivateInbox(),
       ]);
 
-      // ✅ now store LGAs in ChatShell
+      // ✅ store LGAs in ChatShell
       setLgaGroups(blocks);
 
+      // ✅ set DMs
       setPrivateInbox(dmInbox);
 
+      // ✅ auto-select LGA
       const autoSelected =
         (resolvedLgaId && blocks.find((b) => b.lga.id === resolvedLgaId)) ||
         blocks[0];
@@ -188,6 +202,13 @@ export default function GroupsContainer({
       setLoading(false);
     }
   }
+
+  /* ================= EXPOSE RELOAD TO HEADER ================= */
+
+  useEffect(() => {
+    exposeReload?.(reloadAll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location?.lat, location?.lng, locationLoading]);
 
   /* ================= CREATE HUB ================= */
 
@@ -307,87 +328,71 @@ export default function GroupsContainer({
   return (
     <div className={styles.page}>
       <section className={styles.listArea}>
-        <div className={styles.listHeader}>
-          <h3 className={styles.listTitle}>Inbox</h3>
+        {/* ✅ Pull down / swipe down refresh */}
+        <PullToRefresh
+          onRefresh={reloadAll}
+          pullDownThreshold={90}
+          isPullable={!disabledAll}
+        >
+          {filteredInbox.length === 0 ? (
+            <p className={styles.empty}>
+              {disabledAll ? "Loading chats…" : "No chats yet"}
+            </p>
+          ) : (
+            <div className={styles.rows}>
+              {(() => {
+                let lastLabel = "";
 
-          <button
-            type="button"
-            className={styles.createBtn}
-            disabled={disabledAll || !currentLGA}
-            onClick={() => setCreateHubModalOpen(true)}
-          >
-            + Create Hub
-          </button>
-        </div>
+                return filteredInbox.map((item) => {
+                  const label = formatDayLabel(item.lastISO);
+                  const showDivider = label !== lastLabel;
+                  lastLabel = label;
 
-        <div className={styles.quickActions}>
-          <button
-            type="button"
-            className={styles.quickBtn}
-            onClick={reloadAll}
-            disabled={disabledAll}
-          >
-            Refresh
-          </button>
-        </div>
+                  const key =
+                    item.kind === "COMMUNITY"
+                      ? `c_${item.hub.id}`
+                      : `p_${item.chat.conversation_id}`;
 
-        {filteredInbox.length === 0 ? (
-          <p className={styles.empty}>
-            {disabledAll ? "Loading chats…" : "No chats yet"}
-          </p>
-        ) : (
-          <div className={styles.rows}>
-            {(() => {
-              let lastLabel = "";
+                  return (
+                    <div key={key}>
+                      {showDivider && (
+                        <div className={styles.dayDivider}>
+                          <span>{label}</span>
+                        </div>
+                      )}
 
-              return filteredInbox.map((item) => {
-                const label = formatDayLabel(item.lastISO);
-                const showDivider = label !== lastLabel;
-                lastLabel = label;
-
-                const key =
-                  item.kind === "COMMUNITY"
-                    ? `c_${item.hub.id}`
-                    : `p_${item.chat.conversation_id}`;
-
-                return (
-                  <div key={key}>
-                    {showDivider && (
-                      <div className={styles.dayDivider}>
-                        <span>{label}</span>
-                      </div>
-                    )}
-
-                    {item.kind === "COMMUNITY" ? (
-                      <InboxRow
-                        kind="COMMUNITY"
-                        hub={item.hub}
-                        active={false}
-                        onClick={() =>
-                          onOpenChat({ kind: "COMMUNITY", id: item.hub.id })
-                        }
-                      />
-                    ) : (
-                      <InboxRow
-                        kind="PRIVATE"
-                        chat={item.chat}
-                        active={false}
-                        onClick={() =>
-                          onOpenChat({
-                            kind: "PRIVATE",
-                            id: item.chat.conversation_id,
-                          })
-                        }
-                      />
-                    )}
-                  </div>
-                );
-              });
-            })()}
-          </div>
-        )}
+                      {item.kind === "COMMUNITY" ? (
+                        <InboxRow
+                          kind="COMMUNITY"
+                          hub={item.hub}
+                          active={false}
+                          onClick={() =>
+                            onOpenChat({ kind: "COMMUNITY", id: item.hub.id })
+                          }
+                        />
+                      ) : (
+                        <InboxRow
+                          kind="PRIVATE"
+                          chat={item.chat}
+                          active={false}
+                          onClick={() =>
+                            onOpenChat({
+                              kind: "PRIVATE",
+                              id: item.chat.conversation_id,
+                            })
+                          }
+                        />
+                      )}
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          )}
+        </PullToRefresh>
       </section>
 
+      {/* ✅ Create hub modal controlled from ChatShell/Header */}
       <CreateHubModal
         open={createHubModalOpen}
         currentLGA={currentLGA as any}
