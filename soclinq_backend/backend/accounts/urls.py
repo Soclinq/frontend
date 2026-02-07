@@ -7,7 +7,7 @@ from .views import (SendOTPView, LoginView, VerifyOTPView,
         ProfileCheckUsernameView, ProfileSetUsernameView, ProfileChangePhoneStartView,
         ProfileDeviceSettingsView, ProfileEmergencyContactsListView, ProfileEmergencyContactsCreateView,
         ProfileEmergencyContactsDeleteView,  ProfileEmergencyTestPingView, ProfilePrivacyUpdateView, ProfileExportView,
-        ProfileDeleteRequestView, ProfileSettingsView
+        ProfileDeleteRequestView, ProfileSettingsView, WebSocketTokenView
         )
 
 urlpatterns = [
@@ -23,8 +23,7 @@ urlpatterns = [
 
     path("usernames/check/", UsernameCheckView.as_view(), name="username-check"),
     path("usernames/claim/", UsernameClaimView.as_view(), name="username-claim"),
-
-
+    path("ws-token/", WebSocketTokenView.as_view(), name="websocket-token"),
 
     path("profile/phone/send-otp/", SendPhoneOTPView.as_view(), name="send-phone-otp"),
     path("profile/phone/verify-otp/", VerifyPhoneOTPView.as_view(), name="verify-phone-otp"),

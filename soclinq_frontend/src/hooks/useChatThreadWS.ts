@@ -7,8 +7,16 @@ import type { ChatMessage, ChatReaction } from "@/types/chat";
 
 /* ================= TYPES ================= */
 
+type SeenByMap = Record<string, string>; // userId -> ISO timestamp
+
 type WSIncoming =
   | { type: "message:new"; payload: ChatMessage }
+  | { type: "message:ack"; payload: ChatMessage }
+  | { type: "message:delivered"; payload: { messageId: string } }
+  | {
+      type: "message:seen";
+      payload: { messageId: string; userId: string };
+    }
   | {
       type: "reaction:update";
       payload: {
@@ -23,12 +31,15 @@ type WSIncoming =
   | { type: "message:edit"; payload: ChatMessage }
   | {
       type: "presence:update";
-      payload:
-        | { userId: string; online: boolean; lastSeen?: string | null }
-        | { user?: { id: string }; online: boolean; lastSeen?: string | null };
+      payload: {
+        userId?: string;
+        user?: { id: string };
+        online: boolean;
+        lastSeen?: string | null;
+      };
     }
   | { type: "ERROR"; message: string }
-  | { type: string; payload?: any }; // ✅ allows unknown events safely
+  | { type: string; payload?: any };
 
 export type PresenceState = {
   online: boolean;
@@ -39,43 +50,28 @@ export type PresenceMap = Record<string, PresenceState>;
 
 /* ================= HELPERS ================= */
 
-function buildWsUrl(path: string) {
-  const raw = process.env.NEXT_PUBLIC_WS_URL;
-
-  if (!raw) {
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    return `${protocol}://${window.location.host}${path}`;
-  }
-
-  if (raw.startsWith("http://")) return raw.replace("http://", "ws://") + path;
-  if (raw.startsWith("https://")) return raw.replace("https://", "wss://") + path;
-
-  return raw + path;
+function isNearBottom(el: HTMLElement, threshold = 160) {
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
 }
 
-function normalizeTypingPayload(payload: any): {
-  userId: string;
-  name: string;
-  isTyping: boolean;
-} | null {
-  const userId = payload?.userId ?? payload?.user?.id;
-  const name = payload?.name ?? payload?.user?.name;
-  const isTyping = !!payload?.isTyping;
+function hashMessage(msg: ChatMessage) {
+  return `${msg.clientTempId ?? ""}|${msg.text ?? ""}`;
+}
 
-  if (!userId) return null;
+/* ================= E2EE MANAGER ================= */
 
-  return {
-    userId: String(userId),
-    name: String(name || "Someone"),
-    isTyping,
+type E2EEManager = {
+  enabled: boolean;
+  currentKeyId: string;
+  decrypt: (cipher: string, keyId: string) => Promise<string>;
+};
+
+const e2ee: E2EEManager =
+  (globalThis as any).SOC_E2EE ?? {
+    enabled: false,
+    currentKeyId: "default",
+    decrypt: async (t: string) => t,
   };
-}
-
-/** ✅ WhatsApp-like: only autoscroll if user is already near bottom */
-function isNearBottom(el: HTMLElement, thresholdPx = 140) {
-  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-  return distanceFromBottom <= thresholdPx;
-}
 
 /* ================= HOOK ================= */
 
@@ -88,26 +84,38 @@ export function useChatThreadWS({
   threadId: string;
   adapter: ChatAdapter;
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
-  currentUserId?: string; // ✅ needed for myReaction updates
+  currentUserId?: string;
 }) {
-  const [typingUsers, setTypingUsers] = useState<{ userId: string; name: string }[]>(
-    []
-  );
+  /* ---------- State ---------- */
 
+  const [typingUsers, setTypingUsers] = useState<{ userId: string; name: string }[]>([]);
   const [presenceMap, setPresenceMap] = useState<PresenceMap>({});
 
-  /** ✅ used for smart autoscroll detection */
   const containerRef = useRef<HTMLDivElement | null>(null);
-
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  /** ✅ prevents stuck typing */
+  /* ---------- Refs ---------- */
+
+  const knownMessageHashes = useRef<Set<string>>(new Set());
   const typingTimers = useRef<Record<string, any>>({});
+  const autoScrollRef = useRef(true);
+
+  /* ---------- Batching ---------- */
+
+  const deliveredBatch = useRef<Set<string>>(new Set());
+  const deliveredTimer = useRef<number | null>(null);
+
+  const seenBatch = useRef<{ messageId: string; userId: string }[]>([]);
+  const seenTimer = useRef<number | null>(null);
+
+  /* ---------- WS URL ---------- */
 
   const wsUrl = useMemo(() => {
     if (!threadId) return "";
-    return buildWsUrl(adapter.wsPath(threadId));
+    return adapter.wsPath(threadId);
   }, [threadId, adapter]);
+
+  /* ---------- Scroll ---------- */
 
   const scrollToBottom = useCallback((smooth = true) => {
     bottomRef.current?.scrollIntoView({
@@ -115,150 +123,203 @@ export function useChatThreadWS({
     });
   }, []);
 
-  const scrollToBottomSafe = useCallback(
-    (smooth = true) => {
-      requestAnimationFrame(() => scrollToBottom(smooth));
-    },
-    [scrollToBottom]
-  );
-
-  /** ✅ Track whether we should auto-scroll */
-  const shouldAutoScrollRef = useRef(true);
-
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
 
     const onScroll = () => {
-      shouldAutoScrollRef.current = isNearBottom(el, 180);
+      autoScrollRef.current = isNearBottom(el);
     };
 
     el.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
 
-    return () => {
-      el.removeEventListener("scroll", onScroll);
-    };
+    return () => el.removeEventListener("scroll", onScroll);
   }, []);
+
+  /* ================= WS CORE ================= */
 
   const { connected, state, sendRaw, typing, typingStop } = useWebSocketChat({
     wsUrl,
     debug: false,
 
-    onEvent: (evt: any) => {
-      const payload = evt as WSIncoming;
+    onEvent: async (evt: WSIncoming) => {
+      if (evt.type === "ERROR") return;
 
-      if (payload.type === "ERROR") return;
+      const normalizeMine = (m: ChatMessage): ChatMessage => ({
+        ...m,
+        isMine: String(m.sender?.id) === String(currentUserId),
+      });
 
-      /* ✅ MESSAGE NEW */
-      if (payload.type === "message:new") {
-        const msg = payload.payload;
+      /* ---------- MESSAGE NEW / ACK ---------- */
+
+      if (evt.type === "message:new" || evt.type === "message:ack") {
+        let msg = normalizeMine(evt.payload);
+
+        if (e2ee.enabled && msg.text) {
+          try {
+            msg = {
+              ...msg,
+              text: await e2ee.decrypt(
+                msg.text,
+                msg.e2eeKeyId ?? e2ee.currentKeyId
+              ),
+            };
+          } catch {
+            msg = { ...msg, text: "🔒 Unable to decrypt message" };
+          }
+        }
+
+        const hash = hashMessage(msg);
+        if (knownMessageHashes.current.has(hash)) return;
+        knownMessageHashes.current.add(hash);
 
         setMessages((prev) => {
-          // prevent duplicates by id
-          if (prev.some((m) => m.id === msg.id)) return prev;
+          const idx = msg.clientTempId
+            ? prev.findIndex((m) => m.clientTempId === msg.clientTempId)
+            : -1;
 
-          // replace temp message if clientTempId matches
-          if (msg.clientTempId) {
-            const idx = prev.findIndex((m) => m.clientTempId === msg.clientTempId);
-            if (idx !== -1) {
-              const copy = [...prev];
-              copy[idx] = { ...msg, status: "sent" };
-              return copy;
-            }
+          if (idx !== -1) {
+            const copy = [...prev];
+            copy[idx] = { ...msg, status: "sent" };
+            return copy;
           }
 
+          if (prev.some((m) => m.id === msg.id)) return prev;
           return [...prev, { ...msg, status: "sent" }];
         });
 
-        // ✅ WhatsApp-like: only auto scroll if user is already near bottom
-        if (shouldAutoScrollRef.current) {
-          scrollToBottomSafe(true);
-        }
-
+        if (autoScrollRef.current) scrollToBottom(true);
         return;
       }
 
-      /* ✅ REACTION UPDATE (+ myReaction support) */
-      if (payload.type === "reaction:update") {
-        const { messageId, emoji, action, userId } = payload.payload;
+      /* ---------- DELIVERED (batched) ---------- */
+
+      if (evt.type === "message:delivered") {
+        deliveredBatch.current.add(evt.payload.messageId);
+
+        if (!deliveredTimer.current) {
+          deliveredTimer.current = window.setTimeout(() => {
+            const ids = new Set(deliveredBatch.current);
+            deliveredBatch.current.clear();
+            deliveredTimer.current = null;
+
+            setMessages((prev) =>
+              prev.map((m) =>
+                ids.has(m.id)
+                  ? { ...m, status: m.status === "seen" ? "seen" : "delivered" }
+                  : m
+              )
+            );
+          }, 400);
+        }
+        return;
+      }
+
+      /* ---------- SEEN (per-user, batched) ---------- */
+
+      if (evt.type === "message:seen") {
+        seenBatch.current.push(evt.payload);
+
+        if (!seenTimer.current) {
+          seenTimer.current = window.setTimeout(() => {
+            const batch = [...seenBatch.current];
+            seenBatch.current = [];
+            seenTimer.current = null;
+
+            setMessages((prev) =>
+              prev.map((m) => {
+                const hits = batch.filter((b) => b.messageId === m.id);
+                if (!hits.length) return m;
+
+                const seenBy: SeenByMap = { ...(m.seenBy ?? {}) };
+                hits.forEach((h) => {
+                  seenBy[h.userId] = new Date().toISOString();
+                });
+
+                return {
+                  ...m,
+                  seenBy,
+                  status: m.isMine ? "seen" : m.status,
+                };
+              })
+            );
+          }, 300);
+        }
+        return;
+      }
+
+      /* ---------- REACTIONS ---------- */
+
+      if (evt.type === "reaction:update") {
+        const { messageId, emoji, action, userId } = evt.payload;
 
         setMessages((prev) =>
           prev.map((m) => {
             if (m.id !== messageId) return m;
 
-            const reactions: ChatReaction[] = m.reactions ? [...m.reactions] : [];
+            const reactions = [...(m.reactions ?? [])];
             const idx = reactions.findIndex((r) => r.emoji === emoji);
 
-            // count update
-            if (idx === -1 && action === "added") {
-              reactions.push({ emoji, count: 1 });
-            } else if (idx !== -1) {
-              const current = reactions[idx];
-              const nextCount = action === "added" ? current.count + 1 : current.count - 1;
-
-              if (nextCount <= 0) reactions.splice(idx, 1);
-              else reactions[idx] = { ...current, count: nextCount };
+            if (action === "added") {
+              if (idx === -1) reactions.push({ emoji, count: 1 });
+              else reactions[idx] = { ...reactions[idx], count: reactions[idx].count + 1 };
+            } else {
+              if (idx !== -1) {
+                const c = reactions[idx].count - 1;
+                if (c <= 0) reactions.splice(idx, 1);
+                else reactions[idx] = { ...reactions[idx], count: c };
+              }
             }
 
-            // ✅ update myReaction if this event belongs to the current user
             let myReaction = m.myReaction ?? null;
-            if (currentUserId && String(userId) === String(currentUserId)) {
-              if (action === "added") myReaction = emoji;
-              if (action === "removed" && myReaction === emoji) myReaction = null;
+            if (String(userId) === String(currentUserId)) {
+              myReaction = action === "added" ? emoji : null;
             }
 
             return { ...m, reactions, myReaction };
           })
         );
-
         return;
       }
 
-      /* ✅ TYPING UPDATE */
-      if (payload.type === "typing:update") {
-        const t = normalizeTypingPayload(payload.payload);
-        if (!t) return;
+      /* ---------- TYPING ---------- */
 
-        // ✅ ignore own typing events if server mistakenly echoes
-        if (currentUserId && String(t.userId) === String(currentUserId)) return;
+      if (evt.type === "typing:update") {
+        const u = evt.payload?.userId ?? evt.payload?.user?.id;
+        const name = evt.payload?.name ?? evt.payload?.user?.name ?? "Someone";
+        const isTyping = !!evt.payload?.isTyping;
 
-        // ✅ auto-clear typing after 3s if no updates
-        if (t.isTyping) {
-          if (typingTimers.current[t.userId]) clearTimeout(typingTimers.current[t.userId]);
+        if (!u || String(u) === String(currentUserId)) return;
 
-          typingTimers.current[t.userId] = setTimeout(() => {
-            setTypingUsers((prev) => prev.filter((x) => x.userId !== t.userId));
-            delete typingTimers.current[t.userId];
+        if (typingTimers.current[u]) clearTimeout(typingTimers.current[u]);
+
+        if (isTyping) {
+          typingTimers.current[u] = setTimeout(() => {
+            setTypingUsers((p) => p.filter((x) => x.userId !== String(u)));
+            delete typingTimers.current[u];
           }, 3000);
+
+          setTypingUsers((p) =>
+            p.some((x) => x.userId === String(u))
+              ? p
+              : [...p, { userId: String(u), name }]
+          );
         } else {
-          if (typingTimers.current[t.userId]) {
-            clearTimeout(typingTimers.current[t.userId]);
-            delete typingTimers.current[t.userId];
-          }
+          setTypingUsers((p) => p.filter((x) => x.userId !== String(u)));
         }
-
-        setTypingUsers((prev) => {
-          if (t.isTyping) {
-            if (prev.some((x) => x.userId === t.userId)) return prev;
-            return [...prev, { userId: t.userId, name: t.name }];
-          }
-          return prev.filter((x) => x.userId !== t.userId);
-        });
-
         return;
       }
 
-      /* ✅ DELETE */
-      if (payload.type === "message:delete") {
-        const { messageId, deletedAt } = payload.payload;
+      /* ---------- DELETE / EDIT ---------- */
 
+      if (evt.type === "message:delete") {
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === messageId
+            m.id === evt.payload.messageId
               ? {
                   ...m,
-                  deletedAt: deletedAt || new Date().toISOString(),
+                  deletedAt: evt.payload.deletedAt ?? new Date().toISOString(),
                   text: "",
                   attachments: [],
                   reactions: [],
@@ -270,70 +331,60 @@ export function useChatThreadWS({
         return;
       }
 
-      /* ✅ EDIT */
-      if (payload.type === "message:edit") {
-        const edited = payload.payload;
-        setMessages((prev) => prev.map((m) => (m.id === edited.id ? { ...m, ...edited } : m)));
+      if (evt.type === "message:edit") {
+        const edited = normalizeMine(evt.payload);
+        setMessages((prev) =>
+          prev.map((m) => (m.id === edited.id ? { ...m, ...edited } : m))
+        );
         return;
       }
 
-      /* ✅ PRESENCE UPDATE (ONLINE DOT) */
-      if (payload.type === "presence:update") {
-        const raw: any = payload.payload || {};
-        const userId = raw.userId || raw.user?.id;
-        if (!userId) return;
+      /* ---------- PRESENCE ---------- */
 
-        setPresenceMap((prev) => ({
-          ...prev,
-          [String(userId)]: {
-            online: !!raw.online,
-            lastSeen: raw.lastSeen ?? null,
+      if (evt.type === "presence:update") {
+        const u = evt.payload.userId ?? evt.payload.user?.id;
+        if (!u) return;
+
+        setPresenceMap((p) => ({
+          ...p,
+          [String(u)]: {
+            online: !!evt.payload.online,
+            lastSeen: evt.payload.lastSeen ?? null,
           },
         }));
-
-        return;
-      }
-
-      /* ✅ Unknown events (dev logging) */
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[WS] Unhandled event:", payload);
       }
     },
   });
 
-  /* ✅ Clear typing when WS disconnects */
+  /* ================= SEND ================= */
+
+  const sendMessageWS = useCallback(
+    (payload: {
+      clientTempId: string;
+      text?: string;
+      messageType: "TEXT" | "MEDIA";
+      replyToId?: string | null;
+      attachments?: any[];
+    }) => {
+      sendRaw({ type: "message:send", payload });
+    },
+    [sendRaw]
+  );
+
+  /* ---------- Cleanup ---------- */
+
+  
   useEffect(() => {
-    if (!connected) {
-      setTypingUsers([]);
-    }
+    if (!connected) setTypingUsers([]);
   }, [connected]);
 
-  /* ✅ Reset typing timers + (optional) presence per thread to avoid growth */
   useEffect(() => {
-    setTypingUsers([]);
-
-    Object.values(typingTimers.current).forEach((t) => clearTimeout(t));
+    Object.values(typingTimers.current).forEach(clearTimeout);
     typingTimers.current = {};
-
-    // ✅ prevents presenceMap growing forever
+    setTypingUsers([]);
     setPresenceMap({});
-
-    return () => {
-      Object.values(typingTimers.current).forEach((t) => clearTimeout(t));
-      typingTimers.current = {};
-    };
   }, [threadId]);
 
-  useEffect(() => {
-    if (!connected) return;
-  
-    const t = setInterval(() => {
-      sendRaw({ type: "ping", payload: {} });
-    }, 15000);
-  
-    return () => clearInterval(t);
-  }, [connected, sendRaw]);
-  
   return {
     connected,
     wsState: state,
@@ -341,14 +392,13 @@ export function useChatThreadWS({
     typingUsers,
     presenceMap,
 
-    containerRef, // ✅ NEW (for smart autoscroll detection)
+    containerRef,
     bottomRef,
 
-    scrollToBottom: scrollToBottomSafe,
-
+    scrollToBottom,
     typing,
     typingStop,
 
-    sendRaw,
+    sendMessageWS,
   };
 }

@@ -102,7 +102,7 @@ export default function ChatShell() {
   };
 
   return (
-    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column" }}>
+    <div >
       <UnifiedHeader
         mode={mode}
         locationName={locationName}
@@ -176,20 +176,34 @@ export default function ChatShell() {
             onSearchChange={setNewChatSearch}
             onClose={closeNewChat}
             onOpenPrivateChat={async (userId) => {
-              // ✅ Create/Open conversation
-              const res = await authFetch("/communities/private/open/", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ user_id: userId }),
-              });
-
-              const data = await res.json().catch(() => ({}));
-              if (!res.ok) return;
-
-              setActiveChat({ kind: "PRIVATE", id: data.conversation_id });
-              closeNewChat();
+              try {
+                const res = await authFetch("/communities/private/open/", {
+                  method: "POST",
+                  credentials: "include",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ user_id: userId }),
+                });
+            
+                const data = await res.json().catch(() => ({}));
+            
+                if (!res.ok) {
+                  console.log("open private failed:", data);
+                  return;
+                }
+            
+                const conversationId = data?.conversation_id;
+                if (!conversationId) {
+                  console.log("missing conversation_id:", data);
+                  return;
+                }
+            
+                setActiveChat({ kind: "PRIVATE", id: conversationId });
+                closeNewChat();
+              } catch (e) {
+                console.log("open private error:", e);
+              }
             }}
+            
             onCreateGroup={async (userIds) => {
               // ✅ Hook this to your create group modal or endpoint
               console.log("Create group with:", userIds);

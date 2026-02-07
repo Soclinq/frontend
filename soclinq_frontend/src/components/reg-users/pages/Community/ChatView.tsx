@@ -2,9 +2,9 @@
 
 import styles from "./styles/ChatView.module.css";
 
-import ChatThread from "../Chat/Chatpanel"; // ✅ adjust path
 import { communityChatAdapter } from "@/lib/communityAdapter";
 import { privateChatAdapter } from "@/lib/privateAdapter";
+import ChatThread from "../Chat/ChatThread";
 
 type ChatMode = "COMMUNITY" | "PRIVATE";
 

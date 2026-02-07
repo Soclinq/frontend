@@ -188,6 +188,7 @@
  
    --chat-audio-wave: rgba(37, 99, 235, 0.55);
    --chat-typing-dot: rgba(15, 23, 42, 0.35);
+   --chat-bg-image: url("/chatbkglight.png");
  }
  
  .appTheme {

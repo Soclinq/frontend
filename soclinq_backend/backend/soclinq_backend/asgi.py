@@ -1,22 +1,22 @@
 import os
-import django
-from django.core.asgi import get_asgi_application
-from channels.sessions import CookieMiddleware
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "soclinq_backend.settings")
-django.setup()
+
+import django
+django.setup()  # ✅ MUST come before any Django imports that touch models
+
+from django.core.asgi import get_asgi_application
+from channels.routing import ProtocolTypeRouter, URLRouter
+from websocket.middleware import WSTokenAuthMiddleware
+from websocket.urls import websocket_urlpatterns
 
 django_asgi_app = get_asgi_application()
 
-from channels.routing import ProtocolTypeRouter, URLRouter
-from websocket.middleware import JWTAuthMiddlewareStack
-from websocket.urls import websocket_urlpatterns
-
-application = ProtocolTypeRouter({
-    "http": django_asgi_app,
-    "websocket": CookieMiddleware(
-        JWTAuthMiddlewareStack(
+application = ProtocolTypeRouter(
+    {
+        "http": django_asgi_app,
+        "websocket": WSTokenAuthMiddleware(
             URLRouter(websocket_urlpatterns)
-        )
-    ),
-})
+        ),
+    }
+)

@@ -12,14 +12,11 @@ export default function Community(): ReactElement {
   const store = useCommunityStore();
 
   return (
-    <section className={styles.community}>
+    <section className={styles.comunity}>
       {/* ✅ Chat should be full height */}
-      <section className={styles.chatWrap}>
         <ChatShell />
-      </section>
 
-      {/* Core interaction */}
-      <section className={styles.mainGrid}>
+      {/* <section className={styles.mainGrid}>
         <AnnouncementsPanel
           user={store.user}
           messages={store.announcements.messages}
@@ -28,10 +25,9 @@ export default function Community(): ReactElement {
         />
       </section>
 
-      {/* Discovery */}
       <section className={styles.section}>
         <NearbySupportPanel />
-      </section>
+      </section> */}
     </section>
   );
 }

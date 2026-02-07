@@ -5,9 +5,10 @@ import styles from "./styles/ChatPanel.module.css";
 import { useChatThreadWS } from "@/hooks/useChatThreadWS";
 import data from "@emoji-mart/data";
 import Picker from "@emoji-mart/react";
-
+import { queueOfflineMessage } from "@/lib/chatOfflineQueue";
 import { authFetch } from "@/lib/authFetch";
 import { useNotify } from "@/components/utils/NotificationContext";
+import { useUser } from "@/context/UserContext";
 
 /* ✅ UI Components */
 import ChatHeader from "./ChatHeader";
@@ -26,89 +27,37 @@ import ChatForwardPicker from "./ChatForwardPicker";
 import CameraModal from "./CameraModal";
 import ChatAudioRecorder from "./ChatAudioRecorder";
 
+
+
 import type { ChatAdapter } from "@/types/chatAdapterTypes";
+import type { ChatAttachmentType, ChatAttachment, Sender, ChatReaction, ChatMessage, ForwardTarget, SendMessagePayload } from "@/types/chat";
 /* ================= TYPES ================= */
 
-type AttachmentType = "IMAGE" | "AUDIO" | "VIDEO" | "FILE";
+import { useChatThreadWS } from "@/hooks/useChatThreadWS";
+import { useChatMessages } from "@/hooks/useChatMessages";
+import { useChatRetry } from "@/hooks/useChatRetry";
+import { useChatUploads } from "@/hooks/useChatUploads";
+import { useChatReactions } from "@/hooks/useChatReactions";
+import { useChatSelection } from "@/hooks/useChatSelection";
+import { useMessageHighlight } from "@/hooks/useMessageHighlight";
+import { useChatOverlays } from "@/hooks/useChatOverlays";
 
-type Attachment = {
-  id: string;
-  type: AttachmentType;
-  url: string;
-  thumbnailUrl?: string;
-  mimeType?: string;
-  fileName?: string;
-  fileSize?: number;
-  width?: number;
-  height?: number;
-  durationMs?: number;
+type Props = {
+  threadId: string; // groupId OR conversationId
+  adapter: ChatAdapter;
+  onSelectionChange?: (payload: {
+    active: boolean;
+    count: number;
+
+    onExit: () => void;
+    onSelectAll: () => void;
+    onUnselectAll: () => void;
+
+    onForward: () => void;
+    onShare: () => void;
+    onDelete: () => void;
+  }) => void;
 };
-
-type Sender = {
-  id: string;
-  name: string;
-  photo?: string | null;
-};
-
-type Reaction = {
-  emoji: string;
-  count: number;
-  reactedByMe?: boolean;
-};
-
-type Message = {
-  id: string;
-  clientTempId?: string;
-  hubId: string;
-
-  messageType: "TEXT" | "MEDIA" | "SYSTEM";
-  text?: string;
-
-  sender: Sender;
-  createdAt: string;
-
-  myReaction?: string | null;
-  editedAt?: string | null;
-  deletedAt?: string | null;
-
-  replyTo?: {
-    id: string;
-    text?: string;
-    senderName?: string;
-  } | null;
-
-  attachments?: Attachment[];
-  reactions?: Reaction[];
-
-  isMine: boolean;
-  status?: "sending" | "sent" | "failed";
-};
-
-type ForwardTarget = {
-  id: string;
-  name: string;
-  type?: string;
-  photo?: string | null;
-};
-
-  type Props = {
-    threadId: string;     // ✅ groupId OR conversationId
-    adapter: ChatAdapter; // ✅ communityAdapter OR privateAdapter
-  
-    onSelectionChange?: (payload: {
-      active: boolean;
-      count: number;
-  
-      onExit: () => void;
-      onSelectAll: () => void;
-      onUnselectAll: () => void;
-  
-      onForward: () => void;
-      onShare: () => void;
-      onDelete: () => void;
-    }) => void;
-  };
-  
 
 /* ================= CONSTANTS / HELPERS ================= */
 
@@ -134,21 +83,8 @@ function saveRecentEmoji(emoji: string) {
   } catch {}
 }
 
-function buildWsUrl(path: string) {
-  const raw = process.env.NEXT_PUBLIC_WS_URL;
-
-  if (!raw) {
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-    return `${protocol}://${window.location.host}${path}`;
-  }
-
-  if (raw.startsWith("http://")) return raw.replace("http://", "ws://") + path;
-  if (raw.startsWith("https://")) return raw.replace("https://", "wss://") + path;
-
-  return raw + path;
-}
-
-function canEdit(msg: Message) {
+function canEdit(msg: ChatMessage | null | undefined) {
+  if (!msg) return false;
   if (!msg.isMine) return false;
   if (msg.deletedAt) return false;
   if (msg.messageType !== "TEXT") return false;
@@ -157,7 +93,8 @@ function canEdit(msg: Message) {
   return Date.now() - created <= 20 * 60 * 1000;
 }
 
-function canDeleteForEveryone(msg: Message) {
+function canDeleteForEveryone(msg: ChatMessage | null | undefined) {
+  if (!msg) return false;
   if (!msg.isMine) return false;
   if (msg.deletedAt) return false;
 
@@ -169,14 +106,16 @@ function canDeleteForEveryone(msg: Message) {
 
 export default function ChatThread({ threadId, adapter, onSelectionChange }: Props) {
   const notify = useNotify();
+  const { user, loading: userLoading } = useUser();
+  const currentUserId = user?.id;
 
-
-  
   /* ---------- Primary State ---------- */
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const lastSelectionPayloadRef = useRef<{ active: boolean; count: number } | null>(null);
 
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
@@ -186,20 +125,17 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
   const [input, setInput] = useState("");
   const [pickedFiles, setPickedFiles] = useState<File[]>([]);
 
-  const [replyTo, setReplyTo] = useState<Message | null>(null);
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
 
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
 
-  const hideScrollBtnTimer = useRef<NodeJS.Timeout | null>(null);
-
+  const hideScrollBtnTimer = useRef<number | null>(null);
 
   /* ---------- UI refs ---------- */
-
   const inputRef = useRef<HTMLInputElement | null>(null);
   const inputBarRef = useRef<HTMLDivElement | null>(null);
 
-
-  // ✅ IMPORTANT: key depends on threadId now
+  // local deletion key
   const LOCAL_DELETE_KEY = `soclinq_deleted_for_me_${adapter.mode}_${threadId}`;
 
   /* ---------- Hover + highlight ---------- */
@@ -213,44 +149,44 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
   const [selectedMsgIds, setSelectedMsgIds] = useState<string[]>([]);
   const lastSelectedMsgIdRef = useRef<string | null>(null);
 
+  const messages = useChatMessages({
+    threadId,
+    adapter,
+    ws,
+  });
+
+  /* ================= SIDE EFFECTS ================= */
+  useChatRetry(messages, ws);
+  useChatUploads(messages, ws, notify);
+
+  /* ================= UI STATE ================= */
+  const selection = useChatSelection(messages, adapter, notify);
+  const reactions = useChatReactions(messages, adapter, currentUserId);
+  const highlight = useMessageHighlight();
+  const overlays = useChatOverlays();
   /* ---------- Overlays ---------- */
-  const [menu, setMenu] = useState<{
-    open: boolean;
-    x: number;
-    y: number;
-    message: Message | null;
-  }>({ open: false, x: 0, y: 0, message: null });
+  const [menu, setMenu] = useState<{ open: boolean; x: number; y: number; message: ChatMessage | null }>({
+    open: false,
+    x: 0,
+    y: 0,
+    message: null,
+  });
 
-  const [reactionPicker, setReactionPicker] = useState<{
-    open: boolean;
-    message: Message | null;
-    x: number;
-    y: number;
-  }>({ open: false, message: null, x: 0, y: 0 });
+  const [reactionPicker, setReactionPicker] = useState<{ open: boolean; message: ChatMessage | null; x: number; y: number }>(
+    { open: false, message: null, x: 0, y: 0 }
+  );
 
-  const [emojiMart, setEmojiMart] = useState<{
-    open: boolean;
-    message: Message | null;
-    x: number;
-    y: number;
-  }>({ open: false, message: null, x: 0, y: 0 });
+  const [emojiMart, setEmojiMart] = useState<{ open: boolean; message: ChatMessage | null; x: number; y: number }>(
+    { open: false, message: null, x: 0, y: 0 }
+  );
 
-  const [infoModal, setInfoModal] = useState<{
-    open: boolean;
-    messageId: string | null;
-    data?: any;
-    loading?: boolean;
-  }>({ open: false, messageId: null });
+  const [infoModal, setInfoModal] = useState<{ open: boolean; messageId: string | null; data?: any; loading?: boolean }>(
+    { open: false, messageId: null }
+  );
 
-  const [deleteSheet, setDeleteSheet] = useState<{
-    open: boolean;
-    message: Message | null;
-  }>({ open: false, message: null });
+  const [deleteSheet, setDeleteSheet] = useState<{ open: boolean; message: ChatMessage | null }>({ open: false, message: null });
 
-  const [forwardSheet, setForwardSheet] = useState<{
-    open: boolean;
-    messages: Message[];
-  }>({ open: false, messages: [] });
+  const [forwardSheet, setForwardSheet] = useState<{ open: boolean; messages: ChatMessage[] }>({ open: false, messages: [] });
 
   const [forwardTargets, setForwardTargets] = useState<ForwardTarget[]>([]);
   const [forwardLoading, setForwardLoading] = useState(false);
@@ -259,20 +195,128 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
 
   const [cameraOpen, setCameraOpen] = useState(false);
 
-  const [recentEmojis, setRecentEmojis] = useState<string[]>(
-    QUICK_REACTIONS.slice(0, 5)
-  );
+  const [recentEmojis, setRecentEmojis] = useState<string[]>(QUICK_REACTIONS.slice(0, 5));
 
   /* ================= Derived ================= */
-
   const disabledInput = loading || sending;
-
   const selectedCount = selectedMsgIds.length;
-
   function isSelected(id: string) {
     return selectedMsgIds.includes(id);
   }
 
+  /* ---------- WebSocket adapter (existing hook) ---------- */
+  const {
+    containerRef,
+    connected,
+    typingUsers,
+    bottomRef,
+    scrollToBottom,
+    typing,
+    typingStop,
+    sendMessageWS,
+  } = useChatThreadWS({
+    threadId,
+    adapter,
+    setMessages,
+    currentUserId,
+  });
+
+  /* ---------- Optional helpers (safe fallbacks) ----------
+     These helpers may live in other modules in your repo.
+     We prefer not to import them directly here to avoid runtime errors
+     if the file isn't present. Instead we use globalThis fallbacks
+     (your environment can still expose them) or noop versions.
+  */
+  const _getOfflineMessages = (globalThis as any).getOfflineMessages ?? (async (_threadId: string) => []);
+  const _removeOfflineMessage = (globalThis as any).removeOfflineMessage ?? (async (_id: string) => {});
+  const _enqueueUpload = (globalThis as any).enqueueUpload ?? null;
+  const _saveThreadCache = (globalThis as any).saveThreadCache ?? (() => {});
+  const _loadThreadCache = (globalThis as any).loadThreadCache ?? (() => []);
+
+  /* ---------- E2EE (optional) ----------
+     Provide a safe default object if your E2EE module isn't loaded.
+  */
+  const e2ee = (globalThis as any).SOC_E2EE ?? {
+    enabled: false,
+    encrypt: async (t: string) => t,
+    decrypt: async (t: string) => t,
+  };
+
+  /* ---------- Inflight tracking & retries ---------- */
+  const inflightClientTempIdsRef = useRef<Set<string>>(new Set());
+  const MAX_RETRIES = 3;
+  const BASE_RETRY_DELAY = 700; // ms
+
+  function markInflight(clientTempId: string) {
+    if (!clientTempId) return;
+    inflightClientTempIdsRef.current.add(clientTempId);
+    // safety remove after 10 minutes to avoid memory leaks in worst case
+    window.setTimeout(() => inflightClientTempIdsRef.current.delete(clientTempId), 1000 * 60 * 10);
+  }
+
+  function clearInflight(clientTempId: string) {
+    if (!clientTempId) return;
+    inflightClientTempIdsRef.current.delete(clientTempId);
+  }
+
+  function scheduleRetry(msg: ChatMessage) {
+    const retries = (msg.retryCount ?? 0) + 1;
+    const delay = Math.round(BASE_RETRY_DELAY * Math.pow(1.6, retries - 1));
+    setTimeout(() => retrySendMessage(msg), delay);
+  }
+
+  /* ---------- Messages ref + persisted cache ---------- */
+  const messagesRef = useRef<ChatMessage[]>([]);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
+    // persist cache on change (best-effort)
+    try {
+      if (messages.length) _saveThreadCache(threadId, messages);
+    } catch {}
+  }, [messages, threadId]);
+
+  /* ---------- seen batching ---------- */
+  const seenQueueRef = useRef<string[]>([]);
+  const seenTimerRef = useRef<number | null>(null);
+  function sendSeenBatch(id: string) {
+    try {
+      seenQueueRef.current.push(id);
+      if (seenTimerRef.current) return;
+      seenTimerRef.current = window.setTimeout(() => {
+        const ids = Array.from(new Set(seenQueueRef.current.splice(0)));
+        seenTimerRef.current = null;
+        if (ids.length === 0) return;
+        if (typeof adapter.markSeenBulk === "function") {
+          try {
+            adapter.markSeenBulk(ids);
+          } catch {}
+        }
+      }, 350);
+    } catch {}
+  }
+
+  useEffect(() => {
+    // flush seen queue on unmount
+    return () => {
+      try {
+        if (seenQueueRef.current.length && typeof adapter.markSeenBulk === "function") {
+          adapter.markSeenBulk(Array.from(new Set(seenQueueRef.current)));
+        }
+      } catch {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* ---------- emoji init ---------- */
+  useEffect(() => {
+    const local = getRecentEmojis();
+    if (local.length) setRecentEmojis(local);
+  }, []);
+
+  /* ---------- overlay close on click outside ---------- */
   useEffect(() => {
     function close() {
       setFooterEmojiOpen(false);
@@ -281,66 +325,31 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
     return () => window.removeEventListener("click", close);
   }, []);
 
-  const selectableMessages = useMemo(() => {
-    return messages.filter((m) => m.messageType !== "SYSTEM" && !m.deletedAt);
-  }, [messages]);
-
-  const selectableMessageIds = useMemo(() => {
-    return selectableMessages.map((m) => m.id);
-  }, [selectableMessages]);
-
-  const selectedMessages = useMemo(() => {
-    return messages.filter((m) => selectedMsgIds.includes(m.id));
-  }, [messages, selectedMsgIds]);
-
+  /* ---------- selection onSelectionChange callback ---------- */
+  const selectableMessages = useMemo(() => messages.filter((m) => m.messageType !== "SYSTEM" && !m.deletedAt), [messages]);
+  const selectableMessageIds = useMemo(() => selectableMessages.map((m) => m.id), [selectableMessages]);
+  const selectedMessages = useMemo(() => messages.filter((m) => selectedMsgIds.includes(m.id)), [messages, selectedMsgIds]);
   const filteredForwardTargets = useMemo(() => {
     const q = forwardSearch.trim().toLowerCase();
     if (!q) return forwardTargets;
     return forwardTargets.filter((t) => (t.name || "").toLowerCase().includes(q));
   }, [forwardTargets, forwardSearch]);
 
-  const canSend = useMemo(() => {
-    return Boolean(input.trim()) || pickedFiles.length > 0;
-  }, [input, pickedFiles]);
-
-  /* ================= Local delete store ================= */
-
-  const messagesRef = useRef<Message[]>([]);
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
-  
-  useEffect(() => {
-    return () => {
-      messagesRef.current.forEach((m) => {
-        m.attachments?.forEach((a) => {
-          if (a.url?.startsWith("blob:")) {
-            try {
-              URL.revokeObjectURL(a.url);
-            } catch {}
-          }
-        });
-      });
-    };
-  }, []);
-  
-  
   useEffect(() => {
     if (!onSelectionChange) return;
-  
     const active = selectionMode && selectedCount > 0;
-  
+    const prev = lastSelectionPayloadRef.current;
+    if (prev && prev.active === active && prev.count === selectedCount) return;
+    lastSelectionPayloadRef.current = { active, count: selectedCount };
     onSelectionChange({
       active,
       count: selectedCount,
-  
       onExit: clearSelection,
       onSelectAll: () => {
         setSelectionMode(true);
         setSelectedMsgIds(selectableMessageIds);
       },
       onUnselectAll: unselectAllMessages,
-  
       onForward: () => setForwardSheet({ open: true, messages: selectedMessages }),
       onShare: async () => {
         await shareExternallyBulk(selectedMessages);
@@ -348,14 +357,9 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
       },
       onDelete: deleteSelectedForMe,
     });
-  }, [
-    onSelectionChange,
-    selectionMode,
-    selectedCount,
-    selectableMessageIds,
-    selectedMessages,
-  ]);
-  
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onSelectionChange, selectionMode, selectedCount, selectableMessageIds, selectedMessages]);
+
   useEffect(() => {
     if (selectedMsgIds.length === 0) {
       setSelectionMode(false);
@@ -363,118 +367,17 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
     }
   }, [selectedMsgIds]);
 
+  /* ---------- helper: deleted for me set ---------- */
   function getDeletedForMeSet(): Set<string> {
     try {
       const raw = localStorage.getItem(LOCAL_DELETE_KEY);
       const arr = raw ? JSON.parse(raw) : [];
       if (!Array.isArray(arr)) return new Set();
-      return new Set(arr.filter((x) => typeof x === "string"));
+      return new Set(arr.filter((x: any) => typeof x === "string"));
     } catch {
       return new Set();
     }
   }
-
-  function onMessageClick(e: React.MouseEvent, msg: Message) {
-    if (selectionMode) {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleSelectMessage(msg.id);
-    }
-  }
-  
-
-  async function copyMessage(msg: Message) {
-    const text = msg.text || "";
-    if (!text.trim()) return;
-    await navigator.clipboard.writeText(text);
-    notify({
-      type: "success",
-      title: "Copied",
-      message: "Message copied to clipboard",
-      duration: 1500,
-    });
-  }
-
-  async function shareExternallyBulk(msgs: Message[]) {
-    const text = msgs
-      .filter((m) => !m.deletedAt)
-      .map((m) => m.text)
-      .filter(Boolean)
-      .join("\n\n");
-  
-    if (!text.trim()) return;
-  
-    if (navigator.share) {
-      await navigator.share({ text });
-    } else {
-      await navigator.clipboard.writeText(text);
-      notify({
-        type: "info",
-        title: "Copied",
-        message: "Share not supported. Copied instead.",
-        duration: 2000,
-      });
-    }
-  }
-
-  async function forwardSelectedMessagesToHubs() {
-    if (!adapter.features.forward) return;
-  
-    if (forwardSelectedIds.length === 0) {
-      notify({
-        type: "warning",
-        title: "No target selected",
-        message: "Select at least one target.",
-        duration: 2000,
-      });
-      return;
-    }
-  
-    // TODO: implement your backend forwarding logic
-    notify({
-      type: "info",
-      title: "Forwarding",
-      message: "Forward endpoint not wired yet.",
-      duration: 2000,
-    });
-  }
-  
-  
-  
-  
-
-  async function deleteSelectedForMe() {
-    if (selectedMsgIds.length === 0) return;
-  
-    setMessages((prev) => prev.filter((m) => !selectedMsgIds.includes(m.id)));
-  
-    selectedMsgIds.forEach((id) => markDeletedForMe(id));
-  
-    try {
-      
-        // fallback: delete one by one
-        await Promise.all(
-          selectedMsgIds.map((id) =>
-            authFetch(adapter.deleteForMe(id), {
-              method: "POST",
-              credentials: "include",
-            })
-          )
-        );
-      }
-     catch (e) {
-      notify({
-        type: "warning",
-        title: "Delete may not sync",
-        message: "Deleted locally, but server sync failed.",
-        duration: 2500,
-      });
-    }
-  
-    clearSelection();
-  }
-  
-
   function markDeletedForMe(messageId: string) {
     try {
       const s = getDeletedForMeSet();
@@ -483,67 +386,128 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
     } catch {}
   }
 
-  /* ================= Scrolling ================= */
-
-  function scrollToMessage(messageId: string) {
-    const el = document.getElementById(`msg-${messageId}`);
-    if (!el) return;
-
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-
-    setHighlightMsgId(messageId);
-    setTimeout(() => {
-      setHighlightMsgId((prev) => (prev === messageId ? null : prev));
-    }, 900);
+  /* ---------- click handler for message (selection mode) ---------- */
+  function onMessageClick(e: React.MouseEvent, msg: ChatMessage) {
+    if (selectionMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleSelectMessage(msg.id);
+    }
   }
 
-  /* ================= Selection Mode ================= */
+  const { highlightedId, highlight } = useMessageHighlight();
 
+function scrollToMessage(messageId: string) {
+  const el = document.getElementById(`msg-${messageId}`);
+  if (!el) return;
+
+  el.scrollIntoView({ behavior: "smooth", block: "center" });
+  highlight(messageId);
+}
+
+  /* ---------- copy/share helpers ---------- */
+  async function copyMessage(msg: ChatMessage) {
+    const text = msg.text || "";
+    if (!text.trim()) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      notify({ type: "success", title: "Copied", message: "Message copied to clipboard", duration: 1500 });
+    } catch {
+      notify({ type: "error", title: "Copy failed", message: "Unable to copy message", duration: 1800 });
+    }
+  }
+
+  async function shareExternallyBulk(msgs: ChatMessage[]) {
+    const text = msgs.filter((m) => !m.deletedAt).map((m) => m.text).filter(Boolean).join("\n\n");
+    if (!text.trim()) return;
+    try {
+      if (navigator.share) await navigator.share({ text });
+      else {
+        await navigator.clipboard.writeText(text);
+        notify({ type: "info", title: "Copied", message: "Share not supported. Copied instead.", duration: 2000 });
+      }
+    } catch {
+      notify({ type: "warning", title: "Share failed", message: "Could not share messages", duration: 1800 });
+    }
+  }
+
+  /* ---------- forward / delete ---------- */
+  async function forwardSelectedMessagesToHubs() {
+    if (!adapter.features.forward) return;
+    if (forwardSelectedIds.length === 0) {
+      notify({ type: "warning", title: "No target selected", message: "Select at least one target.", duration: 2000 });
+      return;
+    }
+    // implement backend forwarding here
+    notify({ type: "info", title: "Forwarding", message: "Forward endpoint not wired yet.", duration: 2000 });
+  }
+
+  async function deleteSelectedForMe() {
+    if (selectedMsgIds.length === 0) return;
+    setMessages((prev) => prev.filter((m) => !selectedMsgIds.includes(m.id)));
+    selectedMsgIds.forEach((id) => markDeletedForMe(id));
+    try {
+      await Promise.all(
+        selectedMsgIds.map((id) =>
+          authFetch(adapter.deleteForMe(id), {
+            method: "POST",
+            credentials: "include",
+          })
+        )
+      );
+    } catch {
+      notify({ type: "warning", title: "Delete may not sync", message: "Deleted locally, but server sync failed.", duration: 2500 });
+    }
+    clearSelection();
+  }
+
+  /* ---------- selection helpers ---------- */
   function toggleSelectMessage(id: string) {
     setSelectionMode(true);
-    setSelectedMsgIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setSelectedMsgIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
-
   function clearSelection() {
     setSelectionMode(false);
     setSelectedMsgIds([]);
     lastSelectedMsgIdRef.current = null;
   }
-
   function unselectAllMessages() {
     setSelectedMsgIds([]);
     clearSelection();
   }
 
-  /* ================= Reply ================= */
-
-  function startReply(msg: Message) {
+  /* ---------- reply helpers ---------- */
+  function startReply(msg: ChatMessage) {
     setReplyTo(msg);
-
     setTimeout(() => {
       inputBarRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
       inputRef.current?.focus();
     }, 50);
   }
-
-  function buildReplyPreview(target: Message) {
+  function buildReplyPreview(target: ChatMessage) {
     return {
       id: target.id,
       senderName: target.isMine ? "You" : target.sender.name,
-      text: target.deletedAt
-        ? "This message was deleted"
-        : target.text
-        ? target.text
-        : target.attachments?.length
-        ? "Media"
-        : "Message",
+      text: target.deletedAt ? "This message was deleted" : target.text ? target.text : target.attachments?.length ? "Media" : "ChatMessage",
     };
   }
 
-  /* ================= Menu / overlay close ================= */
+  function openReactionForMessage(msg: ChatMessage) {
+    const el = document.getElementById(`msg-${msg.id}`);
+    if (!el) return;
+  
+    const rect = el.getBoundingClientRect();
+  
+    setReactionPicker({
+      open: true,
+      message: msg,
+      x: rect.left + rect.width / 2,
+      y: rect.top - 12,
+    });
+  }
+  
 
+  /* ---------- overlay close ---------- */
   function closeMenu() {
     setMenu({ open: false, x: 0, y: 0, message: null });
     setReactionPicker({ open: false, message: null, x: 0, y: 0 });
@@ -555,48 +519,41 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
       if (selectionMode) return;
       if (menu.open || reactionPicker.open || emojiMart.open) closeMenu();
     }
-    
     window.addEventListener("click", onGlobalClick);
     return () => window.removeEventListener("click", onGlobalClick);
-  }, [menu.open, reactionPicker.open, emojiMart.open]);
+  }, [menu.open, reactionPicker.open, emojiMart.open, selectionMode]);
 
-  /* ================= Emoji init ================= */
-
+  /* ================== Load initial messages (robust) ================== */
   useEffect(() => {
-    const local = getRecentEmojis();
-    if (local.length) setRecentEmojis(local);
-  }, []);
-
-  /* ================= Load Initial ================= */
-
-  useEffect(() => {
-    if (!threadId) return;
+    if (!threadId || userLoading || !currentUserId) return;
 
     let cancelled = false;
 
-    async function loadInitial() {
+    (async () => {
       try {
         setLoading(true);
         setError(null);
 
-        setMessages([]);
-        setCursor(null);
-        setHasMore(true);
+        // attempt to load cache first (best-effort)
+        try {
+          const cached = await Promise.resolve(_loadThreadCache(threadId));
+          if (Array.isArray(cached) && cached.length) {
+            setMessages(cached);
+            setLoading(false);
+          }
+        } catch {}
 
-        const res = await authFetch(adapter.listMessages(threadId), {
-          method: "GET",
-          credentials: "include",
-        });
-
+        const res = await authFetch(adapter.listMessages(threadId), { method: "GET", credentials: "include" });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data?.error || "Failed to load messages");
         if (cancelled) return;
 
         const deletedSet = getDeletedForMeSet();
-        const cleaned: Message[] = (data.messages || []).filter(
-          (m: Message) => !deletedSet.has(m.id)
-        );
+        const cleaned: ChatMessage[] = (data.messages || [])
+          .filter((m: ChatMessage) => !deletedSet.has(m.id))
+          .map((m: any) => ({ ...m, isMine: String(m.sender?.id) === String(currentUserId) }));
 
+        // replace with server results (you may merge with cache if needed)
         setMessages(cleaned);
         setCursor(data.nextCursor ?? null);
         setHasMore(Boolean(data.nextCursor));
@@ -605,162 +562,188 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
       } finally {
         if (!cancelled) {
           setLoading(false);
-          scrollToBottom(false);
+          try {
+            scrollToBottom(false);
+          } catch {}
         }
       }
-    }
-
-    loadInitial();
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, [threadId, adapter]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId, adapter, userLoading, currentUserId]);
 
-  /* ================= Load Older ================= */
-
+  /* ================== Load older ================== */
   async function loadOlder() {
     if (!hasMore || !cursor || loading) return;
-
     try {
-      const res = await authFetch(adapter.listMessagesOlder(threadId, cursor), {
-        method: "GET",
-        credentials: "include",
-      });
-
+      const res = await authFetch(adapter.listMessagesOlder(threadId, cursor), { method: "GET", credentials: "include" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) return;
-
       const deletedSet = getDeletedForMeSet();
-      const older = (data.messages || []).filter((m: Message) => !deletedSet.has(m.id));
-
+      const older = (data.messages || []).filter((m: ChatMessage) => !deletedSet.has(m.id)).map((m: any) => ({ ...m, isMine: String(m.sender?.id) === String(currentUserId) }));
       setMessages((prev) => [...older, ...prev]);
       setCursor(data.nextCursor ?? null);
       setHasMore(Boolean(data.nextCursor));
-    } catch {}
+    } catch {
+      // ignore load older errors
+    }
   }
 
-  /* ================= WebSocket ================= */
+  /* ================== Offline flush on reconnect ================== */
+  useEffect(() => {
+    if (!connected || !threadId) return;
+    (async () => {
+      try {
+        const queued = await _getOfflineMessages(threadId);
+        for (const q of queued) {
+          try {
+            if (!q?.clientTempId || !q?.payload) continue;
+            if (inflightClientTempIdsRef.current.has(q.clientTempId)) continue;
+            markInflight(q.clientTempId);
+            sendMessageWS(q.payload);
+            // best-effort removal
+            await _removeOfflineMessage(q.clientTempId);
+          } catch {
+            // leave in queue
+          }
+        }
+      } catch {
+        // ignore offline flush errors
+      }
+    })();
+  }, [connected, threadId, _getOfflineMessages, _removeOfflineMessage, sendMessageWS]);
 
-  const {
-    containerRef,
-    connected,
-    wsState,
-    typingUsers,
-    bottomRef,
-    scrollToBottom,
-    typing,
-    typingStop,
-  } = useChatThreadWS({
-    threadId,
-    adapter,
-    setMessages,
-  });
-  
-  /* ================= Typing ================= */
-
+  /* ================== Typing ================== */
   const handleTyping = (value: string) => {
     setInput(value);
-  
-    if (!adapter.features.typing) return;
-    typing(); // ✅ safe typing (no spam)
+    if (adapter.features.typing) typing();
   };
-  
-  /* ================= Upload ================= */
 
+  /* ================== Upload helpers ================== */
   async function uploadAttachmentsToBackend(files: File[]) {
     if (!files.length) return [];
-
     const form = new FormData();
     files.forEach((f) => form.append("files", f));
-
-    const res = await authFetch(adapter.upload(), {
-      method: "POST",
-      body: form,
-      credentials: "include",
-    });
-
+    const res = await authFetch(adapter.upload(), { method: "POST", body: form, credentials: "include" });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data?.error || "Upload failed");
-
     return data.attachments || [];
   }
 
-  /* ================= Message Actions ================= */
-
-  async function reactToMessage(msg: Message, emoji: string) {
-    if (!adapter.features.reactions) return;
-
-    saveRecentEmoji(emoji);
-    setRecentEmojis(getRecentEmojis());
-
-    setMessages((prev) =>
-      prev.map((m) => {
-        if (m.id !== msg.id) return m;
-
-        const old = m.myReaction || null;
-        let reactions = m.reactions ? [...m.reactions] : [];
-
-        const inc = (e: string) => {
-          const idx = reactions.findIndex((r) => r.emoji === e);
-          if (idx === -1) reactions.push({ emoji: e, count: 1 });
-          else reactions[idx] = { ...reactions[idx], count: reactions[idx].count + 1 };
-        };
-
-        const dec = (e: string) => {
-          const idx = reactions.findIndex((r) => r.emoji === e);
-          if (idx === -1) return;
-          const next = reactions[idx].count - 1;
-          if (next <= 0) reactions.splice(idx, 1);
-          else reactions[idx] = { ...reactions[idx], count: next };
-        };
-
-        if (old === emoji) {
-          dec(emoji);
-          return { ...m, reactions, myReaction: null };
-        }
-
-        if (old) dec(old);
-        inc(emoji);
-
-        return { ...m, reactions, myReaction: emoji };
-      })
-    );
-
-    try {
-      await authFetch(adapter.react(msg.id), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ emoji }),
-      });
-    } catch {}
+  async function backgroundUpload(files: File[]) {
+    if (!files || files.length === 0) return [];
+    // if an enqueueUpload worker exists, use it, otherwise fallback to direct upload
+    if (typeof _enqueueUpload === "function") {
+      // enqueueUpload should accept a job and worker callback
+      try {
+        await _enqueueUpload({ id: `upl-${Date.now()}`, files, threadId }, async ({ files: workerFiles }: any) => {
+          return await uploadAttachmentsToBackend(workerFiles);
+        });
+        // worker is expected to call sendMessageWS when done
+        return [];
+      } catch {
+        // fallback to direct upload
+      }
+    }
+    return await uploadAttachmentsToBackend(files);
   }
 
+
+
+  /* ================== React to message ================== */
+  function toggleReactionLocal(
+    msg: ChatMessage,
+    emoji: string,
+    myUserId: string
+  ): ChatReaction[] {
+    const prev = msg.reactions ?? [];
+  
+    // remove my old reaction
+    const cleaned = prev
+      .map((r) => ({
+        ...r,
+        userIds: r.userIds.filter((id) => id !== myUserId),
+      }))
+      .filter((r) => r.userIds.length > 0);
+  
+    // undo if same emoji
+    if (msg.myReaction === emoji) {
+      return cleaned;
+    }
+  
+    // add new
+    const found = cleaned.find((r) => r.emoji === emoji);
+    if (found) found.userIds.push(myUserId);
+    else cleaned.push({ emoji, userIds: [myUserId] });
+  
+    return cleaned;
+  }
+  
+
+  useEffect(() => {
+    return () => typingStop();
+  }, []);
+  
+  /* ================== External seen events ================== */
+  useEffect(() => {
+    function onSeen(e: Event) {
+      const id = (e as CustomEvent<string>).detail;
+      sendSeenBatch(id);
+    }
+    window.addEventListener("chat:seen", onSeen);
+    return () => window.removeEventListener("chat:seen", onSeen);
+  }, []);
+
+  /* ================== Retry single message ================== */
+  async function retrySendMessage(msg: ChatMessage) {
+    if (msg.status !== "failed") return;
+    if (!msg || (msg.retryCount ?? 0) >= MAX_RETRIES) return;
+    if (msg.status !== "failed") return;
+    if (msg.messageType === "MEDIA") return; // media uses upload queue
+
+    setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, status: "sending", retryCount: (m.retryCount ?? 0) + 1 } : m)));
+
+    try {
+      
+      const payload: SendMessagePayload = {
+        clientTempId: msg.clientTempId ?? msg.id,
+        text: msg.text || "",
+        messageType: "TEXT",
+        replyToId: msg.replyTo?.id ?? null,
+        attachments: msg.attachments || [],
+      };
+      
+      if (inflightClientTempIdsRef.current.has(payload.clientTempId)) {
+        // already in-flight
+        return;
+      }
+      markInflight(payload.clientTempId);
+      sendMessageWS(payload);
+      // rely on message arrival to clear inflight
+    } catch {
+      setMessages((prev) => prev.map((m) => (m.id === msg.id ? { ...m, status: "failed" } : m)));
+      scheduleRetry(msg);
+    }
+  }
+
+  /* ================== send voice file (robust) ================== */
   async function sendVoiceFile(file: File) {
     const clientTempId = `tmp-voice-${Date.now()}`;
-
-    const optimistic: Message = {
+    const optimistic: ChatMessage = {
       id: clientTempId,
       clientTempId,
       hubId: threadId,
       messageType: "MEDIA",
       text: "",
-      sender: { id: "me", name: "You" },
-      createdAt: new Date().toISOString(),
+      sender: { id: currentUserId!, name: "You" },
       isMine: true,
+      createdAt: new Date().toISOString(),
       status: "sending",
       replyTo: replyTo ? buildReplyPreview(replyTo) : null,
-      attachments: [
-        {
-          id: `${clientTempId}-0`,
-          type: "AUDIO",
-          url: URL.createObjectURL(file),
-          fileName: file.name,
-          mimeType: file.type,
-          fileSize: file.size,
-        },
-      ],
+      attachments: [{ id: `${clientTempId}-0`, type: "AUDIO", url: URL.createObjectURL(file), fileName: file.name, mimeType: file.type, fileSize: file.size }],
       reactions: [],
     };
 
@@ -771,126 +754,75 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
     try {
       setSending(true);
 
-      const uploaded = await uploadAttachmentsToBackend([file]);
+      // try background upload (worker) or direct upload fallback
+      const uploaded = await backgroundUpload([file]);
+      
 
-      const res = await authFetch(adapter.sendMessage(threadId), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientTempId,
-          text: "",
-          messageType: "MEDIA",
-          replyToId: replyTo?.id ?? null,
-          attachments: uploaded,
-        }),
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Failed");
-
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.clientTempId === clientTempId
-            ? {
-                ...data,
-                isMine: true,
-                status: "sent",
-                replyTo: replyTo ? buildReplyPreview(replyTo) : null,
-              }
-            : m
-        )
-      );
+      const payload: SendMessagePayload = {
+        clientTempId,
+        messageType: "MEDIA",
+        attachments: uploaded,
+      };
+      
+      markInflight(clientTempId);
+      sendMessageWS(payload);
+      // server ACK/update will update optimistic entry
     } catch {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.clientTempId === clientTempId ? { ...m, status: "failed" } : m
-        )
-      );
-
-      notify({
-        type: "error",
-        title: "Voice send failed",
-        message: "Voice note could not be sent.",
-        duration: 2500,
-      });
+      setMessages((prev) => prev.map((m) => (m.clientTempId === clientTempId ? { ...m, status: "failed" } : m)));
+      notify({ type: "error", title: "Voice send failed", message: "Voice note could not be sent.", duration: 2500 });
     } finally {
       setSending(false);
     }
   }
 
-  // ✅ sendMessage() stays same except routes -> adapter.*
+  /* ================== sendMessage (core) ================== */
   async function sendMessage() {
-    const replyTarget = replyTo ? { ...replyTo } : null;
-
+    // edit flow
     if (editingMessageId) {
       const newText = input.trim();
       if (!newText) return;
-
       const msgId = editingMessageId;
-
       setEditingMessageId(null);
       setInput("");
       typingStop();
-
       setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, text: newText } : m)));
-
-      const res = await authFetch(adapter.edit(msgId), {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: newText }),
-      });
-
-      
-
-      if (!res.ok) {
-        notify({
-          type: "warning",
-          title: "Edit failed",
-          message: "Unable to edit message (refresh needed)",
-          duration: 2500,
-        });
+      try {
+        await authFetch(adapter.edit(msgId), { method: "PATCH", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: newText }) });
+      } catch {
+        notify({ type: "warning", title: "Edit failed", message: "Could not update message on server", duration: 2000 });
       }
-
       return;
     }
 
-    const text = input.trim();
-    const hasText = Boolean(text);
+    const rawText = input.trim();
+    const hasText = Boolean(rawText);
     const hasFiles = pickedFiles.length > 0;
-
     if (!hasText && !hasFiles) return;
 
     const clientTempId = `tmp-${Date.now()}`;
+    const replyPreview = replyTo ? buildReplyPreview(replyTo) : null;
 
-    const optimistic: Message = {
+    // optimistic local text should be plaintext for good UX; encrypt only on-wire
+    let encryptedText = rawText;
+    try {
+      if (e2ee.enabled && rawText) encryptedText = await e2ee.encrypt(rawText);
+    } catch {
+      encryptedText = rawText; // fallback
+    }
+
+    const optimistic: ChatMessage = {
       id: clientTempId,
       clientTempId,
       hubId: threadId,
       messageType: hasFiles ? "MEDIA" : "TEXT",
-      text: hasText ? text : "",
-      sender: { id: "me", name: "You" },
+      // show plaintext locally
+      text: hasText ? rawText : "",
+      sender: { id: currentUserId!, name: "You" },
       createdAt: new Date().toISOString(),
       isMine: true,
       status: "sending",
-      replyTo: replyTarget ? buildReplyPreview(replyTarget) : null,
-      attachments: hasFiles
-        ? pickedFiles.map((f, idx) => ({
-            id: `${clientTempId}-${idx}`,
-            type: f.type.startsWith("image/")
-              ? "IMAGE"
-              : f.type.startsWith("video/")
-              ? "VIDEO"
-              : f.type.startsWith("audio/")
-              ? "AUDIO"
-              : "FILE",
-            url: URL.createObjectURL(f),
-            fileName: f.name,
-            mimeType: f.type,
-            fileSize: f.size,
-          }))
-        : [],
+      replyTo: replyPreview,
+      attachments: hasFiles ? pickedFiles.map((f, idx) => ({ id: `${clientTempId}-${idx}`, url: URL.createObjectURL(f), fileName: f.name, mimeType: f.type, fileSize: f.size, type: f.type.startsWith("image/") ? "IMAGE" : f.type.startsWith("video/") ? "VIDEO" : f.type.startsWith("audio/") ? "AUDIO" : "FILE" })) : [],
       reactions: [],
     };
 
@@ -901,138 +833,192 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
     typingStop();
     scrollToBottom();
 
+    // offline: queue and return (best-effort)
+    if (!connected) {
+      try {
+        if (typeof queueOfflineMessage === "function") {
+          await queueOfflineMessage({
+            clientTempId,
+            threadId,
+            payload: { clientTempId, text: encryptedText, messageType: optimistic.messageType, replyToId: replyTo?.id ?? null, attachments: [] },
+            createdAt: Date.now(),
+          });
+        } else {
+          // no queue available -> mark as failed so user can retry
+          setMessages((prev) => prev.map((m) => (m.clientTempId === clientTempId ? { ...m, status: "failed" } : m)));
+        }
+      } catch {
+        setMessages((prev) => prev.map((m) => (m.clientTempId === clientTempId ? { ...m, status: "failed" } : m)));
+      }
+      return;
+    }
+
     try {
       setSending(true);
 
+      // upload attachments if present (worker or direct)
       let uploadedAttachments: any[] = [];
-      if (hasFiles) uploadedAttachments = await uploadAttachmentsToBackend(pickedFiles);
+      if (hasFiles) {
+        uploadedAttachments = await backgroundUpload(pickedFiles);
+      }
 
-      const res = await authFetch(adapter.sendMessage(threadId), {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientTempId,
-          text: hasText ? text : "",
-          messageType: hasFiles ? "MEDIA" : "TEXT",
-          replyToId: replyTarget?.id ?? null,
-          attachments: uploadedAttachments,
-        }),
-      });
+      if (inflightClientTempIdsRef.current.has(clientTempId)) {
+        // already in-flight
+        return;
+      }
 
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error || "Failed");
-
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.clientTempId === clientTempId
-            ? {
-                ...data,
-                isMine: true,
-                status: "sent",
-                replyTo: replyTarget ? buildReplyPreview(replyTarget) : null,
-              }
-            : m
-        )
-      );
-    } catch {
-      setMessages((prev) =>
-        prev.map((m) => (m.clientTempId === clientTempId ? { ...m, status: "failed" } : m))
-      );
-
-      notify({
-        type: "error",
-        title: "Send failed",
-        message: "Message could not be sent.",
-        duration: 2500,
-      });
+      // mark inflight and send via WS (server expected to ACK/update)
+      markInflight(clientTempId);
+      const payload: SendMessagePayload = {
+        clientTempId,
+        text: encryptedText,
+        messageType: hasFiles ? "MEDIA" : "TEXT",
+        replyToId: replyTo?.id ?? null,
+        attachments: uploadedAttachments,
+      };
+      
+      sendMessageWS(payload);
+    } catch (err) {
+      setMessages((prev) => prev.map((m) => (m.clientTempId === clientTempId ? { ...m, status: "failed" } : m)));
+      // schedule retry for text messages
+      if (!hasFiles) scheduleRetry({ ...(optimistic as ChatMessage), retryCount: 0 });
+      notify({ type: "error", title: "Send failed", message: "Message could not be sent.", duration: 2500 });
     } finally {
       setSending(false);
     }
   }
 
-  /* ================= Info Modal Fetch ================= */
-
+  /* ================== Info modal & forward targets ================== */
   useEffect(() => {
     if (!infoModal.open || !infoModal.messageId) return;
-
+    let cancelled = false;
     (async () => {
       setInfoModal((p) => ({ ...p, loading: true }));
-
-      const res = await authFetch(adapter.messageInfo(infoModal.messageId!), {
-        method: "GET",
-        credentials: "include",
-      });
-
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        setInfoModal((p) => ({ ...p, loading: false, data: null }));
-        return;
+      try {
+        const res = await authFetch(adapter.messageInfo(infoModal.messageId!), { method: "GET", credentials: "include" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error();
+        if (cancelled) return;
+        setInfoModal((p) => ({ ...p, loading: false, data }));
+      } catch {
+        if (!cancelled) setInfoModal((p) => ({ ...p, loading: false, data: null }));
       }
-
-      setInfoModal((p) => ({ ...p, loading: false, data }));
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [infoModal.open, infoModal.messageId, adapter]);
-
-  /* ================= Forward targets fetch ================= */
 
   useEffect(() => {
     if (!forwardSheet.open || !adapter.features.forward) return;
-
+    let cancelled = false;
     (async () => {
       try {
         setForwardLoading(true);
-
-        const res = await authFetch(adapter.forwardTargets(), {
-          method: "GET",
-          credentials: "include",
-        });
-
+        const res = await authFetch(adapter.forwardTargets(), { method: "GET", credentials: "include" });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error();
-
+        if (cancelled) return;
         setForwardTargets(data.targets || []);
         setForwardSearch("");
         setForwardSelectedIds([]);
       } catch {
-        setForwardTargets([]);
+        if (!cancelled) setForwardTargets([]);
       } finally {
-        setForwardLoading(false);
+        if (!cancelled) setForwardLoading(false);
       }
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [forwardSheet.open, adapter]);
 
-  /* ================= RENDER ================= */
+  /* ================== Cleanup created object URLs on unmount ================== */
+  useEffect(() => {
+    return () => {
+      messagesRef.current.forEach((m) => {
+        m.attachments?.forEach((a) => {
+          try {
+            if (a.url?.startsWith("blob:")) URL.revokeObjectURL(a.url);
+          } catch {}
+        });
+      });
+    };
+  }, []);
+
+  /* ================== External retry event ================== */
+  useEffect(() => {
+    function onRetry(e: Event) {
+      try {
+        const msg = (e as CustomEvent<ChatMessage>).detail;
+        setTimeout(() => retrySendMessage(msg), 500);
+      } catch {}
+    }
+    window.addEventListener("chat:retry", onRetry);
+    return () => window.removeEventListener("chat:retry", onRetry);
+  }, []);
+
+  /* ================== Clear inflight when server returns message updates ==================
+     We watch messages array for server-updated messages that either:
+      - have the same clientTempId but now have a server id (id !== clientTempId), or
+      - have a status other than 'sending' (e.g. 'sent', 'delivered')
+  */
+  useEffect(() => {
+    try {
+      messages.forEach((m) => {
+        if (!m.clientTempId) return;
+        // if server assigned an id different than clientTempId OR status moved off sending, clear inflight
+        if (m.id && m.id !== m.clientTempId) clearInflight(m.clientTempId);
+        else if (m.status && m.status !== "sending") clearInflight(m.clientTempId);
+      });
+    } catch {}
+  }, [messages]);
+
+  /* ================== Retry failed messages when reconnect ================== */
+  useEffect(() => {
+    if (!connected) return;
+    const failed = messagesRef.current.filter((m) => m.isMine && m.status === "failed" && m.messageType === "TEXT" && (m.retryCount ?? 0) < MAX_RETRIES);
+    failed.forEach((m, i) => setTimeout(() => retrySendMessage(m), 300 + i * 500));
+  }, [connected]);
+
+  /* ================== focus-based retries (duplicate guard above) ================== */
+  useEffect(() => {
+    function onWindowFocus() {
+      if (!connected) return;
+      messagesRef.current
+        .filter((m) => m.isMine && m.status === "failed" && m.messageType === "TEXT" && (m.retryCount ?? 0) < MAX_RETRIES)
+        .forEach((m) => setTimeout(() => retrySendMessage(m), 800));
+    }
+    window.addEventListener("focus", onWindowFocus);
+    return () => window.removeEventListener("focus", onWindowFocus);
+  }, [connected]);
+
+  /* ================== UI render ================== */
 
   return (
     <div className={styles.chat}>
-      {/* ✅ Header */}
+      {/* Header (selection mode) */}
       {selectionMode && selectedCount > 0 && (
-  <ChatHeader
-    selectionMode={selectionMode}
-    selectedCount={selectedCount}
-    onExitSelection={clearSelection}
-    onUnselectAll={unselectAllMessages}
-    onForwardSelected={() =>
-      setForwardSheet({ open: true, messages: selectedMessages })
-    }
-    onShareSelected={async () => {
-      await shareExternallyBulk(selectedMessages);
-      clearSelection();
-    }}
-    onDeleteSelectedForMe={deleteSelectedForMe}
-    onReplySelected={() => {
-      if (selectedMessages.length !== 1) return;
-      startReply(selectedMessages[0]);
-      clearSelection();
-    }}
-  />
+        <ChatHeader
+          selectionMode={selectionMode}
+          selectedCount={selectedCount}
+          onExitSelection={clearSelection}
+          onUnselectAll={unselectAllMessages}
+          onForwardSelected={() => setForwardSheet({ open: true, messages: selectedMessages })}
+          onShareSelected={async () => {
+            await shareExternallyBulk(selectedMessages);
+            clearSelection();
+          }}
+          onDeleteSelectedForMe={deleteSelectedForMe}
+          onReplySelected={() => {
+            if (selectedMessages.length !== 1) return;
+            startReply(selectedMessages[0]);
+            clearSelection();
+          }}
+        />
       )}
 
-
-
-      {/* ✅ Messages */}
+      {/* Messages list */}
       <ChatMessages
         messages={messages}
         loading={loading}
@@ -1041,8 +1027,6 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
         isSelected={isSelected}
         onMessageClick={onMessageClick}
         toggleSelectMessage={toggleSelectMessage}
-        hoverMsgId={hoverMsgId}
-        setHoverMsgId={setHoverMsgId}
         startReply={startReply}
         scrollToMessage={scrollToMessage}
         highlightMsgId={highlightMsgId}
@@ -1051,51 +1035,29 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
         recentEmojis={recentEmojis}
         setReactionPicker={setReactionPicker}
         onOpenFullEmojiPicker={(msg, pos) => {
-          setEmojiMart({
-            open: true,
-            message: msg,
-            x: pos.x,
-            y: pos.y,
-          });
+          setEmojiMart({ open: true, message: msg, x: pos.x, y: pos.y });
         }}
         onOpenContextMenu={(pos, msg) => {
-          setMenu({
-            open: true,
-            x: pos.x,
-            y: pos.y,
-            message: msg,
-          });
+          setMenu({ open: true, x: pos.x, y: pos.y, message: msg });
         }}
         bottomRef={bottomRef}
-        containerRef={containerRef}   // ✅ ADD THIS
-        notify={notify}               // ✅ optional (but you already use notify inside)
+        containerRef={containerRef}
+        notify={notify}
       />
 
-
-
-      {/* ✅ Typing */}
+      {/* Typing bar */}
       <ChatTypingBar typingUsers={typingUsers} />
 
-      {/* ✅ Reply Bar */}
-      {replyTo && (
-        <ReplyBar
-          replyTo={replyTo}
-          onJump={(id) => scrollToMessage(id)}
-          onCancel={() => {
-            setReplyTo(null);
-            setTimeout(() => inputRef.current?.focus(), 50);
-          }}
-        />
-      )}
+      {/* Reply preview */}
+      {replyTo && <ReplyBar replyTo={replyTo} onJump={(id) => scrollToMessage(id)} onCancel={() => { setReplyTo(null); setTimeout(() => inputRef.current?.focus(), 50); }} />}
 
-      {/* ✅ Camera modal */}
+      {/* Camera modal */}
       <CameraModal
         open={cameraOpen}
         onClose={() => setCameraOpen(false)}
         onSend={({ files, caption }) => {
           if (caption?.trim()) setInput((p) => (p ? `${p}\n${caption}` : caption));
           setPickedFiles((prev) => [...prev, ...files]);
-
           setTimeout(() => {
             inputBarRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
             inputRef.current?.focus();
@@ -1103,71 +1065,61 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
         }}
       />
 
+      {/* Footer */}
+      <div className={`${styles.footerStack} ${audioActive ? styles.audioActive : ""}`}>
+        {!audioActive && (
+          <ChatFooter
+            input={input}
+            setInput={setInput}
+            sending={sending}
+            disabled={disabledInput}
+            pickedFiles={pickedFiles}
+            setPickedFiles={setPickedFiles}
+            sendMessage={sendMessage}
+            handleTyping={handleTyping}
+            inputRef={inputRef}
+            inputBarRef={inputBarRef}
+            onOpenCamera={() => setCameraOpen(true)}
+            showSendButton={Boolean(input.trim()) || pickedFiles.length > 0}
+            emojiOpen={footerEmojiOpen}
+            onToggleEmoji={() => setFooterEmojiOpen((p) => !p)}
+          />
+        )}
 
-{/* ================= FOOTER STACK (WhatsApp Style) ================= */}
-<div className={`${styles.footerStack} ${audioActive ? styles.audioActive : ""}`}>
-  {/* ✅ Hide footer while recording */}
-  {!audioActive && (
-    <ChatFooter
-    input={input}
-    setInput={setInput}
-    sending={sending}
-    disabled={disabledInput}
-    pickedFiles={pickedFiles}
-    setPickedFiles={setPickedFiles}
-    sendMessage={sendMessage}
-    handleTyping={handleTyping}
-    inputRef={inputRef}
-    inputBarRef={inputBarRef}
-    onOpenCamera={() => setCameraOpen(true)}
-    showSendButton={canSend}
-    emojiOpen={footerEmojiOpen}
-    onToggleEmoji={() => setFooterEmojiOpen((p) => !p)}
-  />  
-  )}
+        {!Boolean(input.trim()) && pickedFiles.length === 0 && (
+          <ChatAudioRecorder
+            disabled={disabledInput}
+            sending={sending}
+            minMs={500}
+            maxMs={60 * 60 * 1000}
+            onSend={(file) => sendVoiceFile(file)}
+            onError={(msg) => {
+              notify({ type: "error", title: "Recorder error", message: msg, duration: 2500 });
+            }}
+            onActiveChange={(active) => setAudioActive(active)}
+          />
+        )}
 
-  {/* ✅ Only show audio when there's nothing to send */}
-  {!canSend && (
-    <ChatAudioRecorder
-      disabled={disabledInput}
-      sending={sending}
-      minMs={500}
-      maxMs={60 * 60 * 1000}
-      onSend={(file) => sendVoiceFile(file)}
-      onError={(msg) => {
-        notify({
-          type: "error",
-          title: "Recorder error",
-          message: msg,
-          duration: 2500,
-        });
-      }}
-      onActiveChange={(active) => setAudioActive(active)}
-    />
-  )}
+        {footerEmojiOpen && !audioActive && (
+          <div className={styles.footerEmojiPopup} onClick={(e) => e.stopPropagation()}>
+            <Picker
+              data={data}
+              theme="light"
+              previewPosition="none"
+              searchPosition="none"
+              onEmojiSelect={(e: any) => {
+                const chosen = e?.native;
+                if (!chosen) return;
+                setInput((prev) => prev + chosen);
+                setFooterEmojiOpen(false);
+                setTimeout(() => inputRef.current?.focus(), 0);
+              }}
+            />
+          </div>
+        )}
+      </div>
 
-{footerEmojiOpen && !audioActive && (
-  <div className={styles.footerEmojiPopup} onClick={(e) => e.stopPropagation()}>
-    <Picker
-      data={data}
-      theme="light"
-      previewPosition="none"
-      searchPosition="none"
-      onEmojiSelect={(e: any) => {
-        const chosen = e?.native;
-        if (!chosen) return;
-
-        setInput((prev) => prev + chosen);
-        setFooterEmojiOpen(false);
-
-        setTimeout(() => inputRef.current?.focus(), 0);
-      }}
-    />
-  </div>
-)}
-
-</div>
-
+      {/* Context menu */}
       <ChatContextMenu
         menu={{
           open: menu.open,
@@ -1184,7 +1136,7 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
             : null,
         }}
         notify={notify}
-        canEdit={() => canEdit(menu.message as any)}
+        canEdit={() => canEdit(menu.message)}
         onClose={closeMenu}
         onReply={() => {
           if (!menu.message) return;
@@ -1207,12 +1159,7 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
         }}
         onReact={(pos) => {
           if (!menu.message) return;
-          setReactionPicker({
-            open: true,
-            message: menu.message,
-            x: pos.x,
-            y: Math.max(12, pos.y - 70),
-          });
+          setReactionPicker({ open: true, message: menu.message, x: pos.x, y: Math.max(12, pos.y - 70) });
           closeMenu();
         }}
         onEdit={(m) => {
@@ -1228,13 +1175,11 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
         }}
       />
 
-      {/* ✅ Quick reaction row */}
+      {/* Quick reaction row */}
       <ChatReactionQuickRow
         picker={{
           open: reactionPicker.open,
-          message: reactionPicker.message
-            ? { id: reactionPicker.message.id, myReaction: reactionPicker.message.myReaction }
-            : null,
+          message: reactionPicker.message ? { id: reactionPicker.message.id, myReaction: reactionPicker.message.myReaction } : null,
           x: reactionPicker.x,
           y: reactionPicker.y,
         }}
@@ -1245,26 +1190,13 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
         }}
         onOpenEmojiMart={({ message, x, y }) => {
           if (!reactionPicker.message) return;
-          setEmojiMart({
-            open: true,
-            message: reactionPicker.message,
-            x,
-            y,
-          });
+          setEmojiMart({ open: true, message: reactionPicker.message, x, y });
         }}
         onClose={() => setReactionPicker({ open: false, message: null, x: 0, y: 0 })}
       />
 
-      {/* ✅ Emoji mart popup */}
-      <ChatEmojiMartPopup
-        mart={{
-          open: emojiMart.open,
-          message: emojiMart.message ? { id: emojiMart.message.id } : null,
-          x: emojiMart.x,
-          y: emojiMart.y,
-        }}
-        onClose={() => setEmojiMart({ open: false, message: null, x: 0, y: 0 })}
-      >
+      {/* Emoji mart popup */}
+      <ChatEmojiMartPopup mart={{ open: emojiMart.open, message: emojiMart.message ? { id: emojiMart.message.id } : null, x: emojiMart.x, y: emojiMart.y }} onClose={() => setEmojiMart({ open: false, message: null, x: 0, y: 0 })}>
         <Picker
           data={data}
           theme="light"
@@ -1272,104 +1204,59 @@ export default function ChatThread({ threadId, adapter, onSelectionChange }: Pro
           onEmojiSelect={(emoji: any) => {
             const chosen = emoji?.native;
             if (!chosen || !emojiMart.message) return;
-
             reactToMessage(emojiMart.message, chosen);
             setEmojiMart({ open: false, message: null, x: 0, y: 0 });
           }}
         />
       </ChatEmojiMartPopup>
 
-      {/* ✅ Message Info Modal */}
-      <ChatMessageInfoModal
-        modal={{
-          open: infoModal.open,
-          messageId: infoModal.messageId,
-          loading: infoModal.loading,
-          data: infoModal.data ?? null,
-        }}
-        onClose={() => setInfoModal({ open: false, messageId: null })}
-      />
+      {/* Message info modal */}
+      <ChatMessageInfoModal modal={{ open: infoModal.open, messageId: infoModal.messageId, loading: infoModal.loading, data: infoModal.data ?? null }} onClose={() => setInfoModal({ open: false, messageId: null })} />
 
-      {/* ✅ Delete Sheet */}
+      {/* Delete sheet */}
       <ChatDeleteSheet
         sheet={{
           open: deleteSheet.open,
-          message: deleteSheet.message
-            ? {
-                id: deleteSheet.message.id,
-                text: deleteSheet.message.text,
-                isMine: deleteSheet.message.isMine,
-                deletedAt: deleteSheet.message.deletedAt,
-              }
-            : null,
+          message: deleteSheet.message ? { id: deleteSheet.message.id, text: deleteSheet.message.text, isMine: deleteSheet.message.isMine, deletedAt: deleteSheet.message.deletedAt } : null,
         }}
         notify={notify}
         onClose={() => setDeleteSheet({ open: false, message: null })}
         onDeleteForMe={async () => {
           const msg = deleteSheet.message!;
           if (!msg) return;
-
-          // optimistic remove
           setMessages((prev) => prev.filter((x) => x.id !== msg.id));
-
-          await authFetch(adapter.deleteForMe(msg.id), {
-            method: "POST",
-            credentials: "include",
-          });
-
+          try {
+            await authFetch(adapter.deleteForMe(msg.id), { method: "POST", credentials: "include" });
+          } catch {}
           markDeletedForMe(msg.id);
           setDeleteSheet({ open: false, message: null });
         }}
-        canDeleteForEveryone={() => canDeleteForEveryone(deleteSheet.message as any)}
+        canDeleteForEveryone={() => canDeleteForEveryone(deleteSheet.message)}
         onDeleteForEveryone={async () => {
           const msg = deleteSheet.message!;
           if (!msg) return;
-
-          // optimistic soft delete
-          setMessages((prev) =>
-            prev.map((x) =>
-              x.id === msg.id
-                ? {
-                    ...x,
-                    deletedAt: new Date().toISOString(),
-                    text: "",
-                    attachments: [],
-                    reactions: [],
-                    myReaction: null,
-                  }
-                : x
-            )
-          );
-
-          await authFetch(adapter.deleteForEveryone(msg.id), {
-            method: "DELETE",
-            credentials: "include",
-          });
-
+          setMessages((prev) => prev.map((x) => (x.id === msg.id ? { ...x, deletedAt: new Date().toISOString(), text: "", attachments: [], reactions: [], myReaction: null } : x)));
+          try {
+            await authFetch(adapter.deleteForEveryone(msg.id), { method: "DELETE", credentials: "include" });
+          } catch {}
           setDeleteSheet({ open: false, message: null });
         }}
       />
 
-      {/* ✅ Forward Sheet */}
+      {/* Forward sheet */}
       <ChatForwardPicker
-  open={forwardSheet.open}
-  onClose={() => setForwardSheet({ open: false, messages: [] })}
-  mode="FORWARD"
-  adapter={adapter}
-  currentThreadId={threadId}
-  forwardMessages={forwardSheet.messages.map((m) => ({
-    id: m.id,
-    text: m.text || "",
-    deletedAt: m.deletedAt,
-    attachments: m.attachments || [],
-  }))}
-  onForwardDone={() => {
-    setForwardSheet({ open: false, messages: [] });
-    setForwardSelectedIds([]);
-    setForwardSearch("");
-  }}
-/>
-
+        open={forwardSheet.open}
+        onClose={() => setForwardSheet({ open: false, messages: [] })}
+        mode="FORWARD"
+        adapter={adapter}
+        currentThreadId={threadId}
+        forwardMessages={forwardSheet.messages.map((m) => ({ id: m.id, text: m.text || "", deletedAt: m.deletedAt, attachments: m.attachments || [] }))}
+        onForwardDone={() => {
+          setForwardSheet({ open: false, messages: [] });
+          setForwardSelectedIds([]);
+          setForwardSearch("");
+        }}
+      />
     </div>
   );
 }

@@ -8,7 +8,12 @@ export type ChatThreadType = "COMMUNITY" | "PRIVATE";
 
 export type ChatMessageType = "TEXT" | "MEDIA" | "SYSTEM";
 
-export type ChatMessageStatus = "sending" | "sent" | "failed";
+export type ChatMessageStatus =
+  | "sending"
+  | "sent"
+  | "delivered"
+  | "seen"
+  | "failed";
 
 export type ChatAttachmentType = "IMAGE" | "AUDIO" | "VIDEO" | "FILE";
 
@@ -16,10 +21,9 @@ export type ChatAttachment = {
   id: string;
   type: ChatAttachmentType;
   url: string;
-
-  fileName?: string;
-  mimeType?: string;
   thumbnailUrl?: string;
+  mimeType?: string;
+  fileName?: string;
   fileSize?: number;
   width?: number;
   height?: number;
@@ -28,6 +32,7 @@ export type ChatAttachment = {
 
 export type ChatReaction = {
   emoji: string;
+  userIds: string[];
   count: number;
   reactedByMe?: boolean;
 };
@@ -41,38 +46,59 @@ export type ChatReplyPreview = {
   senderName?: string;
 } | null;
 
-/**
- * ✅ The ONE message type for your whole app
- */
-export type ChatMessage = {
+export type SeenByMap = Record<string, string>; // userId -> ISO timestamp
+
+export interface ChatMessage {
   id: string;
   clientTempId?: string;
-
-  /** for grouping (hub / thread / conversation) */
   hubId: string;
 
-  messageType: ChatMessageType;
-
-  /** optional because MEDIA and SYSTEM may not have text */
+  messageType: "TEXT" | "MEDIA" | "SYSTEM";
   text?: string;
 
-  /** use public profile format */
-  sender: Pick<PublicUserProfile, "id" | "full_name" | "username" | "photo"> & {
-    name: string; // keep your existing usage msg.sender.name
-  };
-
+  sender: Sender;
   createdAt: string;
 
-  isMine: boolean;
-  status?: ChatMessageStatus;
-
+  myReaction?: string | null;
   editedAt?: string | null;
   deletedAt?: string | null;
+  retryCount?: number;
 
-  replyTo?: ChatReplyPreview;
+  replyTo?: {
+    id: string;
+    text?: string;
+    senderName?: string;
+  } | null;
 
   attachments?: ChatAttachment[];
   reactions?: ChatReaction[];
+  isMine: boolean;
+  status?: ChatMessageStatus;
+  seenBy?: SeenByMap;
+  e2eeKeyId?: string;
+  messageHash?: string;
+}
 
-  myReaction?: string | null;
+export type Sender = {
+  id: string;
+  name: string;
+  photo?: string | null;
 };
+
+
+export type ForwardTarget = {
+  id: string;
+  name: string;
+  type?: string;
+  photo?: string | null;
+};
+
+export type SendMessagePayload = {
+  clientTempId: string;
+  text?: string;
+  messageType: "TEXT" | "MEDIA";
+  replyToId?: string | null;
+  attachments?: ChatAttachment[];
+};
+
+

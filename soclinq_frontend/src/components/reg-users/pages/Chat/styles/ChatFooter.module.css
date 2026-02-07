@@ -1,16 +1,16 @@
 /* ChatFooter.module.css */
 
 /* =========================
-   ✅ WhatsApp Footer (Light)
+   ✅ WhatsApp Footer (Token Based)
 ========================= */
 
 .footer {
-  position: sticky;
+  position: fixed;
   bottom: 0;
   width: 100%;
-  z-index: 50;
+  z-index: var(--z-dropdown);
 
-  padding: 8px 10px 10px;
+  padding: var(--space-4) 0;
   background: transparent;
 }
 
@@ -20,46 +20,50 @@
 
 .attachPreview {
   width: 100%;
-  border-radius: 12px;
-  padding: 10px;
-  margin-bottom: 8px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  margin-bottom: var(--space-3);
+
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--divider);
+  background: var(--surface);
 }
 
 .attachPreviewHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  margin-bottom: 8px;
+  gap: var(--space-4);
+
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--divider);
+  margin-bottom: var(--space-3);
 }
 
 .attachTitle {
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(0, 0, 0, 0.7);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--text-muted);
 }
 
 .attachClearBtn {
   width: 32px;
   height: 32px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
+
   border: none;
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(15, 23, 42, 0.06);
   cursor: pointer;
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  transition: transform 0.12s ease, background 0.12s ease;
+  transition: transform var(--fast), background var(--fast);
 }
 
 .attachClearBtn:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(15, 23, 42, 0.1);
 }
 
 .attachClearBtn:active {
@@ -74,7 +78,7 @@
 .attachList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--space-3);
 
   max-height: 190px;
   overflow: auto;
@@ -84,18 +88,20 @@
 .attachItem {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-4);
 
-  padding: 10px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.03);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+
+  background: rgba(15, 23, 42, 0.03);
 }
 
 .attachIcon {
   width: 38px;
   height: 38px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.06);
+  border-radius: var(--radius-md);
+
+  background: rgba(15, 23, 42, 0.06);
 
   display: inline-flex;
   align-items: center;
@@ -111,9 +117,10 @@
 }
 
 .attachName {
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(0, 0, 0, 0.85);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
+  color: var(--text);
+
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -121,8 +128,9 @@
 
 .attachSize {
   margin-top: 2px;
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.55);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -131,21 +139,22 @@
 .attachRemoveBtn {
   width: 32px;
   height: 32px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
+
   border: none;
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(15, 23, 42, 0.06);
   cursor: pointer;
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
 
-  transition: transform 0.12s ease, background 0.12s ease;
+  transition: transform var(--fast), background var(--fast);
   flex: 0 0 auto;
 }
 
 .attachRemoveBtn:hover {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(15, 23, 42, 0.1);
 }
 
 .attachRemoveBtn:active {
@@ -164,31 +173,36 @@
 .row {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: var(--space-3);
   width: 100%;
 }
 
-/* ✅ WhatsApp message bar container */
+/* ✅ WhatsApp message bar container (leaves room for mic/audio button) */
 .messageBar {
   flex: 1;
   min-width: 0;
 
+  /* ✅ subtract 56px + gap */
+  max-width: calc(100% - 5.45rem);
+
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
 
-  background: #ffffff;
-  border-radius: 999px;
-  padding: 8px 10px;
+  background: var(--surface);
+  border-radius: var(--radius-pill);
 
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+  padding: var(--space-3) var(--space-4);
+
+  box-shadow: var(--shadow-xs);
+  border: 1px solid var(--divider);
 }
 
 /* icon buttons inside bar */
 .barIconBtn {
   width: 38px;
   height: 38px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 
   border: none;
   background: transparent;
@@ -199,13 +213,13 @@
   justify-content: center;
 
   font-size: 20px;
-  color: rgba(0, 0, 0, 0.55);
+  color: var(--icon-muted);
 
-  transition: background 0.12s ease, transform 0.12s ease;
+  transition: background var(--fast), transform var(--fast);
 }
 
 .barIconBtn:hover {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(15, 23, 42, 0.06);
 }
 
 .barIconBtn:active {
@@ -218,7 +232,7 @@
 }
 
 .active {
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(15, 23, 42, 0.08);
 }
 
 /* input */
@@ -230,12 +244,12 @@
   outline: none;
   background: transparent;
 
-  font-size: 14px;
-  color: rgba(0, 0, 0, 0.85);
+  font-size: var(--text-md);
+  color: var(--text);
 }
 
 .input::placeholder {
-  color: rgba(0, 0, 0, 0.45);
+  color: var(--text-faint);
 }
 
 .input:disabled {
@@ -257,38 +271,38 @@
   right: 0;
 
   width: 170px;
-  padding: 8px;
+  padding: var(--space-3);
 
-  background: #ffffff;
-  border-radius: 14px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--divider);
 
-  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12);
-  z-index: 60;
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown);
 }
 
 .attachAction {
   width: 100%;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
 
   background: transparent;
   cursor: pointer;
 
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--space-3);
 
-  padding: 10px 10px;
-  font-size: 13px;
-  font-weight: 600;
-  color: rgba(0, 0, 0, 0.78);
+  padding: var(--space-4);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-soft);
 
-  transition: background 0.12s ease;
+  transition: background var(--fast);
 }
 
 .attachAction:hover {
-  background: rgba(0, 0, 0, 0.06);
+  background: rgba(15, 23, 42, 0.06);
 }
 
 .attachAction:disabled {
@@ -303,7 +317,7 @@
 .sendBtn {
   width: 46px;
   height: 46px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 
   border: none;
   cursor: pointer;
@@ -312,16 +326,16 @@
   align-items: center;
   justify-content: center;
 
-  background: rgba(0, 0, 0, 0.06);
-  color: rgba(0, 0, 0, 0.55);
+  background: rgba(15, 23, 42, 0.06);
+  color: var(--icon-muted);
 
   font-size: 18px;
-  transition: transform 0.12s ease, filter 0.12s ease;
+  transition: transform var(--fast), filter var(--fast);
 }
 
 .sendActive {
-  background: #25d366;
-  color: #ffffff;
+  background: var(--success);
+  color: var(--text-invert);
 }
 
 .sendBtn:hover {
@@ -357,11 +371,11 @@
 
 @media (max-width: 480px) {
   .footer {
-    padding: 8px 8px 10px;
+    padding: var(--space-3) var(--space-3) var(--space-4);
   }
 
   .messageBar {
-    padding: 7px 9px;
+    padding: var(--space-3) var(--space-4);
   }
 
   .barIconBtn {

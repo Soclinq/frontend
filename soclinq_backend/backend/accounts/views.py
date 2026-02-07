@@ -27,7 +27,7 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status
 from django.db import IntegrityError, transaction
-from .utils import update_user_location, normalize_username, validate_username_format, MeSerializer
+from .utils import update_user_location, normalize_username, validate_username_format, MeSerializer, issue_ws_token
 import uuid
 import random
 from django.core.files.storage import default_storage
@@ -35,8 +35,8 @@ from .serializers import RegisterSubmitSerializer, DeviceSettingsUpdateSerialize
 
 
 User = get_user_model()
-same_site = "Lax"
-secure_cookie = False
+same_site = "None" if not settings.DEBUG else "Lax"
+secure_cookie = not settings.DEBUG
 
 
 
@@ -260,6 +260,8 @@ class RegisterSubmitView(APIView):
                 httponly=True,
                 secure=secure_cookie,
                 samesite=same_site,
+                path="/",
+                domain="127.0.0.1"
             )
 
             response.set_cookie(
@@ -268,6 +270,7 @@ class RegisterSubmitView(APIView):
                 httponly=True,
                 secure=secure_cookie,
                 samesite=same_site,
+                path="/"
             )
 
 
@@ -429,6 +432,15 @@ class LoginView(APIView):
         )
 
         return response
+
+from django.shortcuts import render
+
+class WebSocketTokenView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = issue_ws_token(request.user)
+        return Response({"wsToken": token})
 
 @method_decorator(csrf_exempt, name="dispatch")
 class RefreshView(APIView):

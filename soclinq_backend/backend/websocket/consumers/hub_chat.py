@@ -3,7 +3,7 @@ from django.utils import timezone
 from asgiref.sync import sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.core.cache import cache
-
+from .base import BaseConsumer
 from community.models import (
     CommunityHub,
     CommunityMembership,
@@ -24,7 +24,7 @@ def typing_rl_key(hub_id: str, user_id: str) -> str:
     return f"typing_rl:hub:{hub_id}:user:{user_id}"
 
 
-class HubChatConsumer(AsyncJsonWebsocketConsumer):
+class HubChatConsumer(BaseConsumer):
     async def connect(self):
         user = self.scope.get("user")
 

@@ -1,5 +1,5 @@
 "use client";
-
+import { authFetch } from "@/lib/authFetch";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type WsEvent = {
@@ -25,18 +25,15 @@ type PendingItem = {
 };
 
 type Options = {
-  wsUrl: string; // wss://.../ws/chat/<group_id>/
+  wsUrl: string; 
   onEvent?: (evt: WsEvent) => void;
 
-  /** Heartbeat */
   heartbeatMs?: number; // ping interval
   serverTimeoutMs?: number; // if no activity, mark unstable
 
   /** Reconnect */
   reconnectMinMs?: number;
   reconnectMaxMs?: number;
-
-  /** Offline queue */
   maxQueue?: number;
 
   /** Debug */
@@ -56,10 +53,24 @@ function clamp(n: number, min: number, max: number) {
 }
 
 function jitter(ms: number) {
-  // +- 20% jitter
   const j = ms * 0.2;
   return ms + (Math.random() * 2 - 1) * j;
 }
+
+async function fetchWsToken(): Promise<string> {
+  const res = await authFetch("/auth/ws-token/", {
+    method: "POST",
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    throw new Error("Unable to obtain WS token");
+  }
+
+  const data = await res.json();
+  return data.wsToken;
+}
+
 
 export function useWebSocketChat({
   wsUrl,
@@ -144,7 +155,7 @@ export function useWebSocketChat({
         ...item.event,
         payload: {
           ...(item.event.payload || {}),
-          clientId: item.id, // ✅ important: track message like WhatsApp tempId
+          clientTempId: item.id, // ✅ important: track message like WhatsApp tempId
         },
       };
 
@@ -176,8 +187,8 @@ export function useWebSocketChat({
         type: evt.type,
         payload: {
           ...(evt.payload || {}),
-          clientId,
-        },
+          clientTempId: evt.payload?.clientTempId || clientId,
+        },        
       };
 
       // ✅ If offline, queue it
@@ -272,77 +283,61 @@ export function useWebSocketChat({
     state,
   ]);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!wsUrl) return;
-
-    // cleanup previous
+  
     cleanupTimers();
     safeClose();
-
-    setState((prev) => (prev === "CONNECTED" ? "RECONNECTING" : "CONNECTING"));
-
-    log("Connecting to:", wsUrl);
-
-    const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
-
-    ws.onopen = () => {
-      reconnectTries.current = 0;
-      setState("CONNECTED");
-      lastServerActivityAt.current = now();
-
-      log("Connected ✅");
-
-      startTimers();
-      flushQueue();
-
-      // ✅ optional "hello" event (useful for SOS apps / identity)
-      sendRaw({ type: "client:hello", payload: { ts: new Date().toISOString() } });
-    };
-
-    ws.onerror = () => {
-      log("WS error ❌");
+  
+    setState("CONNECTING");
+  
+    try {
+      log("Fetching WS token...");
+      const token = await fetchWsToken();
+  
+      const sep = wsUrl.includes("?") ? "&" : "?";
+      const wsWithToken = `${wsUrl}${sep}token=${encodeURIComponent(token)}`;
+  
+      log("Connecting to:", wsWithToken);
+  
+      const ws = new WebSocket(wsWithToken);
+      wsRef.current = ws;
+  
+      ws.onopen = () => {
+        reconnectTries.current = 0;
+        setState("CONNECTED");
+        lastServerActivityAt.current = now();
+  
+        startTimers();
+        flushQueue();
+        sendRaw({ type: "client:hello", payload: { ts: new Date().toISOString() } });
+      };
+  
+      ws.onerror = () => {
+        setState("DISCONNECTED");
+        safeClose();
+        scheduleReconnect();
+      };
+  
+      ws.onclose = () => {
+        setState("DISCONNECTED");
+        safeClose();
+        scheduleReconnect();
+      };
+  
+      ws.onmessage = (e) => {
+        lastServerActivityAt.current = now();
+        try {
+          onEvent?.(JSON.parse(e.data));
+        } catch {}
+      };
+    } catch (err) {
+      log("WS token fetch failed", err);
       setState("DISCONNECTED");
-      safeClose();
       scheduleReconnect();
-    };
-
-    ws.onclose = () => {
-      log("WS closed ❌");
-      setState("DISCONNECTED");
-      safeClose();
-      scheduleReconnect();
-    };
-
-    ws.onmessage = (e) => {
-      lastServerActivityAt.current = now();
-
-      try {
-        const data: WsEvent = JSON.parse(e.data);
-
-        // ✅ handle ACK (WhatsApp-like delivery confirmation)
-        // Your backend should send something like:
-        // { type: "message:delivered", payload: { clientId, messageId } }
-        if (data.type === "message:delivered") {
-          const clientId = data.payload?.clientId || data.payload?.tempId;
-          if (clientId && awaitingAck.current.has(clientId)) {
-            awaitingAck.current.delete(clientId);
-          }
-        }
-
-        // ✅ pong support (optional)
-        if (data.type === "pong") {
-          return;
-        }
-
-        // forward to app
-        onEvent?.(data);
-      } catch {
-        // ignore
-      }
-    };
-  }, [cleanupTimers, flushQueue, log, onEvent, safeClose, scheduleReconnect, sendRaw, startTimers, wsUrl]);
-
+    }
+  }, [wsUrl]);
+  
   useEffect(() => {
     connect();
 

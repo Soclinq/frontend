@@ -285,10 +285,10 @@ export default function Page() {
             {renderContent()}
           </section>
 
-          <footer className={styles.footer}>
+          {/* <footer className={styles.footer}>
             <span>© LINQMI</span>
             <span>Your safety matters</span>
-          </footer>
+          </footer> */}
         </main>
       </div>
 

@@ -15,8 +15,13 @@ from community.models import (
     CommunityHub,
     CommunityMembership,
     MembershipRole,
-    HubType, HubMessage
+    HubType, HubMessage, PrivateMessage,
+    PrivateConversationMember, PrivateConversation, UserBlock
 )
+
+from accounts.models import User 
+
+
 
 def encode_cursor(created_at, message_id: UUID) -> str:
     """
@@ -1367,17 +1372,6 @@ from django.db.models import OuterRef, Subquery, Count, Value, Q, F, Case, When
 from django.db.models.functions import Coalesce
 from django.utils.dateparse import parse_datetime
 
-from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework import status
-
-from community.models import (
-    PrivateConversationMember,
-    PrivateMessage,
-    UserBlock,
-)
-
 
 class PrivateInboxView(APIView):
     permission_classes = [IsAuthenticated]
@@ -1476,3 +1470,408 @@ class PrivateInboxView(APIView):
                 {"error": "Unable to load private inbox"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+def _clean_query(q: str) -> str:
+    q = (q or "").strip()
+    q = q.replace("\n", " ").replace("\t", " ")
+    while "  " in q:
+        q = q.replace("  ", " ")
+    return q
+
+
+def _normalize_phone(value: str) -> str:
+    if not value:
+        return ""
+
+    digits = "".join(ch for ch in value if ch.isdigit())
+
+    # ✅ Nigeria normalization: 0803... -> 234803...
+    if digits.startswith("0") and len(digits) >= 10:
+        digits = "234" + digits[1:]
+
+    return digits
+
+
+class NewChatSearchUsersView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        try:
+            q = _clean_query(request.query_params.get("q", ""))
+
+            if not q:
+                return Response({"users": []}, status=status.HTTP_200_OK)
+
+            q_no_at = q[1:] if q.startswith("@") else q
+            q_lower = q_no_at.lower()
+
+            phone_digits = _normalize_phone(q_no_at)
+
+            # ✅ block logic
+            blocked_ids = list(
+                UserBlock.objects.filter(blocker=user).values_list("blocked_id", flat=True)
+            )
+            blocked_by_ids = list(
+                UserBlock.objects.filter(blocked=user).values_list("blocker_id", flat=True)
+            )
+
+            # ✅ base queryset
+            qs = (
+                User.objects
+                .filter(is_active=True, is_suspended=False)
+                .exclude(id=user.id)
+            )
+
+            # ✅ IMPORTANT: hide users who opted out of visibility
+            qs = qs.filter(
+                Q(profile_settings__searchable_by_username=True) |
+                Q(profile_settings__isnull=True)
+            )
+
+            # ✅ exclude blocked
+            qs = qs.exclude(id__in=blocked_ids).exclude(id__in=blocked_by_ids)
+
+            # ✅ strong multi-field search
+            query = Q()
+            query |= Q(username__iexact=q_no_at)
+            query |= Q(username__icontains=q_no_at)
+            query |= Q(full_name__icontains=q_no_at)
+            query |= Q(phone_number__icontains=q_no_at)
+            query |= Q(email__icontains=q_no_at)
+
+            if phone_digits:
+                query |= Q(phone_number__icontains=phone_digits)
+                if len(phone_digits) >= 10:
+                    query |= Q(phone_number__icontains=phone_digits[-10:])
+
+            qs = qs.filter(query).distinct()
+            qs = qs.only("id", "full_name", "username", "phone_number", "email", "live_photo")[:50]
+
+            users = list(qs)
+
+            # ✅ ranking
+            def rank(u: User):
+                uname = (u.username or "").lower()
+                name = (u.full_name or "").lower()
+
+                if uname == q_lower:
+                    return 0
+                if uname.startswith(q_lower):
+                    return 1
+                if q_lower in uname:
+                    return 2
+                if q_lower in name:
+                    return 3
+                return 9
+
+            users.sort(key=rank)
+
+            payload = []
+            for u in users:
+                payload.append(
+                    {
+                        "id": str(u.id),
+                        "name": u.full_name or u.username or "User",
+                        "username": u.username,
+                        "phone": u.phone_number,
+                        "email": u.email,
+                        "photo": u.live_photo.url if u.live_photo else None,
+                    }
+                )
+
+            return Response({"users": payload}, status=status.HTTP_200_OK)
+
+        except Exception:
+            return Response(
+                {"error": "Unable to search users"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
+
+
+class OpenPrivateConversationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        user = request.user
+
+        try:
+            other_user_id = request.data.get("user_id")
+
+            if not other_user_id:
+                return Response(
+                    {"error": "user_id is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if str(other_user_id) == str(user.id):
+                return Response(
+                    {"error": "You cannot chat with yourself"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # ✅ ensure target exists
+            try:
+                other = User.objects.get(id=other_user_id, is_active=True, is_suspended=False)
+            except User.DoesNotExist:
+                return Response(
+                    {"error": "User not found"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            # ✅ block checks
+            blocked = UserBlock.objects.filter(blocker=user, blocked=other).exists()
+            blocked_by = UserBlock.objects.filter(blocker=other, blocked=user).exists()
+
+            if blocked or blocked_by:
+                return Response(
+                    {"error": "You cannot start a chat with this user"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            # ✅ find existing convo (both directions)
+            convo = (
+                PrivateConversation.objects
+                .filter(is_active=True)
+                .filter(
+                    Q(user1=user, user2=other) |
+                    Q(user1=other, user2=user)
+                )
+                .first()
+            )
+
+            if convo:
+                # ✅ ensure membership rows exist (safety)
+                PrivateConversationMember.objects.get_or_create(conversation=convo, user=user)
+                PrivateConversationMember.objects.get_or_create(conversation=convo, user=other)
+
+                return Response(
+                    {"conversation_id": str(convo.id), "created": False},
+                    status=status.HTTP_200_OK,
+                )
+
+            # ✅ create new convo
+            convo = PrivateConversation.objects.create(
+                user1=user,
+                user2=other,
+                is_active=True,
+            )
+
+            # ✅ create membership rows
+            PrivateConversationMember.objects.create(conversation=convo, user=user)
+            PrivateConversationMember.objects.create(conversation=convo, user=other)
+
+            return Response(
+                {"conversation_id": str(convo.id), "created": True},
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception:
+            return Response(
+                {"error": "Unable to open private chat"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+from django.db import transaction
+from django.db.models import Q
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+from accounts.models import User
+from community.models import UserBlock, PrivateConversationMember, PrivateConversation
+
+
+class OpenPrivateConversationView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        user = request.user
+
+        user_id = request.data.get("user_id")
+
+        if not user_id:
+            return Response({"error": "user_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if str(user_id) == str(user.id):
+            return Response({"error": "You cannot chat with yourself"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ✅ make sure other user exists
+        try:
+            other = User.objects.get(id=user_id, is_active=True, is_suspended=False)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # ✅ block checks
+        if UserBlock.objects.filter(blocker=user, blocked=other).exists():
+            return Response({"error": "You blocked this user"}, status=status.HTTP_403_FORBIDDEN)
+
+        if UserBlock.objects.filter(blocker=other, blocked=user).exists():
+            return Response({"error": "This user blocked you"}, status=status.HTTP_403_FORBIDDEN)
+
+        # ✅ check existing conversation both ways
+        convo = (
+            PrivateConversation.objects
+            .filter(is_active=True)
+            .filter(
+                Q(user1=user, user2=other) |
+                Q(user1=other, user2=user)
+            )
+            .first()
+        )
+
+        # ✅ create if missing
+        if not convo:
+            convo = PrivateConversation.objects.create(
+                user1=user,
+                user2=other,
+                is_active=True,
+            )
+
+        # ✅ ensure members exist
+        PrivateConversationMember.objects.get_or_create(conversation=convo, user=user)
+        PrivateConversationMember.objects.get_or_create(conversation=convo, user=other)
+
+        return Response(
+            {"conversation_id": str(convo.id)},
+            status=status.HTTP_200_OK,
+        )
+
+
+from django.db import transaction
+from django.db.models import Q
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from django.utils import timezone
+
+from community.models import (
+    PrivateConversation,
+    PrivateConversationMember,
+    PrivateMessage,
+)
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
+class PrivateConversationMessagesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, conversation_id):
+        user = request.user
+
+        # ✅ must be a member
+        member = PrivateConversationMember.objects.filter(
+            conversation_id=conversation_id,
+            user=user
+        ).first()
+
+        if not member:
+            return Response({"error": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+        # ✅ load last messages
+        msgs = (
+            PrivateMessage.objects
+            .filter(conversation_id=conversation_id, deleted_at__isnull=True)
+            .select_related("sender")
+            .order_by("-created_at")[:50]
+        )
+
+        # reverse oldest -> newest
+        msgs = list(msgs)[::-1]
+
+        results = []
+        for m in msgs:
+            results.append({
+                "id": str(m.id),
+                "clientTempId": getattr(m, "client_temp_id", None),
+                "conversationId": str(conversation_id),
+                "messageType": "TEXT",  # update if you support MEDIA
+                "text": m.text or "",
+                "sender": {"id": str(m.sender_id), "name": m.sender.full_name or m.sender.username},
+                "createdAt": m.created_at.isoformat(),
+                "isMine": str(m.sender_id) == str(user.id),
+                "deletedAt": m.deleted_at.isoformat() if m.deleted_at else None,
+                "editedAt": m.edited_at.isoformat() if getattr(m, "edited_at", None) else None,
+                "attachments": [],  # update if you store attachments
+                "reactions": [],
+                "myReaction": None,
+                "replyTo": None,
+            })
+
+        # ✅ update last_read_at
+        member.last_read_at = timezone.now()
+        member.save(update_fields=["last_read_at"])
+
+        return Response(
+            {"messages": results, "nextCursor": None},
+            status=status.HTTP_200_OK,
+        )
+
+    @transaction.atomic
+    def post(self, request, conversation_id):
+        user = request.user
+
+        member = PrivateConversationMember.objects.filter(
+            conversation_id=conversation_id,
+            user=user
+        ).first()
+
+        if not member:
+            return Response({"error": "Not allowed"}, status=status.HTTP_403_FORBIDDEN)
+
+        convo = PrivateConversation.objects.filter(id=conversation_id, is_active=True).first()
+        if not convo:
+            return Response({"error": "Conversation not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        text = (request.data.get("text") or "").strip()
+        client_temp_id = request.data.get("clientTempId")
+
+        if not text:
+            return Response({"error": "Text required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        msg = PrivateMessage.objects.create(
+            conversation=convo,
+            sender=user,
+            text=text,
+        )
+
+        payload = {
+            "id": str(msg.id),
+            "clientTempId": client_temp_id,
+            "conversationId": str(conversation_id),
+            "messageType": "TEXT",
+            "text": msg.text,
+            "sender": {"id": str(user.id), "name": user.full_name or user.username},
+            "createdAt": msg.created_at.isoformat(),
+            "isMine": True,  # ✅ sender perspective
+            "deletedAt": None,
+            "editedAt": None,
+            "attachments": [],
+            "reactions": [],
+            "myReaction": None,
+            "replyTo": None,
+        }
+
+        # ✅ BROADCAST TO WS ROOM (instant update)
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"private_chat_{conversation_id}",
+            {
+                "type": "broadcast",
+                "payload": {
+                    "type": "message:new",
+                    "payload": payload,
+                },
+                "sender": None,
+            },
+        )
+
+        return Response(payload, status=status.HTTP_200_OK)

@@ -55,9 +55,9 @@ export const communityChatAdapter: ChatAdapter = {
 
   sendAlert: (hubId) => `/communities/chat/groups/${hubId}/alerts/`,
 
-  wsPath: (hubId) => `/ws/chat/${hubId}/`,
-  wsTypingPath: (hubId) => `/ws/chat/${hubId}/typing/`,
-  wsPresencePath: (hubId) => `/ws/chat/${hubId}/presence/`,
+  wsPath: (hubId) => `/ws/community-chat/${hubId}/`,
+  wsTypingPath: (hubId) => `/ws/community-chat/${hubId}/typing/`,
+  wsPresencePath: (hubId) => `/ws/community-chat/${hubId}/presence/`,
 
   features: {
     reactions: true,
