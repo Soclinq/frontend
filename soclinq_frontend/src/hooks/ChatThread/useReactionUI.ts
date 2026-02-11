@@ -11,14 +11,16 @@ type Burst = {
 };
 
 type Params = {
-  currentUserId: string;
+  currentUserId?: string; // 👈 optional
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
 };
 
 /* ================= Hook ================= */
 
-export function useReactionUI({ currentUserId, setMessages }: Params) {
-  /* ---------- floating emoji bursts ---------- */
+export function useReactionUI({
+  currentUserId,
+  setMessages,
+}: Params) {
   const [bursts, setBursts] = useState<Burst[]>([]);
   const burstIdRef = useRef(0);
 
@@ -28,7 +30,6 @@ export function useReactionUI({ currentUserId, setMessages }: Params) {
     const id = `burst-${burstIdRef.current++}`;
     setBursts((prev) => [...prev, { id, emoji, x, y }]);
 
-    // auto-remove
     setTimeout(() => {
       setBursts((prev) => prev.filter((b) => b.id !== id));
     }, 900);
@@ -38,6 +39,9 @@ export function useReactionUI({ currentUserId, setMessages }: Params) {
 
   const toggleReactionLocal = useCallback(
     (msg: ChatMessage, emoji: string) => {
+      // 🔐 Guard: user not ready yet
+      if (!currentUserId) return;
+
       setMessages((prev) =>
         prev.map((m) => {
           if (m.id !== msg.id) return m;
@@ -45,7 +49,6 @@ export function useReactionUI({ currentUserId, setMessages }: Params) {
           const prevReactions = m.reactions ?? [];
           const myPrev = m.myReaction ?? null;
 
-          // remove me from all reactions
           let next: ChatReaction[] = prevReactions
             .map((r) => ({
               ...r,
@@ -53,7 +56,6 @@ export function useReactionUI({ currentUserId, setMessages }: Params) {
             }))
             .filter((r) => r.userIds.length > 0);
 
-          // undo if same emoji
           if (myPrev === emoji) {
             return {
               ...m,
@@ -62,7 +64,6 @@ export function useReactionUI({ currentUserId, setMessages }: Params) {
             };
           }
 
-          // add new reaction
           const found = next.find((r) => r.emoji === emoji);
           if (found) {
             found.userIds.push(currentUserId);
@@ -81,16 +82,9 @@ export function useReactionUI({ currentUserId, setMessages }: Params) {
     [currentUserId, setMessages]
   );
 
-  /* ================= public API ================= */
-
   return {
-    /* local optimistic update */
     toggleReactionLocal,
-
-    /* visual delight */
     spawnBurst,
-
-    /* render-only data */
     bursts,
   };
 }

@@ -36,10 +36,10 @@
   /* Optional: subtle wallpaper if you want */
   .scrollBody {
     background:
-      var(--chat-wallpaper),
+      var(--app-wallpaper),
       var(--bg);
-    background-size: var(--chat-wallpaper-size);
-    background-position: var(--chat-wallpaper-pos);
+    background-size: var(--app-wallpaper-size);
+    background-position: var(--app-wallpaper-pos);
   }
   
   /* ✅ universal scroll padding for accurate section jump */

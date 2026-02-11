@@ -1,0 +1,158 @@
+/* ChatContextMenu.module.css */
+
+/* =========================
+   WhatsApp-like Context Menu
+   ✅ Premium glass card
+   ✅ Perfect spacing & contrast
+   ✅ Smooth animation
+========================= */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+
+  /* WhatsApp-like dim */
+  background: rgba(0, 0, 0, 0.28);
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+
+  /* allows click outside */
+  padding: 12px;
+}
+
+/* Menu container */
+.menu {
+  position: fixed;
+
+  min-width: 210px;
+  max-width: 260px;
+
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 16px;
+
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.16);
+  backdrop-filter: blur(14px);
+
+  overflow: hidden;
+
+  /* smooth appear animation */
+  transform-origin: top left;
+  animation: popIn 160ms var(--ease);
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0px) scale(1);
+  }
+}
+
+/* each menu item */
+.item {
+  width: 100%;
+  border: none;
+  background: transparent;
+
+  padding: 11px 12px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  cursor: pointer;
+  text-align: left;
+
+  color: rgba(15, 23, 42, 0.92);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+
+  transition: background var(--fast), transform var(--fast);
+}
+
+.item svg {
+  font-size: 18px;
+  opacity: 0.88;
+}
+
+/* Hover */
+.item:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+
+.item:active {
+  transform: scale(0.99);
+}
+
+/* Disabled */
+.item:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.item:disabled:hover {
+  background: transparent;
+  transform: none;
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: rgba(15, 23, 42, 0.10);
+  margin: 6px 0;
+}
+
+/* Danger item */
+.danger {
+  color: rgba(239, 68, 68, 0.95);
+}
+
+.danger:hover {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.danger svg {
+  opacity: 1;
+}
+
+/* =========================
+   Mobile improvements
+========================= */
+@media (max-width: 520px) {
+  .overlay {
+    padding: 10px;
+  }
+
+  .menu {
+    min-width: 200px;
+    max-width: 85vw;
+    border-radius: 18px;
+  }
+
+  .item {
+    padding: 12px 14px;
+    font-size: var(--text-md);
+  }
+
+  .item svg {
+    font-size: 19px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .menu {
+    animation: none !important;
+  }
+
+  .item {
+    transition: none !important;
+  }
+}

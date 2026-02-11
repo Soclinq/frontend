@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 type IPCallback = (d: {
   lat: number;
@@ -11,13 +11,22 @@ export function useIPLocation(
   enabled: boolean,
   onLocation: IPCallback
 ) {
+  const attemptedRef = useRef(false);
+
   useEffect(() => {
     if (!enabled) return;
+    if (attemptedRef.current) return;
+
+    attemptedRef.current = true;
 
     fetch("/api/ip-location")
-      .then(r => r.json())
-      .then(d => {
-        if (!d?.lat) return;
+      .then((r) => {
+        if (!r.ok) throw new Error("IP location failed");
+        return r.json();
+      })
+      .then((d) => {
+        if (!d?.lat || !d?.lng) return;
+
         onLocation({
           lat: d.lat,
           lng: d.lng,
@@ -25,6 +34,8 @@ export function useIPLocation(
           timestamp: Date.now(),
         });
       })
-      .catch(() => {});
+      .catch(() => {
+        // swallow error — fallback failed, do NOT retry
+      });
   }, [enabled, onLocation]);
 }

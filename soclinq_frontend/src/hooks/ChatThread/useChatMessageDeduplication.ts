@@ -10,7 +10,7 @@ export function useChatMessageDeduplication(
   const seenRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!messages.length) return;
+    if (!messages?.length) return;
 
     const next: ChatMessage[] = [];
     let mutated = false;

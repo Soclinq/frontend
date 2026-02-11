@@ -1,146 +1,104 @@
-import { useCallback, useEffect, useRef } from "react";
-import { openDB } from "idb";
-import type { ChatMessage, SendMessagePayload } from "@/types/chat";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { ChatMessage } from "@/types/chat";
+import { saveRetry, removeRetry, loadRetries } from "@/lib/retryStore";
 
-/* ================= Config ================= */
-
-const DB_NAME = "chat-retry-db";
-const STORE = "retryQueue";
-
-const MAX_RETRIES = 5;
-const BASE_DELAY = 800; // ms
-
-/* ================= IndexedDB ================= */
-
-const dbPromise = openDB(DB_NAME, 1, {
-  upgrade(db) {
-    if (!db.objectStoreNames.contains(STORE)) {
-      db.createObjectStore(STORE, { keyPath: "key" });
-    }
-  },
-});
-
-/* ================= Types ================= */
-
-type RetryEntry = {
-  key: string;
-  payload: SendMessagePayload;
-  retryCount: number;
-  lastTriedAt: number;
+type Params = {
+  onRetryMessage?: (msg: ChatMessage) => Promise<void>;
+  sendChunk?: (opts: {
+    msg: ChatMessage;
+    chunkIndex: number;
+    totalChunks: number;
+  }) => Promise<void>;
 };
 
-/* ================= Hook ================= */
+const MAX_CONCURRENT = 2;
+const BASE_DELAY = 1500;
 
-export function useChatRetryQueue({
-  connected,
-  sendMessage,
-}: {
-  connected: boolean;
-  sendMessage: (payload: SendMessagePayload) => void;
-}) {
-  const inflightRef = useRef<Set<string>>(new Set());
+export function useChatRetry(
+  { onRetryMessage, sendChunk }: Params = {}
+) {
+  const queue = useRef<ChatMessage[]>([]);
+  const inflight = useRef(0);
+  const timers = useRef<Map<string, number>>(new Map());
+  const [retrying, setRetrying] = useState<Set<string>>(new Set());
 
-  /* ================= helpers ================= */
+  const keyOf = (m: ChatMessage) =>
+    m.clientTempId || m.messageHash || m.id;
 
-  const getDelay = (retryCount: number) =>
-    Math.min(BASE_DELAY * Math.pow(1.7, retryCount), 15_000);
+  const drain = async () => {
+    if (inflight.current >= MAX_CONCURRENT) return;
+    const msg = queue.current.shift();
+    if (!msg) return;
 
-  const loadAll = async (): Promise<RetryEntry[]> => {
-    const db = await dbPromise;
-    return (await db.getAll(STORE)) as RetryEntry[];
+    inflight.current++;
+    setRetrying((s) => new Set(s).add(keyOf(msg)));
+
+    try {
+      if (msg.attachments?.some((a) => a.type === "VIDEO") && sendChunk) {
+        // simplified: resume from chunk 0
+        await sendChunk({ msg, chunkIndex: 0, totalChunks: 1 });
+      } else if (onRetryMessage) {
+        await onRetryMessage(msg);
+      }
+
+      await removeRetry(msg);
+    } catch {
+      schedule(msg);
+    } finally {
+      inflight.current--;
+      setRetrying((s) => {
+        const n = new Set(s);
+        n.delete(keyOf(msg));
+        return n;
+      });
+      drain();
+    }
   };
 
-  const save = async (entry: RetryEntry) => {
-    const db = await dbPromise;
-    await db.put(STORE, entry);
+  const schedule = (msg: ChatMessage) => {
+    const key = keyOf(msg);
+    if (timers.current.has(key)) return;
+
+    saveRetry(msg);
+
+    const delay = BASE_DELAY * 2;
+    const t = window.setTimeout(() => {
+      timers.current.delete(key);
+      queue.current.push(msg);
+      drain();
+    }, delay);
+
+    timers.current.set(key, t);
   };
 
-  const remove = async (key: string) => {
-    const db = await dbPromise;
-    await db.delete(STORE, key);
-  };
+  const retryMessage = useCallback((msg: ChatMessage) => {
+    queue.current.push(msg);
+    drain();
+  }, []);
 
-  /* ================= enqueue ================= */
+  const autoRetryFailed = useCallback((messages: ChatMessage[]) => {
+    messages.forEach((m) => {
+      if (m.isMine && m.status === "failed") {
+        schedule(m);
+      }
+    });
+  }, []);
 
-  const enqueueRetry = useCallback(
-    async (msg: ChatMessage) => {
-      if (!msg.clientTempId) return;
-      if (msg.messageType !== "TEXT") return;
-
-      const key = msg.clientTempId;
-
-      const entry: RetryEntry = {
-        key,
-        payload: {
-          clientTempId: msg.clientTempId,
-          text: msg.text || "",
-          messageType: "TEXT",
-          replyToId: msg.replyTo?.id ?? null,
-          attachments: [],
-        },
-        retryCount: msg.retryCount ?? 0,
-        lastTriedAt: Date.now(),
-      };
-
-      await save(entry);
-    },
-    []
+  const isRetrying = useCallback(
+    (msg: ChatMessage) => retrying.has(keyOf(msg)),
+    [retrying]
   );
 
-  /* ================= retry engine ================= */
-
-  const processQueue = useCallback(async () => {
-    if (!connected) return;
-
-    const all = await loadAll();
-    const now = Date.now();
-
-    for (const entry of all) {
-      if (inflightRef.current.has(entry.key)) continue;
-      if (entry.retryCount >= MAX_RETRIES) {
-        await remove(entry.key);
-        continue;
-      }
-
-      const delay = getDelay(entry.retryCount);
-      if (now - entry.lastTriedAt < delay) continue;
-
-      inflightRef.current.add(entry.key);
-
-      try {
-        sendMessage(entry.payload);
-
-        await remove(entry.key);
-      } catch {
-        await save({
-          ...entry,
-          retryCount: entry.retryCount + 1,
-          lastTriedAt: Date.now(),
-        });
-      } finally {
-        inflightRef.current.delete(entry.key);
-      }
-    }
-  }, [connected, sendMessage]);
-
-  /* ================= triggers ================= */
-
-  // reconnect
   useEffect(() => {
-    if (connected) processQueue();
-  }, [connected, processQueue]);
-
-  // focus retry
-  useEffect(() => {
-    const onFocus = () => processQueue();
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [processQueue]);
-
-  /* ================= public API ================= */
+    loadRetries().then((msgs) => {
+      queue.current.push(...msgs);
+      drain();
+    });
+  }, []);
 
   return {
-    enqueueRetry,
-    processQueue,
+    retryMessage,
+    autoRetryFailed,
+    isRetrying,
   };
 }

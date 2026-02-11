@@ -10,54 +10,15 @@ import {
 } from "react-icons/fi";
 import styles from "./styles/ChatMessages.module.css";
 
-/* ---------------- Types ---------------- */
 import type { ChatMessage, ChatReaction } from "@/types/chat";
 
-/* ---------------- Hooks ---------------- */
-import { useChatScroll } from "@/hooks/useChatScroll";
-import { useChatGestures } from "@/hooks/useChatGestures";
+import { useChatScroll } from "@/hooks/ChatThread/useChatScroll";
+import { useChatGestures } from "@/hooks/ChatThread/useChatGestures";
 import { useChatRetry } from "@/hooks/useChatRetry";
-import { useChatSeen } from "@/hooks/useChatSeen";
-import { useChatDedup } from "@/hooks/useChatDedup";
+import { useChatSeen } from "@/hooks/ChatThread/useChatSeen";
+import { useChatDedup } from "@/hooks/ChatThread/useChatDedup";
 import { useReactionBurst } from "@/hooks/useReactionBurst";
 import { useReactionSummary } from "@/hooks/useReactionSummary";
-
-/* ---------------- Props ---------------- */
-
-type Props = {
-  messages: ChatMessage[];
-  loading: boolean;
-  error: string | null;
-
-  loadOlder: () => void;
-
-  selectionMode: boolean;
-  isSelected: (id: string) => boolean;
-  toggleSelectMessage: (id: string) => void;
-  onMessageClick: (e: React.MouseEvent, msg: ChatMessage) => void;
-
-  startReply: (msg: ChatMessage) => void;
-  scrollToMessage: (id: string) => void;
-
-  reactToMessage: (msg: ChatMessage, emoji: string) => void;
-
-  setReactionPicker: React.Dispatch<
-    React.SetStateAction<{
-      open: boolean;
-      message: ChatMessage | null;
-      x: number;
-      y: number;
-    }>
-  >;
-
-  onOpenContextMenu: (pos: { x: number; y: number }, msg: ChatMessage) => void;
-
-  containerRef: React.RefObject<HTMLDivElement | null>;
-  bottomRef: React.RefObject<HTMLDivElement | null>;
-
-  onRetryMessage?: (msg: ChatMessage) => Promise<void>;
-  sendChunk?: (opts: any) => Promise<void>;
-};
 
 /* ---------------- Helpers ---------------- */
 
@@ -67,30 +28,52 @@ const formatTime = (iso: string) =>
     minute: "2-digit",
   });
 
+/* ---------------- Props ---------------- */
+
+type Props = {
+  messages: ChatMessage[];
+  loading: boolean;
+  error: string | null;
+
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  bottomRef: React.RefObject<HTMLDivElement | null>;
+  loadOlder?: () => void;
+
+  selection: {
+    active: boolean;
+    isSelected: (id: string) => boolean;
+    toggle: (id: string) => void;
+  } | null;
+
+  onReply: (msg: ChatMessage) => void;
+  onContextMenu: (
+    pos: { x: number; y: number },
+    msg: ChatMessage
+  ) => void;
+  onReact: (msg: ChatMessage, emoji: string) => void;
+
+  onRetryMessage?: (msg: ChatMessage) => Promise<void>;
+  sendChunk?: (opts: any) => Promise<void>;
+};
+
+
 /* ---------------- Component ---------------- */
 
-export default function ChatMessages(props: Props) {
-  const {
-    messages,
-    loading,
-    error,
-    loadOlder,
-    selectionMode,
-    isSelected,
-    toggleSelectMessage,
-    onMessageClick,
-    startReply,
-    scrollToMessage,
-    reactToMessage,
-    setReactionPicker,
-    onOpenContextMenu,
-    containerRef,
-    bottomRef,
-    onRetryMessage,
-    sendChunk,
-  } = props;
-
-  /* ---------- dedup ---------- */
+export default function ChatMessages({
+  messages,
+  loading,
+  error,
+  containerRef,
+  bottomRef,
+  loadOlder,
+  selection,
+  onReply,
+  onContextMenu,
+  onReact,
+  onRetryMessage,
+  sendChunk,
+}: Props) {
+  /* ---------- data hygiene ---------- */
   const dedupedMessages = useChatDedup(messages);
 
   /* ---------- scroll ---------- */
@@ -102,21 +85,11 @@ export default function ChatMessages(props: Props) {
   });
 
   /* ---------- gestures ---------- */
-  const openQuickEmojiRow = (msg: ChatMessage, x: number, y: number) => {
-    setReactionPicker({
-      open: true,
-      message: msg,
-      x: Math.max(16, Math.min(window.innerWidth - 16, x)),
-      y: Math.max(70, Math.min(window.innerHeight - 16, y)),
-    });
-  };
-
   const { swipeDx, bindGestureHandlers } = useChatGestures({
-    selectionMode,
-    toggleSelectMessage,
-    startReply,
-    openQuickEmojiRow,
-    reactQuick: (msg) => reactToMessage(msg, "❤️"),
+    selectionMode: !!selection,
+    toggleSelectMessage: (id) => selection?.toggle(id),
+    startReply: onReply,
+    reactQuick: (msg) => onReact(msg, "❤️"),
   });
 
   /* ---------- retry ---------- */
@@ -134,13 +107,8 @@ export default function ChatMessages(props: Props) {
 
   /* ---------- reactions ---------- */
   const { bursts, triggerBurst } = useReactionBurst();
-
-  const {
-    open: summaryOpen,
-    message: summaryMessage,
-    openSummary,
-    closeSummary,
-  } = useReactionSummary();
+  const { open, message, openSummary, closeSummary } =
+    useReactionSummary();
 
   /* ---------------- render ---------------- */
 
@@ -158,64 +126,57 @@ export default function ChatMessages(props: Props) {
         {!loading &&
           !error &&
           dedupedMessages.map((msg) => {
+            const selected = selection?.isSelected(msg.id) ?? false;
             const translateX = swipeDx[msg.id] ?? 0;
-            const selected = isSelected(msg.id);
             const reactions: ChatReaction[] = msg.reactions ?? [];
 
             return (
               <div
                 key={msg.id}
-                data-msg-id={msg.id}
-                data-created-at={msg.createdAt}
                 {...bindGestureHandlers(msg)}
                 className={[
                   styles.message,
                   msg.isMine ? styles.mine : styles.theirs,
+                  selected ? styles.selected : "",
                 ].join(" ")}
-                data-selected={selected ? "1" : "0"}
                 style={{
                   transform:
-                    translateX > 0 && !selectionMode
+                    translateX > 0 && !selection
                       ? `translateX(${Math.min(translateX, 42)}px)`
                       : undefined,
                 }}
                 onClick={(e) => {
-                  if (bindGestureHandlers(msg).consumeClickIfGesture(e)) return;
-                  if (!selectionMode) return;
-                  onMessageClick(e, msg);
+                  if (bindGestureHandlers(msg).consumeClickIfGesture(e))
+                    return;
+
+                  if (selection) {
+                    selection.toggle(msg.id);
+                  }
                 }}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  selectionMode
-                    ? toggleSelectMessage(msg.id)
-                    : onOpenContextMenu(
+                  selection
+                    ? selection.toggle(msg.id)
+                    : onContextMenu(
                         { x: e.clientX, y: e.clientY },
                         msg
                       );
                 }}
               >
                 {/* reply preview */}
-                {msg.replyTo?.id && (
-                  <button
-                    className={styles.replyPreviewBubble}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      scrollToMessage(msg.replyTo!.id);
-                    }}
-                  >
+                {msg.replyTo && (
+                  <div className={styles.replyPreview}>
                     <span className={styles.replySender}>
                       {msg.replyTo.senderName}
                     </span>
                     <span className={styles.replyText}>
-                      {msg.replyTo.text || "[message]"}
+                      {msg.replyTo.text ?? "[message]"}
                     </span>
-                  </button>
+                  </div>
                 )}
 
-                {/* text */}
                 {msg.text && <p className={styles.text}>{msg.text}</p>}
 
-                {/* reactions */}
                 {reactions.length > 0 && (
                   <div
                     className={styles.reactionsRow}
@@ -227,60 +188,35 @@ export default function ChatMessages(props: Props) {
                     {reactions.map((r) => (
                       <button
                         key={r.emoji}
-                        className={[
-                          styles.reactionChip,
-                          msg.myReaction === r.emoji
-                            ? styles.reactionChipMine
-                            : "",
-                        ].join(" ")}
+                        className={styles.reactionChip}
                         onClick={(e) => {
                           e.stopPropagation();
-
                           triggerBurst(
                             r.emoji,
                             e.currentTarget.getBoundingClientRect()
                           );
-
-                          reactToMessage(
+                          onReact(
                             msg,
                             msg.myReaction === r.emoji ? "" : r.emoji
                           );
                         }}
                       >
-                        <span>{r.emoji}</span>
-                        <span>{r.count}</span>
+                        {r.emoji} {r.count}
                       </button>
                     ))}
                   </div>
                 )}
 
-                {/* meta */}
                 <div className={styles.metaRow}>
                   <span className={styles.time}>
                     {formatTime(msg.createdAt)}
                   </span>
 
                   {msg.isMine && msg.status === "sending" && (
-                    <FiClock className={styles.tickPending} />
+                    <FiClock />
                   )}
 
-                  {msg.isMine && msg.status === "sent" && (
-                    <FiCheck className={styles.tickSingle} />
-                  )}
-
-                  {msg.isMine && msg.status === "delivered" && (
-                    <span className={styles.tickDouble}>
-                      <FiCheck />
-                      <FiCheck />
-                    </span>
-                  )}
-
-                  {msg.isMine && msg.status === "seen" && (
-                    <span className={styles.tickDoubleSeen}>
-                      <FiCheck />
-                      <FiCheck />
-                    </span>
-                  )}
+                  {msg.isMine && msg.status === "sent" && <FiCheck />}
 
                   {msg.isMine &&
                     msg.status === "failed" &&
@@ -295,24 +231,6 @@ export default function ChatMessages(props: Props) {
                         <FiAlertCircle />
                       </button>
                     )}
-
-                {msg.reactions?.length > 0 && (
-                  <div className={styles.reactionSummary}>
-                    {msg.reactions.map((r) => {
-                      const mine = r.userIds.includes(myUserId);
-                      return (
-                        <button
-                          key={r.emoji}
-                          className={mine ? styles.mineReaction : ""}
-                          onClick={() => reactToMessage(msg, r.emoji)}
-                        >
-                          {r.emoji} {r.userIds.length}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
                 </div>
               </div>
             );
@@ -330,7 +248,6 @@ export default function ChatMessages(props: Props) {
         </button>
       )}
 
-      {/* floating emoji bursts */}
       {bursts.map((b) => (
         <span
           key={b.id}
@@ -341,18 +258,16 @@ export default function ChatMessages(props: Props) {
         </span>
       ))}
 
-      {/* reaction summary */}
-      {summaryOpen && summaryMessage && (
+      {open && message && (
         <div className={styles.reactionSummaryOverlay} onClick={closeSummary}>
           <div
             className={styles.reactionSummaryCard}
             onClick={(e) => e.stopPropagation()}
           >
             <h4>Reactions</h4>
-            {(summaryMessage.reactions ?? []).map((r) => (
+            {message.reactions?.map((r) => (
               <div key={r.emoji} className={styles.reactionSummaryRow}>
-                <span>{r.emoji}</span>
-                <span>{r.count}</span>
+                {r.emoji} {r.count}
               </div>
             ))}
           </div>

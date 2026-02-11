@@ -1,34 +1,35 @@
+"use client";
+
 import { useEffect, useRef, useCallback } from "react";
+import { authFetch } from "@/lib/authFetch";
 import type { ChatMessage } from "@/types/chat";
+import type { ChatAdapter } from "@/types/chatAdapterTypes";
 
 /* ================= Types ================= */
 
 export type ReceiptStatus =
-  | "sending"     // ⏳ local only
-  | "sent"        // ✓ server ack
-  | "delivered"   // ✓✓ peer received
-  | "read";       // ✓✓ blue
+  | "sending"
+  | "sent"
+  | "delivered"
+  | "read";
 
 type Params = {
   messages: ChatMessage[];
+  adapter: ChatAdapter;
   currentUserId?: string;
 
-  /** called when we should notify backend */
-  sendReceipt: (payload: {
-    messageIds: string[];
-    type: "delivered" | "read";
-  }) => void;
-
-  /** optional: for WS push updates */
-  onLocalUpdate?: (updater: (prev: ChatMessage[]) => ChatMessage[]) => void;
+  /** optional local optimistic updater */
+  onLocalUpdate?: (
+    updater: (prev: ChatMessage[]) => ChatMessage[]
+  ) => void;
 };
 
 /* ================= Hook ================= */
 
 export function useMessageReceipts({
   messages,
+  adapter,
   currentUserId,
-  sendReceipt,
   onLocalUpdate,
 }: Params) {
   /* ================= refs ================= */
@@ -44,31 +45,54 @@ export function useMessageReceipts({
 
   /* ================= helpers ================= */
 
-  const flushDelivered = useCallback(() => {
+  const flushDelivered = useCallback(async () => {
     if (!deliverQueue.current.length) return;
 
-    const ids = Array.from(new Set(deliverQueue.current.splice(0)));
-    sendReceipt({ messageIds: ids, type: "delivered" });
-  }, [sendReceipt]);
+    const ids = Array.from(
+      new Set(deliverQueue.current.splice(0))
+    );
 
-  const flushRead = useCallback(() => {
+    try {
+      await authFetch(adapter.markDeliveredBatch(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ messageIds: ids }),
+      });
+    } catch {
+      // soft-fail
+    }
+  }, [adapter]);
+
+  const flushRead = useCallback(async () => {
     if (!readQueue.current.length) return;
 
-    const ids = Array.from(new Set(readQueue.current.splice(0)));
-    sendReceipt({ messageIds: ids, type: "read" });
-  }, [sendReceipt]);
+    const ids = Array.from(
+      new Set(readQueue.current.splice(0))
+    );
+
+    try {
+      await authFetch(adapter.markSeenBatch(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ messageIds: ids }),
+      });
+    } catch {
+      // soft-fail
+    }
+  }, [adapter]);
 
   /* ================= mark delivered ================= */
 
   const markDelivered = useCallback(
     (msg: ChatMessage) => {
-      if (!msg.id) return;
+      if (!msg?.id) return;
+      if (!currentUserId) return;
       if (msg.sender?.id === currentUserId) return;
-      if (msg.status === "read") return;
-
       if (deliveredSet.current.has(msg.id)) return;
-      deliveredSet.current.add(msg.id);
 
+      deliveredSet.current.add(msg.id);
       deliverQueue.current.push(msg.id);
 
       if (!deliverTimer.current) {
@@ -85,12 +109,12 @@ export function useMessageReceipts({
 
   const markRead = useCallback(
     (msg: ChatMessage) => {
-      if (!msg.id) return;
+      if (!msg?.id) return;
+      if (!currentUserId) return;
       if (msg.sender?.id === currentUserId) return;
-
       if (readSet.current.has(msg.id)) return;
-      readSet.current.add(msg.id);
 
+      readSet.current.add(msg.id);
       readQueue.current.push(msg.id);
 
       if (!readTimer.current) {
@@ -100,26 +124,29 @@ export function useMessageReceipts({
         }, 400);
       }
 
-      // optimistic UI update (blue ticks)
+      // optimistic UI update
       onLocalUpdate?.((prev) =>
         prev.map((m) =>
           m.id === msg.id
-            ? { ...m, status: "read" }
+            ? { ...m, status: "seen" }
             : m
         )
-      );
+      );      
     },
     [currentUserId, flushRead, onLocalUpdate]
   );
 
-  /* ================= auto-detect delivered ================= */
+  /* ================= auto-deliver ================= */
 
   useEffect(() => {
     if (!currentUserId) return;
 
     messages.forEach((msg) => {
       if (!msg) return;
-      if (msg.status === "sent" || msg.status === "delivered") {
+      if (
+        msg.status === "sent" ||
+        msg.status === "delivered"
+      ) {
         markDelivered(msg);
       }
     });
@@ -143,7 +170,7 @@ export function useMessageReceipts({
   /* ================= public API ================= */
 
   return {
-    markRead,        // call when message enters viewport
-    markDelivered,  // exposed for WS events
+    markRead,
+    markDelivered,
   };
 }

@@ -188,20 +188,25 @@ export function useChatDrafts({
 
   return {
     draft,
-
+  
     /* granular setters */
     setText,
     setReply,
     addAttachment,
     removeAttachment,
-
+  
+    /* aliases for composer ergonomics */
+    save: setText,
+    clear: clearDraft,
+  
     /* lifecycle */
     clearDraft,
-
+  
     /* helpers */
     hasDraft:
       Boolean(draft.text.trim()) ||
       draft.attachments.length > 0 ||
       Boolean(draft.replyToId),
   };
+  
 }

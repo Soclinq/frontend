@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /* ================= Types ================= */
 
@@ -6,13 +6,10 @@ type Params = {
   /** container that scrolls */
   rootRef: React.RefObject<HTMLElement | null>;
 
-  /** called when an item is considered "seen" */
-  onVisible: (id: string) => void;
-
   /** percentage of visibility required */
   threshold?: number;
 
-  /** debounce time (ms) before marking seen */
+  /** debounce time (ms) before marking visible */
   delay?: number;
 };
 
@@ -20,18 +17,21 @@ type Params = {
 
 export function useViewportObserver({
   rootRef,
-  onVisible,
   threshold = 0.6,
   delay = 300,
 }: Params) {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const timersRef = useRef<Map<string, number>>(new Map());
-  const seenRef = useRef<Set<string>>(new Set());
+
+  const [visibleIds, setVisibleIds] = useState<Set<string>>(
+    () => new Set()
+  );
 
   /* ================= setup ================= */
 
   useEffect(() => {
-    if (!rootRef.current) return;
+    const root = rootRef.current;
+    if (!root) return;
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
@@ -40,22 +40,24 @@ export function useViewportObserver({
           const id = el.dataset.msgId;
           if (!id) return;
 
-          // already marked seen
-          if (seenRef.current.has(id)) return;
-
-          if (entry.isIntersecting && entry.intersectionRatio >= threshold) {
-            // debounce
+          if (
+            entry.isIntersecting &&
+            entry.intersectionRatio >= threshold
+          ) {
             if (timersRef.current.has(id)) return;
 
             const t = window.setTimeout(() => {
-              seenRef.current.add(id);
+              setVisibleIds((prev) => {
+                if (prev.has(id)) return prev;
+                const next = new Set(prev);
+                next.add(id);
+                return next;
+              });
               timersRef.current.delete(id);
-              onVisible(id);
             }, delay);
 
             timersRef.current.set(id, t);
           } else {
-            // cancel pending debounce
             const t = timersRef.current.get(id);
             if (t) {
               window.clearTimeout(t);
@@ -65,34 +67,24 @@ export function useViewportObserver({
         });
       },
       {
-        root: rootRef.current,
+        root,
         threshold,
       }
     );
+
+    /* observe existing children */
+    const nodes =
+      root.querySelectorAll<HTMLElement>("[data-msg-id]");
+    nodes.forEach((n) => observerRef.current?.observe(n));
 
     return () => {
       observerRef.current?.disconnect();
       timersRef.current.forEach((t) => window.clearTimeout(t));
       timersRef.current.clear();
     };
-  }, [rootRef, onVisible, threshold, delay]);
-
-  /* ================= observe / unobserve ================= */
-
-  const observe = (el: HTMLElement | null) => {
-    if (!el || !observerRef.current) return;
-    observerRef.current.observe(el);
-  };
-
-  const unobserve = (el: HTMLElement | null) => {
-    if (!el || !observerRef.current) return;
-    observerRef.current.unobserve(el);
-  };
+  }, [rootRef, threshold, delay]);
 
   /* ================= API ================= */
 
-  return {
-    observe,
-    unobserve,
-  };
+  return visibleIds;
 }

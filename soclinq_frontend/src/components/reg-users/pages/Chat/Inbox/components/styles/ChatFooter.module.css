@@ -1,0 +1,647 @@
+/* =========================
+   ✅ WhatsApp LIGHT Chat Footer
+========================= */
+
+.waFooter {
+  position: sticky;
+  bottom: 0;
+  width: 100%;
+  padding: 10px 10px 14px;
+  background: rgba(248, 248, 248, 0.96);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* =========================
+   ✅ Emoji Popup (Light)
+========================= */
+
+.waEmojiPopup {
+  position: absolute;
+  bottom: 72px;
+  left: 10px;
+  width: min(340px, calc(100vw - 20px));
+  border-radius: 16px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0px 14px 30px rgba(0, 0, 0, 0.18);
+  animation: waEmojiDrop 160ms ease-out;
+  transform-origin: bottom left;
+}
+
+
+@keyframes waEmojiDrop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0px) scale(1);
+  }
+}
+
+/* ✅ Single line row container */
+.waFooterRow {
+  width: 100%;
+  display: flex;
+  align-items: flex-end; /* keeps circle button aligned nicely */
+  gap: 10px;
+}
+
+/* ✅ Input bubble stays full width */
+.waInputBox {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ✅ Make input bubble same height as right button */
+.waInputBox {
+  height: 46px;
+  display: flex;
+  align-items: center;
+
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: 24px;
+  padding: 0 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* input */
+.waInput {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+/* ✅ Right button same height */
+.waSendBtn,
+.waMicBtnGreen {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  border-radius: 999px;
+}
+
+
+/* =========================
+   ✅ Input Row Container
+========================= */
+
+.waInputBox {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.07);
+  border-radius: 24px;
+  padding: 8px 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+}
+
+/* =========================
+   ✅ Icons Buttons
+========================= */
+
+.waIconBtn {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: rgba(20, 20, 20, 0.72);
+  cursor: pointer;
+  transition: transform 120ms ease, background 140ms ease, opacity 140ms ease;
+  user-select: none;
+}
+
+.waIconBtn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.waIconBtn:active {
+  transform: scale(0.92);
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.waIconBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.waIconBtn input[type="file"] {
+  display: none;
+}
+
+/* =========================
+   ✅ Text Input
+========================= */
+
+.waInput {
+  flex: 1;
+  height: 38px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: rgba(10, 10, 10, 0.92);
+  font-size: 14.5px;
+  padding: 0 6px;
+  caret-color: #25d366;
+}
+
+.waInput::placeholder {
+  color: rgba(10, 10, 10, 0.38);
+}
+
+.waInput:disabled {
+  opacity: 0.55;
+}
+
+/* =========================
+   ✅ Send Button
+========================= */
+
+.waSendBtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: none;
+  outline: none;
+  background: #25d366;
+  color: rgba(0, 0, 0, 0.85);
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(37, 211, 102, 0.28);
+  transition: transform 120ms ease, filter 160ms ease, opacity 160ms ease;
+}
+
+.waSendBtn:hover {
+  filter: brightness(1.04);
+}
+
+.waSendBtn:active {
+  transform: scale(0.94);
+}
+
+.waSendBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* spinner */
+.spinMini {
+  animation: waSpin 800ms linear infinite;
+}
+
+@keyframes waSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================
+   ✅ Mic Wrapper
+========================= */
+
+.waMicWrap {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  position: relative;
+}
+
+/* =========================
+   ✅ Mic Button
+========================= */
+
+.waMicBtnGreen {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  border: none;
+  outline: none;
+  background: #25d366;
+  color: rgba(0, 0, 0, 0.9);
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(37, 211, 102, 0.28);
+  transition: transform 120ms ease, filter 160ms ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.waMicBtnGreen:hover {
+  filter: brightness(1.04);
+}
+
+.waMicBtnGreen:active {
+  transform: scale(0.92);
+}
+
+.waMicBtnGreen:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* pulse while recording */
+.waMicBtnRecording {
+  animation: waMicPulse 850ms ease-in-out infinite;
+}
+
+@keyframes waMicPulse {
+  0% {
+    box-shadow: 0 0 0 rgba(37, 211, 102, 0),
+      0 10px 22px rgba(37, 211, 102, 0.28);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(37, 211, 102, 0.35),
+      0 18px 36px rgba(37, 211, 102, 0.28);
+    transform: scale(1.04);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(37, 211, 102, 0),
+      0 10px 22px rgba(37, 211, 102, 0.28);
+    transform: scale(1);
+  }
+}
+
+/* =========================
+   ✅ Recording HUD
+========================= */
+
+.waRecordingHud {
+  position: absolute;
+  right: 58px;
+  bottom: 0px;
+  min-width: 250px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 0 12px;
+  border-radius: 24px;
+
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.16);
+
+  animation: waHudSlideIn 160ms ease-out;
+}
+
+@keyframes waHudSlideIn {
+  from {
+    opacity: 0;
+    transform: translateX(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0px) scale(1);
+  }
+}
+
+/* timer */
+.waRecRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.waRecDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #ff3b30;
+  box-shadow: 0 0 10px rgba(255, 59, 48, 0.35);
+  animation: waBlink 900ms ease-in-out infinite;
+}
+
+@keyframes waBlink {
+  0% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+}
+
+.waRecTime {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+  color: rgba(0, 0, 0, 0.78);
+}
+
+/* waveform */
+.waWaveCanvasLine {
+  width: 220px;
+  height: 36px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.035);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* slide cancel */
+.waCancelHintRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  justify-content: space-between;
+}
+
+.waTrashIcon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  color: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: transform 160ms ease, color 160ms ease;
+}
+
+.waTrashIcon[data-cancel="triggered"] {
+  color: rgba(255, 59, 48, 0.95);
+  background: rgba(255, 59, 48, 0.1);
+  border-color: rgba(255, 59, 48, 0.35);
+  animation: waTrashShake 240ms ease-in-out;
+}
+
+@keyframes waTrashShake {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(-8deg) scale(1.04);
+  }
+  50% {
+    transform: rotate(8deg) scale(1.04);
+  }
+  75% {
+    transform: rotate(-6deg) scale(1.02);
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+.waSlideCancel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(0, 0, 0, 0.38);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.waSlideCancelText {
+  transition: transform 90ms linear, opacity 90ms linear;
+}
+
+/* =========================
+   ✅ Lock hint
+========================= */
+
+.waLockHintTop {
+  position: absolute;
+  right: 12px;
+  bottom: 58px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+
+  padding: 10px 10px 8px;
+  border-radius: 14px;
+
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.16);
+
+  animation: waLockFloatIn 180ms ease-out;
+}
+
+@keyframes waLockFloatIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0px) scale(1);
+  }
+}
+
+.waLockIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  
+
+  background: rgba(0, 0, 0, 0.045);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.68);
+}
+
+.waLockAnim {
+  animation: waLockBounce 520ms ease-in-out;
+}
+
+@keyframes waLockBounce {
+  0% {
+    transform: translateY(0px) scale(1);
+  }
+  40% {
+    transform: translateY(-8px) scale(1.06);
+  }
+  70% {
+    transform: translateY(2px) scale(0.98);
+  }
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+}
+
+.waLockText {
+  font-size: 11.5px;
+  color: rgba(0, 0, 0, 0.45);
+  font-weight: 600;
+}
+
+/* =========================
+   ✅ Locked badge
+========================= */
+
+.waLockedBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+
+  padding: 6px 10px;
+  border-radius: 999px;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  color: rgba(0, 0, 0, 0.75);
+  background: rgba(37, 211, 102, 0.12);
+  border: 1px solid rgba(37, 211, 102, 0.3);
+}
+
+/* =========================
+   ✅ Locked Actions
+========================= */
+
+.waLockedActions {
+  position: absolute;
+  right: 0px;
+  bottom: 58px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  animation: waLockedActionsIn 180ms ease-out;
+}
+
+@keyframes waLockedActionsIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0px) scale(1);
+  }
+}
+
+.waLockedCancelBtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  border: none;
+  outline: none;
+
+  display: grid;
+  place-items: center;
+
+  background: rgba(255, 59, 48, 0.12);
+  border: 1px solid rgba(255, 59, 48, 0.3);
+  color: rgba(0, 0, 0, 0.75);
+
+  cursor: pointer;
+  transition: transform 120ms ease, filter 160ms ease;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
+}
+
+.waLockedCancelBtn:active {
+  transform: scale(0.92);
+}
+
+.waLockedSendBtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 999px;
+  border: none;
+  outline: none;
+
+  display: grid;
+  place-items: center;
+
+  background: #25d366;
+  color: rgba(0, 0, 0, 0.9);
+
+  cursor: pointer;
+  transition: transform 120ms ease, filter 160ms ease;
+
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.16);
+}
+
+.waLockedSendBtn:active {
+  transform: scale(0.92);
+}
+
+/* =========================
+   ✅ Audio Error
+========================= */
+
+.waAudioError {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  padding: 10px 12px;
+  border-radius: 14px;
+
+  background: rgba(255, 59, 48, 0.1);
+  border: 1px solid rgba(255, 59, 48, 0.22);
+
+  color: rgba(0, 0, 0, 0.78);
+  font-size: 13px;
+  font-weight: 600;
+
+  animation: waErrorIn 160ms ease-out;
+}
+
+@keyframes waErrorIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0px);
+  }
+}
+
+/* =========================
+   ✅ Small screens
+========================= */
+
+@media (max-width: 420px) {
+  .waRecordingHud {
+    min-width: 210px;
+    right: 54px;
+    padding: 0 10px;
+  }
+
+  .waWaveCanvasLine {
+    width: 175px;
+  }
+
+  .waEmojiPopup {
+    width: calc(100vw - 20px);
+  }
+}

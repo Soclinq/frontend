@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import type { ChatAdapter } from "@/types/chatAdapterTypes";
 import type { ChatMessage } from "@/types/chat";
 
@@ -10,9 +10,6 @@ import {
   useChatMessageDeduplication,
   useChatOptimisticReconciliation,
   useChatMessageIntegrity,
-  useChatRetry,
-  useChatUploads,
-  useChatTyping,
   useChatUnreadTracker,
   useChatTabSynchronization,
   useChatNetworkAwareness,
@@ -20,6 +17,9 @@ import {
   useChatVisibilityLifecycle,
   useConnectionStates,
   useMessageReceipts,
+  useReactionUI,
+  useChatTypingEmitter,
+  useChatTypingState,
 } from "@/hooks/ChatThread";
 
 import { useChatThreadWS } from "@/hooks/useChatThreadWS";
@@ -33,8 +33,9 @@ export function useChatThreadController(
 ) {
   const notify = useNotify();
   const router = useRouter();
-  const { user } = useUser();
-  const currentUserId = user?.id;
+  const { user } = useUser(); // UserProfile | null
+
+  const currentUserId = user?.identity.id;
 
   /* ================= Access Guard ================= */
   const [guardLoading, setGuardLoading] = useState(true);
@@ -54,13 +55,18 @@ export function useChatThreadController(
   });
 
   /* ================= Messages ================= */
-  const { messages, setMessages, loading, error } =
-    useChatMessages({ threadId, adapter });
+  const {
+    messages,
+    setMessages,
+    loading,
+    error,
+  } = useChatMessages({ threadId, adapter });
 
   useChatMessageDeduplication(messages, setMessages);
   useChatOptimisticReconciliation(messages, setMessages);
 
-  const safeMessages = useChatMessageIntegrity(messages);
+  const safeMessages: ChatMessage[] =
+    useChatMessageIntegrity(messages);
 
   /* ================= WebSocket ================= */
   const ws = useChatThreadWS({
@@ -72,20 +78,23 @@ export function useChatThreadController(
 
   useConnectionStates(ws.connected);
 
-  /* ================= Typing ================= */
-  const typing = useChatTyping(adapter, threadId);
+  /* ================= Reactions ================= */
+  const reactionUI = useReactionUI({
+    currentUserId,
+    setMessages,
+  });
 
-  /* ================= Seen / receipts ================= */
+  /* ================= Typing ================= */
+  const typingEmitter = useChatTypingEmitter(adapter, threadId);
+  const typingUsers = useChatTypingState(threadId);
+
+  /* ================= Receipts ================= */
   const receipts = useMessageReceipts({
     messages,
     adapter,
   });
 
-  /* ================= Retry / uploads ================= */
-  useChatRetry(messages, ws);
-  useChatUploads(messages, ws, notify);
-
-  /* ================= Unread + tabs ================= */
+  /* ================= Unread + Tabs ================= */
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const unread = useChatUnreadTracker({
@@ -99,24 +108,41 @@ export function useChatThreadController(
     onSeenSync: unread.markAllRead,
   });
 
-  /* ================= Network + safety ================= */
+  /* ================= Network + Safety ================= */
   const network = useChatNetworkAwareness();
+
   const rateLimiter = useChatRateLimiter({
     max: 5,
     perMs: 3000,
   });
 
   useChatVisibilityLifecycle({
-    onHidden: typing.stop,
+    onHidden: typingEmitter.stop,
   });
 
+  /* ================= PUBLIC API ================= */
   return {
+    /* ----- guards ----- */
     guardLoading,
 
+    /* ----- current user (PUBLIC projection) ----- */
+    currentUser: user
+      ? {
+          id: user.identity.id,
+          username: user.identity.username ?? null,
+          full_name: user.identity.full_name ?? null,
+          photo: user.identity.photo ?? null,
+          role: user.role,
+          is_verified: user.security.is_verified,
+        }
+      : null,
+
+    /* ----- refs ----- */
     refs: {
       containerRef,
     },
 
+    /* ----- data ----- */
     data: {
       messages: safeMessages,
       rawMessages: messages,
@@ -124,16 +150,34 @@ export function useChatThreadController(
       error,
       unreadCount: unread.unreadCount,
       online: network.online,
+      typingUsers,
     },
 
+    /* ----- actions (NORMALIZED) ----- */
     actions: {
+      /* messages */
       setMessages,
-      typing,
+
+      /* typing */
+      typing: typingEmitter,
+
+      /* receipts */
       receipts,
+
+      /* unread sync */
       tabSync,
+
+      /* rate limit */
       rateLimiter,
+
+      /* reactions (single, stable API) */
+      reactions: {
+        react: reactionUI.toggleReactionLocal,
+        spawnBurst: reactionUI.spawnBurst,
+      },
     },
 
+    /* ----- transport ----- */
     ws,
   };
 }

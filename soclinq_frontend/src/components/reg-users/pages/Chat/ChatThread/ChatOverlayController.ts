@@ -4,24 +4,25 @@ import { useCallback } from "react";
 import {
   useChatOverlayCoordinator,
   useChatFocusManagement,
-  useReactionUI,
 } from "@/hooks/ChatThread";
 import type { ChatMessage } from "@/types/chat";
 
 type Position = { x: number; y: number };
 
+type Params = {
+  inputRef: React.RefObject<
+    HTMLInputElement | HTMLTextAreaElement | null
+  >;
+  onCloseReactionUI?: () => void;
+};
+
+
 export function useChatOverlayController({
   inputRef,
-}: {
-  inputRef: React.RefObject<
-    HTMLInputElement | HTMLTextAreaElement
-  >;
-}) {
+  onCloseReactionUI,
+}: Params) {
   /* ================= Overlay Core ================= */
   const overlay = useChatOverlayCoordinator();
-
-  /* ================= Reaction UI ================= */
-  const reactionUI = useReactionUI();
 
   /* ================= Focus ================= */
   useChatFocusManagement({
@@ -31,32 +32,16 @@ export function useChatOverlayController({
 
   /* ================= Open helpers ================= */
 
-  const openContextMenu = useCallback(
-    (message: ChatMessage, pos: Position) => {
-      overlay.open("CONTEXT_MENU", {
-        message,
-        pos,
-      });
-    },
-    [overlay]
-  );
-
   const openReactionPicker = useCallback(
     (message: ChatMessage, pos: Position) => {
-      overlay.open("REACTION_PICKER", {
-        message,
-        pos,
-      });
+      overlay.open("REACTION_PICKER", { message, pos });
     },
     [overlay]
   );
 
   const openEmojiMart = useCallback(
     (message: ChatMessage, pos: Position) => {
-      overlay.open("EMOJI_MART", {
-        message,
-        pos,
-      });
+      overlay.open("EMOJI_MART", { message, pos });
     },
     [overlay]
   );
@@ -83,25 +68,21 @@ export function useChatOverlayController({
 
   const closeOverlay = useCallback(() => {
     overlay.close();
-    reactionUI.reset();
-  }, [overlay, reactionUI]);
+    onCloseReactionUI?.(); // ✅ safe, optional
+  }, [overlay, onCloseReactionUI]);
 
   /* ================= Public API ================= */
 
   return {
-    // raw state
     active: overlay.overlay.type,
     data: overlay.overlay.data,
 
-    // open actions
-    openContextMenu,
     openReactionPicker,
     openEmojiMart,
     openCamera,
     openDeleteSheet,
     openForwardSheet,
 
-    // helpers
     isOpen: overlay.isOpen,
     close: closeOverlay,
   };

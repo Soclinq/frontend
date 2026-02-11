@@ -1,4 +1,4 @@
-useRouteThreadGuard.tsimport { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { authFetch } from "@/lib/authFetch";
 import type { ChatAdapter } from "@/types/chatAdapterTypes";
 

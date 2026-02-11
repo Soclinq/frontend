@@ -4,10 +4,13 @@ import type { ChatMessage } from "@/types/chat";
 type Options = {
   threadId: string;
   messages: ChatMessage[];
-  containerRef: React.RefObject<HTMLElement>;
+  containerRef: React.RefObject<HTMLElement | null>;
 };
 
 const KEY = "soclinq_unread_v1";
+const BOTTOM_THRESHOLD = 24;
+
+/* ================= persistence ================= */
 
 function loadUnread(threadId: string): number {
   try {
@@ -30,6 +33,18 @@ function saveUnread(threadId: string, count: number) {
   } catch {}
 }
 
+/* ================= helpers ================= */
+
+function isAtBottom(el: HTMLElement | null) {
+  if (!el) return true;
+  return (
+    el.scrollHeight - el.scrollTop - el.clientHeight <
+    BOTTOM_THRESHOLD
+  );
+}
+
+/* ================= hook ================= */
+
 export function useChatUnreadTracker({
   threadId,
   messages,
@@ -39,30 +54,40 @@ export function useChatUnreadTracker({
     loadUnread(threadId)
   );
 
-  const lastSeenIdRef = useRef<string | null>(null);
+  const lastCountedIdRef = useRef<string | null>(null);
 
-  // track new incoming messages
+  /* ================= increment on new incoming ================= */
+
   useEffect(() => {
+    if (!messages.length) return;
+
     const last = messages[messages.length - 1];
     if (!last) return;
 
+    // ignore my messages or deleted messages
     if (last.isMine || last.deletedAt) return;
 
-    if (
+    // already counted this message
+    if (lastCountedIdRef.current === last.id) return;
+
+    const el = containerRef.current;
+    const shouldIncrement =
       document.visibilityState !== "visible" ||
-      !isAtBottom(containerRef.current)
-    ) {
-      setUnreadCount((c) => {
-        const next = c + 1;
+      !isAtBottom(el);
+
+    if (shouldIncrement) {
+      setUnreadCount((prev) => {
+        const next = prev + 1;
         saveUnread(threadId, next);
         return next;
       });
     }
 
-    lastSeenIdRef.current = last.id;
+    lastCountedIdRef.current = last.id;
   }, [messages, threadId, containerRef]);
 
-  // reset when user reaches bottom
+  /* ================= reset on scroll to bottom ================= */
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -74,9 +99,42 @@ export function useChatUnreadTracker({
       }
     }
 
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    el.addEventListener("scroll", onScroll, {
+      passive: true,
+    });
+
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+    };
   }, [threadId, containerRef]);
+
+  /* ================= reset on tab focus ================= */
+
+  useEffect(() => {
+    function onVisibilityChange() {
+      if (
+        document.visibilityState === "visible" &&
+        isAtBottom(containerRef.current)
+      ) {
+        setUnreadCount(0);
+        saveUnread(threadId, 0);
+      }
+    }
+
+    document.addEventListener(
+      "visibilitychange",
+      onVisibilityChange
+    );
+
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        onVisibilityChange
+      );
+    };
+  }, [threadId, containerRef]);
+
+  /* ================= public API ================= */
 
   function markAllRead() {
     setUnreadCount(0);
@@ -87,11 +145,4 @@ export function useChatUnreadTracker({
     unreadCount,
     markAllRead,
   };
-}
-
-function isAtBottom(el: HTMLElement | null) {
-  if (!el) return true;
-  return (
-    el.scrollHeight - el.scrollTop - el.clientHeight < 24
-  );
 }

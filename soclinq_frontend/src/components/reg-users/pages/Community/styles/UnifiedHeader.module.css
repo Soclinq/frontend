@@ -3,7 +3,7 @@
   top: 0;
   z-index: var(--z-sticky);
 
-  height: var(--chat-header-height);
+  height: var(--app-header-height);
 
   display: flex;
   align-items: center;

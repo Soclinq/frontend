@@ -1,0 +1,264 @@
+/* =========================
+   Root Header
+========================= */
+
+.header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+
+  height: var(--app-header-height);
+  padding: 0 var(--space-6);
+
+  display: flex;
+  align-items: center;
+
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+/* =========================
+   Shared Layout
+========================= */
+
+.normalRow,
+.selectionRow {
+  width: 100%;
+  height: 100%;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* =========================
+   Buttons
+========================= */
+
+.iconBtn,
+.backBtn,
+.closeSelectionBtn {
+  min-width: var(--tap-target-min);
+  min-height: var(--tap-target-min);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-pill);
+
+  color: var(--icon);
+  cursor: pointer;
+
+  transition:
+    background-color var(--fast),
+    transform var(--fast),
+    opacity var(--fast);
+}
+
+.iconBtn:hover,
+.backBtn:hover,
+.closeSelectionBtn:hover {
+  background: var(--state-hover-bg);
+}
+
+.iconBtn:active,
+.backBtn:active,
+.closeSelectionBtn:active {
+  transform: scale(var(--state-active-scale));
+  background: var(--state-active-bg);
+}
+
+.iconBtn:disabled {
+  opacity: var(--state-disabled-opacity);
+  pointer-events: none;
+}
+
+.dangerBtn {
+  color: var(--danger);
+}
+
+.dangerBtn:hover {
+  background: var(--danger-soft);
+}
+
+/* =========================
+   Left Column
+========================= */
+
+.leftColumn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.avatarWrap {
+  width: 40px;
+  height: 40px;
+
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: var(--surface-3);
+  cursor: pointer;
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.placeholderAvatar {
+  color: var(--icon-muted);
+  font-size: 18px;
+}
+
+/* =========================
+   Title Block
+========================= */
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  height: 10px;
+}
+
+.title {
+  font-size: var(--text-title);
+  font-weight: var(--weight-heading);
+  line-height: var(--line-tight);
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subtitleRow {
+  margin-top: 2px;
+}
+
+.subtitle {
+  font-size: var(--text-caption);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================
+   Right Column
+========================= */
+
+.rightColumn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* =========================
+   Selection Mode
+========================= */
+
+.selectionRow {
+  gap: var(--space-4);
+}
+
+.selectionCount {
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+}
+
+.selectionActions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* =========================
+   Menus
+========================= */
+
+.menuWrap {
+  position: relative;
+}
+
+.menuList {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+
+  min-width: 220px;
+  padding: var(--space-2);
+
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-soft);
+
+  z-index: var(--z-dropdown);
+
+  display: flex;
+  flex-direction: column;
+}
+
+.menuList li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+
+  font-size: var(--text-sm);
+  color: var(--text-soft);
+
+  cursor: pointer;
+  user-select: none;
+
+  transition: background-color var(--fast);
+}
+
+.menuList li:hover {
+  background: var(--state-hover-bg);
+}
+
+.menuDivider {
+  height: 1px;
+  margin: var(--space-2) 0;
+  background: var(--divider);
+}
+
+/* =========================
+   Responsive Adjustments
+========================= */
+
+@media (max-width: 430px) {
+  .avatarWrap {
+    width: 36px;
+    height: 36px;
+  }
+
+  .title {
+    font-size: var(--text-lg);
+  }
+
+  .menuList {
+    min-width: 200px;
+  }
+}

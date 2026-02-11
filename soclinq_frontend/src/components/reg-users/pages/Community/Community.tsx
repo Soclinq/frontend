@@ -2,8 +2,7 @@
 
 import styles from "./styles/Community.module.css";
 import { useCommunityStore } from "@/hooks/useCommunityStore";
-import ChatShell from "./ChatShell";
-
+import ChatShell from "../Chat/Inbox/ChatShell";
 import AnnouncementsPanel from "./AnnouncementsPanel";
 import NearbySupportPanel from "./NearbySupportPanel";
 import { ReactElement } from "react";
@@ -12,7 +11,7 @@ export default function Community(): ReactElement {
   const store = useCommunityStore();
 
   return (
-    <section className={styles.comunity}>
+    <section className={styles.community}>
       {/* ✅ Chat should be full height */}
         <ChatShell />
 

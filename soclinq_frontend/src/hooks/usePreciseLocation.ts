@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useGeolocation } from "./useGeolocation";
 import { useIPLocation } from "./useIPLocation";
 import { useLocationFusion, LocationPacket } from "./useLocationFusion";
@@ -62,12 +62,23 @@ export function usePreciseLocation() {
   }, []);
 
   /* ---------- IP FALLBACK ---------- */
-  useIPLocation(true, (ip) => {
-    fusion.ingest({
-      ...ip,
-      source: "IP",
-    });
-  });
+  const handleIPLocation = useCallback(
+    (ip: {
+      lat: number;
+      lng: number;
+      accuracy: number;
+      timestamp: number;
+    }) => {
+      fusion.ingest({
+        ...ip,
+        source: "IP",
+      });
+    },
+    [fusion]
+  );
+  
+  useIPLocation(true, handleIPLocation);
+  
   
 
   /* ---------- MANUAL REFRESH ---------- */

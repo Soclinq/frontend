@@ -8,10 +8,11 @@ const SAFE_MESSAGE_TYPE = new Set([
 ]);
 
 export function useChatMessageIntegrity(
-  messages: ChatMessage[]
+  messages: ChatMessage[] | undefined | null
 ): ChatMessage[] {
   return useMemo(() => {
-    return messages.map((m) => {
+    if (!Array.isArray(messages)) return [];
+    return messages.map((m) => {  
       const safe: ChatMessage = {
         ...m,
 

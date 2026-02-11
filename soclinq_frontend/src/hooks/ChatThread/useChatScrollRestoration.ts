@@ -25,9 +25,10 @@ function saveScroll(threadId: string, value: number) {
 }
 
 export function useChatScrollRestoration(
-  containerRef: React.RefObject<HTMLElement>,
+  containerRef: React.RefObject<HTMLElement | null>,
   threadId: string
 ) {
+
   const restoredRef = useRef(false);
 
   // restore on mount
@@ -46,21 +47,25 @@ export function useChatScrollRestoration(
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
+  
+    const element = el; // lock non-null
+  
     let raf: number | null = null;
-
+  
     function onScroll() {
       if (raf) return;
       raf = requestAnimationFrame(() => {
-        saveScroll(threadId, el.scrollTop);
+        saveScroll(threadId, element.scrollTop);
         raf = null;
       });
     }
-
-    el.addEventListener("scroll", onScroll, { passive: true });
+  
+    element.addEventListener("scroll", onScroll, { passive: true });
+  
     return () => {
-      el.removeEventListener("scroll", onScroll);
+      element.removeEventListener("scroll", onScroll);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [threadId, containerRef]);
+  
 }

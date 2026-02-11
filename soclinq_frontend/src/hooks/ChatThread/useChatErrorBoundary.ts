@@ -4,9 +4,11 @@ type Options = {
   onError?: (error: unknown) => void;
 };
 
-export function useChatErrorBoundaryBridge({
-  onError,
-}: Options) {
+export function useChatErrorBoundary(
+  options: Options = {}
+) {
+  const { onError } = options;
+
   const reportError = useCallback(
     (error: unknown) => {
       try {

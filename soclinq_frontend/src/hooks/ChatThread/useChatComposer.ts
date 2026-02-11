@@ -1,156 +1,171 @@
-import { useCallback, useRef, useState } from "react";
-import type { ChatMessage, SendMessagePayload } from "@/types/chat";
+// hooks/ChatThread/useChatComposer.ts
 
-/* ================= TYPES ================= */
+import { nanoid } from "nanoid";
+import type {
+  ChatMessage,
+  ChatAttachment,
+  SendMessagePayload,
+} from "@/types/chat";
+import type { ChatAdapter } from "@/types/chatAdapterTypes";
+import type { PublicUserProfile } from "@/types/profile";
 
-type Params = {
-  threadId: string;
-  currentUserId: string;
-
-  connected: boolean;
-  sendMessageWS: (payload: SendMessagePayload) => void;
-
-  draft: {
+export function useChatComposer() {
+  function build({
+    text,
+    attachments,
+    replyTo,
+    hubId,
+    sender,
+  }: {
     text: string;
-    replyToId: string | null;
-    attachments: any[];
-  };
+    attachments: File[];
+    replyTo: ChatMessage["replyTo"];
+    hubId: string;
+    sender: PublicUserProfile;
+  }) {
+    const clientTempId = `tmp-${nanoid()}`;
+    const createdAt = new Date().toISOString();
 
-  clearDraft: () => void;
+    const optimisticAttachments: ChatAttachment[] = attachments.map(file => ({
+      id: nanoid(),
+      type: inferAttachmentType(file),
+      url: "", // server fills later
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type,
+    }));
+    
+    const payload: SendMessagePayload = {
+      clientTempId,
+      text: text.trim() || undefined,
+      messageType: optimisticAttachments.length > 0 ? "MEDIA" : "TEXT",
+      replyToId: replyTo?.id ?? null,
+      attachments: optimisticAttachments,   // ✅ FIXED
+    };
+    
+    const optimistic: ChatMessage = {
+      id: clientTempId,
+      clientTempId,
+      hubId,
 
-  uploadAttachments: (files: File[]) => Promise<any[]>;
+      messageType: payload.messageType,
+      text: payload.text,
 
-  queueOfflineMessage?: (item: {
-    clientTempId: string;
-    threadId: string;
-    payload: SendMessagePayload;
-    createdAt: number;
-  }) => Promise<void>;
+      sender: mapSender(sender),
 
-  encrypt?: (text: string) => Promise<string>;
-};
+      createdAt,
+      replyTo: replyTo ?? null,
+      attachments: optimisticAttachments,
+      isMine: true,
+      status: "sending",
+    };
 
-/* ================= HOOK ================= */
+    return { payload, optimistic };
+  }
 
-export function useChatComposer({
-  threadId,
-  currentUserId,
-  connected,
-  sendMessageWS,
-  draft,
-  clearDraft,
-  uploadAttachments,
-  queueOfflineMessage,
-  encrypt,
-}: Params) {
-  const [sending, setSending] = useState(false);
-  const inflightRef = useRef<Set<string>>(new Set());
+  /* =========================
+     BUILD VOICE MESSAGE
+  ========================= */
 
-  /* ================= HELPERS ================= */
-
-  const markInflight = (id: string) => {
-    inflightRef.current.add(id);
-    setTimeout(() => inflightRef.current.delete(id), 1000 * 60 * 10);
-  };
-
-  /* ================= SEND ================= */
-
-  const send = useCallback(async () => {
-    const hasText = Boolean(draft.text.trim());
-    const hasFiles = draft.attachments.length > 0;
-
-    if (!hasText && !hasFiles) return;
-    if (sending) return;
-
-    const clientTempId = `tmp-${Date.now()}`;
-
-    let encryptedText = draft.text;
-    if (encrypt && draft.text) {
-      try {
-        encryptedText = await encrypt(draft.text);
-      } catch {
-        encryptedText = draft.text;
-      }
-    }
+  function buildVoice({
+    file,
+    hubId,
+    sender,
+  }: {
+    file: File;
+    hubId: string;
+    sender: PublicUserProfile;
+  }) {
+    const clientTempId = `tmp-voice-${nanoid()}`;
+    const createdAt = new Date().toISOString();
 
     const payload: SendMessagePayload = {
       clientTempId,
-      text: encryptedText,
-      messageType: hasFiles ? "MEDIA" : "TEXT",
-      replyToId: draft.replyToId,
+      messageType: "MEDIA",
       attachments: [],
     };
 
-    clearDraft();
+    const optimistic: ChatMessage = {
+      id: clientTempId,
+      clientTempId,
+      hubId,
 
-    // OFFLINE → queue and bail
-    if (!connected) {
-      if (queueOfflineMessage) {
-        await queueOfflineMessage({
-          clientTempId,
-          threadId,
-          payload,
-          createdAt: Date.now(),
-        });
-      }
-      return;
-    }
+      messageType: "MEDIA",
 
-    try {
-      setSending(true);
+      sender: mapSender(sender),
 
-      // Upload first if needed
-      if (hasFiles) {
-        payload.attachments = await uploadAttachments(
-          draft.attachments.map((a) => a.file).filter(Boolean)
-        );
-      }
+      createdAt,
+      attachments: [
+        {
+          id: nanoid(),
+          type: "AUDIO",
+          url: "",
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type,
+        },
+      ],
+      isMine: true,
+      status: "sending",
+    };
 
-      if (inflightRef.current.has(clientTempId)) return;
+    return { payload, optimistic };
+  }
 
-      markInflight(clientTempId);
-      sendMessageWS(payload);
-    } finally {
-      setSending(false);
-    }
-  }, [
-    draft,
-    connected,
-    encrypt,
-    clearDraft,
-    queueOfflineMessage,
-    sendMessageWS,
-    uploadAttachments,
-    sending,
-  ]);
+  /* =========================
+     EDIT MESSAGE
+  ========================= */
 
-  /* ================= VOICE ================= */
-
-  const sendVoice = useCallback(
-    async (file: File) => {
-      if (!connected) return;
-
-      const clientTempId = `tmp-voice-${Date.now()}`;
-
-      const attachments = await uploadAttachments([file]);
-
-      const payload: SendMessagePayload = {
-        clientTempId,
-        messageType: "MEDIA",
-        attachments,
-      };
-
-      if (inflightRef.current.has(clientTempId)) return;
-
-      markInflight(clientTempId);
-      sendMessageWS(payload);
-    },
-    [connected, uploadAttachments, sendMessageWS]
-  );
+  async function edit({
+    messageId,
+    text,
+    adapter,
+  }: {
+    messageId: string;
+    text: string;
+    adapter: ChatAdapter;
+  }) {
+    await adapter.editMessage(messageId);
+  }
 
   return {
-    send,
-    sendVoice,
-    sending,
+    build,
+    buildVoice,
+    edit,
   };
+}
+
+/* =========================
+   HELPERS
+========================= */
+
+function mapSender(
+  user: PublicUserProfile | null | undefined
+): ChatMessage["sender"] {
+  if (!user) {
+    console.error("❌ mapSender received invalid user:", user);
+
+    return {
+      id: "unknown",
+      name: "Unknown",
+      photo: null,
+    };
+  }
+
+  return {
+    id: user.id,
+    name:
+      user.full_name ??
+      user.username ??
+      "Unknown",
+    photo: user.photo ?? null,
+  };
+}
+
+
+function inferAttachmentType(file: File): ChatAttachment["type"] {
+  if (file.type.startsWith("image/")) return "IMAGE";
+  if (file.type.startsWith("audio/")) return "AUDIO";
+  if (file.type.startsWith("video/")) return "VIDEO";
+  return "FILE";
 }

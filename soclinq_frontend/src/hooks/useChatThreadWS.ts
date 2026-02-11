@@ -1,22 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useWebSocketChat } from "@/hooks/useWebSocketChat";
 import type { ChatAdapter } from "@/types/chatAdapterTypes";
-import type { ChatMessage, ChatReaction } from "@/types/chat";
+import type { ChatMessage } from "@/types/chat";
 
 /* ================= TYPES ================= */
 
-type SeenByMap = Record<string, string>; // userId -> ISO timestamp
+type SeenByMap = Record<string, string>;
 
 type WSIncoming =
   | { type: "message:new"; payload: ChatMessage }
   | { type: "message:ack"; payload: ChatMessage }
   | { type: "message:delivered"; payload: { messageId: string } }
-  | {
-      type: "message:seen";
-      payload: { messageId: string; userId: string };
-    }
+  | { type: "message:seen"; payload: { messageId: string; userId: string } }
   | {
       type: "reaction:update";
       payload: {
@@ -26,14 +23,21 @@ type WSIncoming =
         action: "added" | "removed";
       };
     }
-  | { type: "typing:update"; payload: any }
+  | {
+      type: "typing:update";
+      payload: {
+        threadId: string;
+        userId: string;
+        name?: string;
+        isTyping: boolean;
+      };
+    }
   | { type: "message:delete"; payload: { messageId: string; deletedAt?: string } }
   | { type: "message:edit"; payload: ChatMessage }
   | {
       type: "presence:update";
       payload: {
-        userId?: string;
-        user?: { id: string };
+        userId: string;
         online: boolean;
         lastSeen?: string | null;
       };
@@ -41,37 +45,11 @@ type WSIncoming =
   | { type: "ERROR"; message: string }
   | { type: string; payload?: any };
 
-export type PresenceState = {
-  online: boolean;
-  lastSeen?: string | null;
-};
-
-export type PresenceMap = Record<string, PresenceState>;
-
 /* ================= HELPERS ================= */
-
-function isNearBottom(el: HTMLElement, threshold = 160) {
-  return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
-}
 
 function hashMessage(msg: ChatMessage) {
   return `${msg.clientTempId ?? ""}|${msg.text ?? ""}`;
 }
-
-/* ================= E2EE MANAGER ================= */
-
-type E2EEManager = {
-  enabled: boolean;
-  currentKeyId: string;
-  decrypt: (cipher: string, keyId: string) => Promise<string>;
-};
-
-const e2ee: E2EEManager =
-  (globalThis as any).SOC_E2EE ?? {
-    enabled: false,
-    currentKeyId: "default",
-    decrypt: async (t: string) => t,
-  };
 
 /* ================= HOOK ================= */
 
@@ -84,62 +62,27 @@ export function useChatThreadWS({
   threadId: string;
   adapter: ChatAdapter;
   setMessages: React.Dispatch<React.SetStateAction<ChatMessage[]>>;
-  currentUserId?: string;
+  currentUserId?: string | null;
 }) {
-  /* ---------- State ---------- */
+  /* ================= REFS ================= */
 
-  const [typingUsers, setTypingUsers] = useState<{ userId: string; name: string }[]>([]);
-  const [presenceMap, setPresenceMap] = useState<PresenceMap>({});
+  const knownHashes = useRef<Set<string>>(new Set());
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
+  /* ================= WS URL ================= */
 
-  /* ---------- Refs ---------- */
-
-  const knownMessageHashes = useRef<Set<string>>(new Set());
-  const typingTimers = useRef<Record<string, any>>({});
-  const autoScrollRef = useRef(true);
-
-  /* ---------- Batching ---------- */
-
-  const deliveredBatch = useRef<Set<string>>(new Set());
-  const deliveredTimer = useRef<number | null>(null);
-
-  const seenBatch = useRef<{ messageId: string; userId: string }[]>([]);
-  const seenTimer = useRef<number | null>(null);
-
-  /* ---------- WS URL ---------- */
+  const wsThread = adapter?.wsThread;
 
   const wsUrl = useMemo(() => {
     if (!threadId) return "";
-    return adapter.wsPath(threadId);
-  }, [threadId, adapter]);
-
-  /* ---------- Scroll ---------- */
-
-  const scrollToBottom = useCallback((smooth = true) => {
-    bottomRef.current?.scrollIntoView({
-      behavior: smooth ? "smooth" : "auto",
-    });
-  }, []);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-
-    const onScroll = () => {
-      autoScrollRef.current = isNearBottom(el);
-    };
-
-    el.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-
-    return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+    if (typeof wsThread !== "function") return "";
+  
+    return wsThread(threadId);
+  }, [threadId, wsThread]);
+  
 
   /* ================= WS CORE ================= */
 
-  const { connected, state, sendRaw, typing, typingStop } = useWebSocketChat({
+  const { connected, state, sendRaw } = useWebSocketChat({
     wsUrl,
     debug: false,
 
@@ -154,30 +97,17 @@ export function useChatThreadWS({
       /* ---------- MESSAGE NEW / ACK ---------- */
 
       if (evt.type === "message:new" || evt.type === "message:ack") {
-        let msg = normalizeMine(evt.payload);
-
-        if (e2ee.enabled && msg.text) {
-          try {
-            msg = {
-              ...msg,
-              text: await e2ee.decrypt(
-                msg.text,
-                msg.e2eeKeyId ?? e2ee.currentKeyId
-              ),
-            };
-          } catch {
-            msg = { ...msg, text: "🔒 Unable to decrypt message" };
-          }
-        }
-
+        const msg = normalizeMine(evt.payload);
         const hash = hashMessage(msg);
-        if (knownMessageHashes.current.has(hash)) return;
-        knownMessageHashes.current.add(hash);
+
+        if (knownHashes.current.has(hash)) return;
+        knownHashes.current.add(hash);
 
         setMessages((prev) => {
-          const idx = msg.clientTempId
-            ? prev.findIndex((m) => m.clientTempId === msg.clientTempId)
-            : -1;
+          const idx =
+            msg.clientTempId != null
+              ? prev.findIndex((m) => m.clientTempId === msg.clientTempId)
+              : -1;
 
           if (idx !== -1) {
             const copy = [...prev];
@@ -189,63 +119,46 @@ export function useChatThreadWS({
           return [...prev, { ...msg, status: "sent" }];
         });
 
-        if (autoScrollRef.current) scrollToBottom(true);
         return;
       }
 
-      /* ---------- DELIVERED (batched) ---------- */
+      /* ---------- DELIVERED ---------- */
 
       if (evt.type === "message:delivered") {
-        deliveredBatch.current.add(evt.payload.messageId);
-
-        if (!deliveredTimer.current) {
-          deliveredTimer.current = window.setTimeout(() => {
-            const ids = new Set(deliveredBatch.current);
-            deliveredBatch.current.clear();
-            deliveredTimer.current = null;
-
-            setMessages((prev) =>
-              prev.map((m) =>
-                ids.has(m.id)
-                  ? { ...m, status: m.status === "seen" ? "seen" : "delivered" }
-                  : m
-              )
-            );
-          }, 400);
-        }
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === evt.payload.messageId
+              ? {
+                  ...m,
+                  status: m.status === "seen" ? "seen" : "delivered",
+                }
+              : m
+          )
+        );
         return;
       }
 
-      /* ---------- SEEN (per-user, batched) ---------- */
+      /* ---------- SEEN ---------- */
 
       if (evt.type === "message:seen") {
-        seenBatch.current.push(evt.payload);
+        const { messageId, userId } = evt.payload;
 
-        if (!seenTimer.current) {
-          seenTimer.current = window.setTimeout(() => {
-            const batch = [...seenBatch.current];
-            seenBatch.current = [];
-            seenTimer.current = null;
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.id !== messageId) return m;
 
-            setMessages((prev) =>
-              prev.map((m) => {
-                const hits = batch.filter((b) => b.messageId === m.id);
-                if (!hits.length) return m;
+            const seenBy: SeenByMap = {
+              ...(m.seenBy ?? {}),
+              [userId]: new Date().toISOString(),
+            };
 
-                const seenBy: SeenByMap = { ...(m.seenBy ?? {}) };
-                hits.forEach((h) => {
-                  seenBy[h.userId] = new Date().toISOString();
-                });
-
-                return {
-                  ...m,
-                  seenBy,
-                  status: m.isMine ? "seen" : m.status,
-                };
-              })
-            );
-          }, 300);
-        }
+            return {
+              ...m,
+              seenBy,
+              status: m.isMine ? "seen" : m.status,
+            };
+          })
+        );
         return;
       }
 
@@ -253,65 +166,90 @@ export function useChatThreadWS({
 
       if (evt.type === "reaction:update") {
         const { messageId, emoji, action, userId } = evt.payload;
-
-        setMessages((prev) =>
-          prev.map((m) => {
+      
+        setMessages(prev =>
+          prev.map(m => {
             if (m.id !== messageId) return m;
-
+      
             const reactions = [...(m.reactions ?? [])];
-            const idx = reactions.findIndex((r) => r.emoji === emoji);
-
+      
+            const idx = reactions.findIndex(r => r.emoji === emoji);
+      
             if (action === "added") {
-              if (idx === -1) reactions.push({ emoji, count: 1 });
-              else reactions[idx] = { ...reactions[idx], count: reactions[idx].count + 1 };
-            } else {
-              if (idx !== -1) {
-                const c = reactions[idx].count - 1;
-                if (c <= 0) reactions.splice(idx, 1);
-                else reactions[idx] = { ...reactions[idx], count: c };
+              if (idx === -1) {
+                reactions.push({
+                  emoji,
+                  userIds: [userId],   // ✅ REQUIRED
+                  count: 1,
+                  reactedByMe: String(userId) === String(currentUserId),
+                });
+              } else {
+                const r = reactions[idx];
+      
+                if (!r.userIds.includes(userId)) {
+                  reactions[idx] = {
+                    ...r,
+                    userIds: [...r.userIds, userId],
+                    count: r.count + 1,
+                    reactedByMe:
+                      String(userId) === String(currentUserId)
+                        ? true
+                        : r.reactedByMe,
+                  };
+                }
               }
             }
-
-            let myReaction = m.myReaction ?? null;
-            if (String(userId) === String(currentUserId)) {
-              myReaction = action === "added" ? emoji : null;
+      
+            if (action === "removed" && idx !== -1) {
+              const r = reactions[idx];
+      
+              const nextUserIds = r.userIds.filter(id => id !== userId);
+              const nextCount = Math.max(0, r.count - 1);
+      
+              if (nextCount === 0) {
+                reactions.splice(idx, 1);
+              } else {
+                reactions[idx] = {
+                  ...r,
+                  userIds: nextUserIds,
+                  count: nextCount,
+                  reactedByMe:
+                    String(userId) === String(currentUserId)
+                      ? false
+                      : r.reactedByMe,
+                };
+              }
             }
+      
+            return {
+              ...m,
+              reactions,
+              myReaction:
+                String(userId) === String(currentUserId)
+                  ? action === "added"
+                    ? emoji
+                    : null
+                  : m.myReaction,
+            };
+          })
+        );
+      
+        return;
+      }
+      
 
-            return { ...m, reactions, myReaction };
+      /* ---------- TYPING (EMIT ONLY) ---------- */
+
+      if (evt.type === "typing:update") {
+        window.dispatchEvent(
+          new CustomEvent("chat:typing-ws", {
+            detail: evt.payload,
           })
         );
         return;
       }
 
-      /* ---------- TYPING ---------- */
-
-      if (evt.type === "typing:update") {
-        const u = evt.payload?.userId ?? evt.payload?.user?.id;
-        const name = evt.payload?.name ?? evt.payload?.user?.name ?? "Someone";
-        const isTyping = !!evt.payload?.isTyping;
-
-        if (!u || String(u) === String(currentUserId)) return;
-
-        if (typingTimers.current[u]) clearTimeout(typingTimers.current[u]);
-
-        if (isTyping) {
-          typingTimers.current[u] = setTimeout(() => {
-            setTypingUsers((p) => p.filter((x) => x.userId !== String(u)));
-            delete typingTimers.current[u];
-          }, 3000);
-
-          setTypingUsers((p) =>
-            p.some((x) => x.userId === String(u))
-              ? p
-              : [...p, { userId: String(u), name }]
-          );
-        } else {
-          setTypingUsers((p) => p.filter((x) => x.userId !== String(u)));
-        }
-        return;
-      }
-
-      /* ---------- DELETE / EDIT ---------- */
+      /* ---------- DELETE ---------- */
 
       if (evt.type === "message:delete") {
         setMessages((prev) =>
@@ -319,7 +257,8 @@ export function useChatThreadWS({
             m.id === evt.payload.messageId
               ? {
                   ...m,
-                  deletedAt: evt.payload.deletedAt ?? new Date().toISOString(),
+                  deletedAt:
+                    evt.payload.deletedAt ?? new Date().toISOString(),
                   text: "",
                   attachments: [],
                   reactions: [],
@@ -330,6 +269,8 @@ export function useChatThreadWS({
         );
         return;
       }
+
+      /* ---------- EDIT ---------- */
 
       if (evt.type === "message:edit") {
         const edited = normalizeMine(evt.payload);
@@ -342,16 +283,11 @@ export function useChatThreadWS({
       /* ---------- PRESENCE ---------- */
 
       if (evt.type === "presence:update") {
-        const u = evt.payload.userId ?? evt.payload.user?.id;
-        if (!u) return;
-
-        setPresenceMap((p) => ({
-          ...p,
-          [String(u)]: {
-            online: !!evt.payload.online,
-            lastSeen: evt.payload.lastSeen ?? null,
-          },
-        }));
+        window.dispatchEvent(
+          new CustomEvent("chat:presence-ws", {
+            detail: evt.payload,
+          })
+        );
       }
     },
   });
@@ -371,34 +307,17 @@ export function useChatThreadWS({
     [sendRaw]
   );
 
-  /* ---------- Cleanup ---------- */
-
-  
-  useEffect(() => {
-    if (!connected) setTypingUsers([]);
-  }, [connected]);
+  /* ================= RESET ON THREAD CHANGE ================= */
 
   useEffect(() => {
-    Object.values(typingTimers.current).forEach(clearTimeout);
-    typingTimers.current = {};
-    setTypingUsers([]);
-    setPresenceMap({});
+    knownHashes.current.clear();
   }, [threadId]);
+
+  /* ================= PUBLIC API ================= */
 
   return {
     connected,
     wsState: state,
-
-    typingUsers,
-    presenceMap,
-
-    containerRef,
-    bottomRef,
-
-    scrollToBottom,
-    typing,
-    typingStop,
-
     sendMessageWS,
   };
 }

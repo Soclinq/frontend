@@ -12,8 +12,8 @@ import {
 
 type Options = {
   threadId: string;
-  containerRef: React.RefObject<HTMLDivElement>;
-  bottomRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  bottomRef: React.RefObject<HTMLDivElement | null>;
   messages: ChatMessage[];
 };
 
@@ -23,24 +23,22 @@ export function useChatViewAdapter({
   bottomRef,
   messages,
 }: Options) {
-  /* ================= Scroll ================= */
+  /* ================= Scroll restore ================= */
 
   useChatScrollRestoration(containerRef, threadId);
 
-  const {
-    isAtBottom,
-    scrollToBottom,
-    onUserScroll,
-  } = useScrollAnchoring({
+  const anchoring = useScrollAnchoring({
     containerRef,
     bottomRef,
+    itemCount: messages.length,
   });
 
   /* ================= Viewport ================= */
 
-  const visibleMessageIds =
-    useViewportObserver(containerRef);
-
+  const visibleMessageIds = useViewportObserver({
+    rootRef: containerRef,
+  });
+  
   /* ================= Render Guard ================= */
 
   const renderMessages = useChatRenderGuard(messages);
@@ -48,8 +46,8 @@ export function useChatViewAdapter({
   /* ================= Derived ================= */
 
   const showScrollToBottom = useMemo(() => {
-    return !isAtBottom;
-  }, [isAtBottom]);
+    return !anchoring.isNearBottom();
+  }, [anchoring]);
 
   /* ================= API ================= */
 
@@ -59,10 +57,16 @@ export function useChatViewAdapter({
 
     // scroll helpers
     scroll: {
-      isAtBottom,
-      scrollToBottom,
-      onUserScroll,
+      isNearBottom: anchoring.isNearBottom,
       showScrollToBottom,
+      scrollToMessage: anchoring.scrollToMessage,
+      highlightedId: anchoring.highlightedId,
+
+      // prepend-safe loading
+      captureAnchorBeforePrepend:
+        anchoring.captureAnchorBeforePrepend,
+      restoreAnchorAfterPrepend:
+        anchoring.restoreAnchorAfterPrepend,
     },
 
     // viewport intelligence

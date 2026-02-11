@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import type { ChatMessage, SendMessagePayload } from "@/types/chat";
 import type { ChatAdapter } from "@/types/chatAdapterTypes";
+import type { PublicUserProfile } from "@/types/profile";
 
 import {
   useChatComposer,
@@ -11,15 +12,16 @@ import {
   useChatRateLimiter,
   useChatNetworkAwareness,
   useChatErrorBoundary,
-  useChatTyping,
+  useChatRetry,
 } from "@/hooks/ChatThread";
 
+import { useChatTypingEmitter } from "@/hooks/ChatThread/useChatTypingEmitter";
 import { queueOfflineMessage } from "@/lib/chatOfflineQueue";
 
 type Options = {
   threadId: string;
   adapter: ChatAdapter;
-  currentUserId: string;
+  currentUser: PublicUserProfile | null;
   sendMessageWS: (payload: SendMessagePayload) => void;
   addOptimisticMessage: (msg: ChatMessage) => void;
 };
@@ -27,109 +29,104 @@ type Options = {
 export function useChatComposerController({
   threadId,
   adapter,
-  currentUserId,
+  currentUser,
   sendMessageWS,
   addOptimisticMessage,
 }: Options) {
-  /* ================= Core input ================= */
+  /* ================= Core state ================= */
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
-
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
   /* ================= Hooks ================= */
   const composer = useChatComposer();
-  const drafts = useChatDrafts(threadId);
-  const uploads = useChatUploads(adapter);
-  const typing = useChatTyping(adapter, threadId);
+  const drafts = useChatDrafts({ threadId });
 
-  const rateLimiter = useChatRateLimiter({
-    max: 5,
-    perMs: 3000,
+  const uploads = useChatUploads({
+    uploadEndpoint: adapter.uploadEndpoint,
+    maxParallel: 2,
   });
 
+  const typing = useChatTypingEmitter(adapter, threadId);
+  const rateLimiter = useChatRateLimiter({ max: 5, perMs: 3000 });
   const network = useChatNetworkAwareness();
   const reportError = useChatErrorBoundary();
 
-  /* ================= Derived ================= */
-  const canSend = useMemo(() => {
-    return Boolean(
-      input.trim() ||
-        attachments.length > 0 ||
-        editingId
-    );
-  }, [input, attachments, editingId]);
+  /* ================= Retry ================= */
+  useChatRetry({
+    onRetryMessage: async (msg) => {
+      if (msg.messageType === "SYSTEM") return;
 
-  /* ================= Draft sync ================= */
+      sendMessageWS({
+        clientTempId: msg.clientTempId ?? msg.id,
+        messageType: msg.messageType,
+        text: msg.text,
+        replyToId: msg.replyTo?.id ?? null,
+        attachments: msg.attachments,
+      });
+    },
+  });
+
+  /* ================= Derived ================= */
+  const canSend = useMemo(
+    () => Boolean(input.trim() || attachments.length || editingId),
+    [input, attachments, editingId]
+  );
+
+  /* ================= Input ================= */
   function updateInput(v: string) {
     setInput(v);
     drafts.save(v);
-    typing.send();
+    typing.send(); // ✅ emit typing:start
   }
 
-  /* ================= Reply / Edit ================= */
-  function startReply(msg: ChatMessage) {
-    setReplyTo(msg);
-  }
-
-  function cancelReply() {
-    setReplyTo(null);
-  }
-
-  function startEdit(msg: ChatMessage) {
-    setEditingId(msg.id);
-    setInput(msg.text || "");
-  }
-
-  function cancelEdit() {
-    setEditingId(null);
-    setInput("");
-  }
-
-  /* ================= SEND PIPELINE ================= */
+  /* ================= Send ================= */
   async function send() {
-    if (!canSend) return;
-
-    if (!rateLimiter.canSend()) {
-      return;
-    }
-
+    if (!currentUser) return;
+    const hasContent =
+        Boolean(input.trim()) ||
+        attachments.length > 0 ||
+        editingId !== null;
+  
+    if (!hasContent || !rateLimiter.canSend()) return;
+    
     rateLimiter.registerSend();
     typing.stop();
-
+  
+    const currentAttachments = attachments;
+    const currentInput = input;
+    const currentReply = replyTo;
+  
     try {
-      // EDIT FLOW
       if (editingId) {
         await composer.edit({
           messageId: editingId,
-          text: input.trim(),
+          text: currentInput.trim(),
           adapter,
         });
-
-        cancelEdit();
+  
+        setEditingId(null);
+        setInput("");
         return;
       }
-
-      // BUILD PAYLOAD
+  
       const built = composer.build({
-        text: input,
-        attachments,
-        replyTo,
-        threadId,
-        senderId: currentUserId,
+        text: currentInput,
+        attachments: currentAttachments,
+        replyTo: currentReply,
+        hubId: threadId,
+        sender: currentUser,
       });
-
-      // optimistic message
+  
       addOptimisticMessage(built.optimistic);
-
-      // clear UI early
+  
+      // ✅ Clear UI AFTER capture
       setInput("");
       setAttachments([]);
-      cancelReply();
+      setReplyTo(null);
       drafts.clear();
-
-      // OFFLINE QUEUE
+  
       if (!network.online) {
         await queueOfflineMessage({
           clientTempId: built.payload.clientTempId,
@@ -139,29 +136,34 @@ export function useChatComposerController({
         });
         return;
       }
-
-      // UPLOAD (if any)
-      if (attachments.length) {
-        const uploaded = await uploads.upload(
-          attachments
-        );
-        built.payload.attachments = uploaded;
+  
+      if (uploads && currentAttachments.length) {
+        for (const file of currentAttachments) {
+          await uploads.enqueueUpload(file, {
+            threadId,
+            clientTempId: built.payload.clientTempId,
+          });
+        }
       }
-
-      // SEND WS
+  
       sendMessageWS(built.payload);
     } catch (err) {
       reportError(err);
     }
   }
+  
 
-  /* ================= VOICE ================= */
+  /* ================= Voice ================= */
   async function sendVoice(file: File) {
+    if (!currentUser) return;
+
+    typing.stop(); // ✅ voice cancels typing
+
     try {
       const built = composer.buildVoice({
         file,
-        threadId,
-        senderId: currentUserId,
+        hubId: threadId,
+        sender: currentUser,
       });
 
       addOptimisticMessage(built.optimistic);
@@ -176,8 +178,12 @@ export function useChatComposerController({
         return;
       }
 
-      const uploaded = await uploads.upload([file]);
-      built.payload.attachments = uploaded;
+      if (uploads) {
+        await uploads.enqueueUpload(file, {
+          threadId,
+          clientTempId: built.payload.clientTempId,
+        });
+      }
 
       sendMessageWS(built.payload);
     } catch (err) {
@@ -189,18 +195,20 @@ export function useChatComposerController({
   return {
     input,
     setInput: updateInput,
-
     attachments,
     setAttachments,
-
     replyTo,
-    startReply,
-    cancelReply,
-
+    startReply: setReplyTo,
+    cancelReply: () => setReplyTo(null),
     editingId,
-    startEdit,
-    cancelEdit,
-
+    startEdit: (m: ChatMessage) => {
+      setEditingId(m.id);
+      setInput(m.text ?? "");
+    },
+    cancelEdit: () => {
+      setEditingId(null);
+      setInput("");
+    },
     canSend,
     send,
     sendVoice,

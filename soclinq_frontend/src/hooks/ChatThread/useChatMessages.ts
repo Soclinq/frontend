@@ -1,53 +1,64 @@
+"use client";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { authFetch } from "@/lib/authFetch";
-import type {
-  ChatAdapter,
-  SendMessagePayload,
-} from "@/types/chatAdapterTypes";
+import type { ChatAdapter } from "@/types/chatAdapterTypes";
 import type { ChatMessage } from "@/types/chat";
+
+/* ================= Types ================= */
 
 type Params = {
   threadId: string;
   adapter: ChatAdapter;
-  ws: {
-    connected: boolean;
-    sendMessageWS: (payload: SendMessagePayload) => void;
-    scrollToBottom: (smooth?: boolean) => void;
-  };
 };
 
-export function useChatMessages({ threadId, adapter, ws }: Params) {
-  /* ================= STATE ================= */
+type OlderCursor = string | null;
 
-  const [list, setList] = useState<ChatMessage[]>([]);
+/* ================= Hook ================= */
+
+export function useChatMessages({
+  threadId,
+  adapter,
+}: Params) {
+  /* ================= State ================= */
+
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const cursorRef = useRef<OlderCursor>(null);
 
-  const listRef = useRef<ChatMessage[]>([]);
+  /* keep ref for sync-safe access */
+  const messagesRef = useRef<ChatMessage[]>([]);
   useEffect(() => {
-    listRef.current = list;
-  }, [list]);
+    messagesRef.current = messages;
+  }, [messages]);
 
-  /* ================= HELPERS ================= */
+  /* ================= Helpers ================= */
 
-  const updateMessage = useCallback(
+  const replaceMessage = useCallback(
     (id: string, patch: Partial<ChatMessage>) => {
-      setList((prev) =>
+      setMessages((prev) =>
         prev.map((m) => (m.id === id ? { ...m, ...patch } : m))
       );
     },
     []
   );
 
-  const addMessage = useCallback((msg: ChatMessage) => {
-    setList((prev) => [...prev, msg]);
+  const appendMessage = useCallback((msg: ChatMessage) => {
+    setMessages((prev) => [...prev, msg]);
   }, []);
 
-  /* ================= LOAD INITIAL ================= */
+  const prependMessages = useCallback(
+    (older: ChatMessage[]) => {
+      setMessages((prev) => [...older, ...prev]);
+    },
+    []
+  );
+
+  /* ================= Initial Load ================= */
 
   useEffect(() => {
     if (!threadId) return;
@@ -59,20 +70,30 @@ export function useChatMessages({ threadId, adapter, ws }: Params) {
         setLoading(true);
         setError(null);
 
-        const res = await authFetch(adapter.listMessages(threadId), {
-          credentials: "include",
-        });
+        const res = await authFetch(
+          adapter.listMessages(threadId),
+          { credentials: "include" }
+        );
 
-        const data = await res.json();
         if (!res.ok) throw new Error();
 
-        if (!cancelled) {
-          setList(data.messages || []);
-        }
+        const data = await res.json();
+
+        if (cancelled) return;
+
+        const list: ChatMessage[] = data.messages ?? [];
+
+        setMessages(list);
+        setHasMore(Boolean(data.nextCursor));
+        cursorRef.current = data.nextCursor ?? null;
       } catch {
-        if (!cancelled) setError("Failed to load messages");
+        if (!cancelled) {
+          setError("Failed to load messages");
+        }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     })();
 
@@ -81,134 +102,74 @@ export function useChatMessages({ threadId, adapter, ws }: Params) {
     };
   }, [threadId, adapter]);
 
-  /* ================= SEND TEXT ================= */
+  /* ================= Load Older ================= */
 
-  const sendText = useCallback(
-    async (text: string) => {
-      const clean = text.trim();
-      if (!clean) return;
+  const loadOlder = useCallback(async () => {
+    if (!hasMore || loadingOlder || !cursorRef.current) return;
 
-      const clientTempId = `tmp-${Date.now()}`;
+    setLoadingOlder(true);
 
-      const optimistic: ChatMessage = {
-        id: clientTempId,
-        clientTempId,
-        hubId: threadId,
-        messageType: "TEXT",
-        text: clean,
-        createdAt: new Date().toISOString(),
-        isMine: true,
-        status: "sending",
-        replyTo: replyTo
-          ? {
-              id: replyTo.id,
-              senderName: replyTo.isMine ? "You" : replyTo.sender.name,
-              text: replyTo.text || "Message",
-            }
-          : null,
-        reactions: [],
-        sender: { id: "me", name: "You" },
-      };
+    try {
+      const res = await authFetch(
+        adapter.listMessagesOlder(threadId, cursorRef.current),
+        { credentials: "include" }
+      );
 
-      addMessage(optimistic);
-      setReplyTo(null);
-      ws.scrollToBottom(true);
+      if (!res.ok) throw new Error();
 
-      if (!ws.connected) {
-        updateMessage(clientTempId, { status: "failed" });
-        return;
-      }
+      const data = await res.json();
 
-      try {
-        setSending(true);
+      const older: ChatMessage[] = data.messages ?? [];
 
-        const payload: SendMessagePayload = {
-          clientTempId,
-          messageType: "TEXT",
-          text: clean,
-          replyToId: replyTo?.id ?? null,
-        };
+      prependMessages(older);
+      setHasMore(Boolean(data.nextCursor));
+      cursorRef.current = data.nextCursor ?? null;
+    } catch {
+      // silent fail, user can retry by scrolling
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [
+    adapter,
+    threadId,
+    hasMore,
+    loadingOlder,
+    prependMessages,
+  ]);
 
-        ws.sendMessageWS(payload);
-      } catch {
-        updateMessage(clientTempId, { status: "failed" });
-      } finally {
-        setSending(false);
-      }
-    },
-    [threadId, ws, replyTo, addMessage, updateMessage]
-  );
+  /* ================= Optimistic Helpers ================= */
 
-  /* ================= EDIT ================= */
+  const addOptimistic = useCallback((msg: ChatMessage) => {
+    setMessages((prev) => [...prev, msg]);
+  }, []);
 
-  const editMessage = useCallback(
-    async (id: string, newText: string) => {
-      const clean = newText.trim();
-      if (!clean) return;
+  const markFailed = useCallback((id: string) => {
+    replaceMessage(id, { status: "failed" });
+  }, [replaceMessage]);
 
-      updateMessage(id, { text: clean });
-      setEditingId(null);
+  const markSent = useCallback((id: string) => {
+    replaceMessage(id, { status: "sent" });
+  }, [replaceMessage]);
 
-      try {
-        await authFetch(adapter.edit(id), {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ text: clean }),
-        });
-      } catch {
-        // soft-fail, UI already updated
-      }
-    },
-    [adapter, updateMessage]
-  );
-
-  /* ================= RETRY ================= */
-
-  const retryMessage = useCallback(
-    (msg: ChatMessage) => {
-      if (msg.status !== "failed") return;
-
-      updateMessage(msg.id, { status: "sending" });
-
-      const payload: SendMessagePayload = {
-        clientTempId: msg.clientTempId || msg.id,
-        messageType: msg.messageType,
-        text: msg.text || "",
-        replyToId: msg.replyTo?.id ?? null,
-      };
-
-      ws.sendMessageWS(payload);
-    },
-    [ws, updateMessage]
-  );
-
-  /* ================= PUBLIC API ================= */
+  /* ================= Public API ================= */
 
   return {
     /* data */
-    list,
+    messages,
     loading,
-    sending,
+    loadingOlder,
     error,
+    hasMore,
 
-    /* reply */
-    replyTo,
-    startReply: setReplyTo,
-    clearReply: () => setReplyTo(null),
+    /* pagination */
+    loadOlder,
 
-    /* edit */
-    editingId,
-    startEdit: setEditingId,
-    editMessage,
-
-    /* send */
-    sendText,
-
-    /* retry */
-    retryMessage,
-
-    /* internal (used by ws hook) */
-    setList,
+    /* mutation helpers */
+    setMessages,
+    addOptimistic,
+    replaceMessage,
+    markFailed,
+    markSent,
+    appendMessage,
   };
 }

@@ -1,8 +1,41 @@
-import { ChatAdapter } from "@/types/chatAdapterTypes";
+import type { ChatAdapter } from "@/types/chatAdapterTypes";
 
 export const privateChatAdapter: ChatAdapter = {
   /* ================= META ================= */
   mode: "private",
+
+  features: {
+    reactions: true,
+    forward: true,
+    typing: true,
+    edit: true,
+    deleteForEveryone: true,
+
+    inbox: true,
+    searchInbox: true,
+
+    markRead: true,
+    readReceipts: "per-user",
+
+    pin: true,
+    mute: true,
+    archive: true,
+    threadInfo: true,
+
+    uploads: true,
+    uploadPresign: true,
+
+    presence: true,
+
+    reporting: true,
+    safety: true,
+
+    e2ee: true,
+    e2eeKeyRotation: true,
+
+    batching: true,
+    offlineReplay: true,
+  },
 
   /* ================= INBOX ================= */
   inbox: () => `/communities/private/chat/inbox/`,
@@ -35,9 +68,11 @@ export const privateChatAdapter: ChatAdapter = {
   markRead: (id) =>
     `/communities/private/chat/conversations/${id}/mark-read/`,
 
-  // 🔄 Optional batch endpoints (enable only if backend supports them)
-  // markSeenBatch: () => `/communities/private/chat/messages/seen/batch/`,
-  // markDeliveredBatch: () => `/communities/private/chat/messages/delivered/batch/`,
+  markSeenBatch: () =>
+    `/communities/private/chat/messages/seen/batch/`,
+
+  markDeliveredBatch: () =>
+    `/communities/private/chat/messages/delivered/batch/`,
 
   /* ================= MESSAGES ================= */
   listMessages: (id) =>
@@ -51,7 +86,7 @@ export const privateChatAdapter: ChatAdapter = {
   sendMessage: (id) =>
     `/communities/private/chat/conversations/${id}/messages/`,
 
-  edit: (messageId) =>
+  editMessage: (messageId) =>
     `/communities/private/chat/messages/${messageId}/edit/`,
 
   deleteForMe: (messageId) =>
@@ -75,11 +110,8 @@ export const privateChatAdapter: ChatAdapter = {
     `/communities/private/chat/messages/${messageId}/forward/`,
 
   /* ================= UPLOAD ================= */
-  upload: () =>
-    `/communities/private/chat/uploads/`,
-
-  uploadPresign: () =>
-    `/communities/private/chat/uploads/presign/`,
+  uploadEndpoint: `/communities/private/chat/uploads/`,
+  uploadPresignEndpoint: `/communities/private/chat/uploads/presign/`,
 
   /* ================= SAFETY ================= */
   reportMessage: (messageId) =>
@@ -92,66 +124,28 @@ export const privateChatAdapter: ChatAdapter = {
   reportUser: () =>
     `/communities/private/chat/report/`,
 
-  /* ================= 🔐 E2EE (READY) ================= */
-  // Enable once backend is live
-  // e2eeHandshake: (threadId) =>
-  //   `/communities/private/chat/conversations/${threadId}/e2ee/handshake/`,
-  // rotateE2EEKey: () =>
-  //   `/communities/private/chat/e2ee/rotate-key/`,
+  sendTyping: (threadId) => {
+    window.dispatchEvent(
+      new CustomEvent("chat:typing", {
+        detail: { threadId, typing: true },
+      })
+    );
+  },
 
-  /* ================= 📴 OFFLINE (READY) ================= */
-  // replayOfflineMessages: () =>
-  //   `/communities/private/chat/messages/replay/`,
+  sendTypingStop: (threadId) => {
+    window.dispatchEvent(
+      new CustomEvent("chat:typing", {
+        detail: { threadId, typing: false },
+      })
+    );
+  },
+  
+  /* ================= OFFLINE ================= */
+  replayOfflineMessages: () =>
+    `/communities/private/chat/messages/replay/`,
 
   /* ================= WEBSOCKET ================= */
-  wsPath: (id) =>
-    `/ws/private-chat/${id}/`,
-
-  wsTypingPath: (id) =>
-    `/ws/private-chat/${id}/typing/`,
-
-  wsPresencePath: (id) =>
-    `/ws/private-chat/${id}/presence/`,
-
-  /* ================= FEATURES ================= */
-  features: {
-    /* Core */
-    reactions: true,
-    forward: true,
-    typing: true,
-    edit: true,
-    deleteForEveryone: true,
-
-    /* Inbox */
-    inbox: true,
-    searchInbox: true,
-
-    /* Read receipts */
-    markRead: true,
-    readReceipts: "per-user", // ✅ IMPORTANT
-
-    /* Thread */
-    pin: true,
-    mute: true,
-    archive: true,
-    threadInfo: true,
-
-    /* Upload */
-    uploadPresign: true,
-
-    /* Presence */
-    presence: true,
-
-    /* Safety */
-    reporting: true,
-    safety: true,
-
-    /* 🔐 Security */
-    e2ee: true,
-    e2eeKeyRotation: true,
-
-    /* 🧠 Transport */
-    batching: true,        // client supports batching
-    offlineReplay: true,  // client can replay
-  },
+  wsThread: (id) => `/ws/private-chat/${id}/`,
+  wsTyping: (id) => `/ws/private-chat/${id}/typing/`,
+  wsPresence: (id) => `/ws/private-chat/${id}/presence/`,
 };

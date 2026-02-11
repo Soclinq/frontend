@@ -1,10 +1,13 @@
 import { useEffect, useRef } from "react";
 
+type Focusable = HTMLElement & { focus(): void };
+
 type Options = {
-  inputRef: React.RefObject<HTMLInputElement | HTMLTextAreaElement>;
+  inputRef: React.RefObject<Focusable | null>;
   overlayOpen: boolean;
   modalOpen?: boolean;
 };
+
 
 export function useChatFocusManagement({
   inputRef,

@@ -9,9 +9,11 @@ export * from "./useChatSelection";
 export * from "./useChatFocusManagement";
 export * from "./useChatTabSynchronization";
 export * from "./useChatHighlight";
-export * from "./useChatTyping";
+export * from "./useChatTypingEmitter"
+export * from "./useChatTypingState";
 export * from "./useChatIdleDetection";
 export * from "./useChatUnreadTracker";
+export * from "./useChatRetry"
 export * from "./useChatMessageDeduplication";
 export * from "./useChatUploads";
 export * from "./useChatMessageIntegrity";

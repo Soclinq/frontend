@@ -35,11 +35,18 @@ const dbPromise = openDB(DB_NAME, 1, {
 
 /* ================= Hook ================= */
 
-export function useChatUploads({
-  uploadEndpoint,
-  maxParallel = 2,
-  chunkSize = 1024 * 1024 * 2, // 2MB
-}: Params) {
+export function useChatUploads(
+  {
+    uploadEndpoint,
+    maxParallel = 2,
+    chunkSize = 1024 * 1024 * 2,
+  }: Params = {} as Params
+) {
+
+  if (! uploadEndpoint) {
+    return undefined
+  }
+
   const queueRef = useRef<UploadJob[]>([]);
   const activeRef = useRef(0);
 

@@ -1,5 +1,6 @@
-export type LocationSource = "GPS" | "IP" | "MANUAL" | "UNKNOWN";
-export type LocationConfidence = "HIGH" | "MEDIUM" | "LOW";
+/* ======================================================
+   CORE ENUMS
+====================================================== */
 
 export type UserRole =
   | "CITIZEN"
@@ -9,6 +10,25 @@ export type UserRole =
   | "HQ_ADMIN"
   | "INVESTIGATOR";
 
+export type LocationSource = "GPS" | "IP" | "MANUAL" | "UNKNOWN";
+export type LocationConfidence = "HIGH" | "MEDIUM" | "LOW";
+
+export type AllowMessagesFrom =
+  | "EVERYONE"
+  | "CONTACTS_ONLY"
+  | "VERIFIED_ONLY";
+
+export type SosRiskLevel = "LOW" | "MEDIUM" | "HIGH";
+
+/* ======================================================
+   SHARED VALUE OBJECTS
+====================================================== */
+
+export type GeoPoint = {
+  lat: number;
+  lng: number;
+};
+
 export type AdminUnitMini = {
   id: string;
   name: string;
@@ -17,21 +37,16 @@ export type AdminUnitMini = {
   country_code?: string;
 };
 
-export type GeoPoint = {
-  lat: number;
-  lng: number;
-};
+export type EmergencyContact = {
+  id: string;
+  name: string;
+  phone: string;
 
-export type UserDeviceInfo = {
-  imei?: string | null;
-  sim_number?: string | null;
-  phone_model?: string | null;
-  last_ip_address?: string | null;
+  relationship?: "FAMILY" | "FRIEND" | "NEIGHBOR" | "COLLEAGUE" | "OTHER";
+  priority?: 1 | 2 | 3 | 4 | 5;
 
-  push_token?: string | null;
-  platform?: "WEB" | "ANDROID" | "IOS" | null;
-  app_version?: string | null;
-  last_seen_at?: string | null;
+  verified?: boolean;
+  created_at?: string;
 };
 
 export type VerificationDoc = {
@@ -54,6 +69,24 @@ export type Organization = {
   org_type_other?: string | null;
   address?: string | null;
   created_at: string;
+};
+
+/* ======================================================
+   PROFILE SUB-STATES
+====================================================== */
+
+export type ProfileIdentity = {
+  id: string;
+
+  email?: string | null;
+  phone?: string | null;
+  phone_verified?: boolean;
+
+  username?: string | null;
+  full_name?: string | null;
+  photo?: string | null;
+
+  preferred_language?: string;
 };
 
 export type ProfileSecurityState = {
@@ -80,42 +113,89 @@ export type ProfileLocationState = {
   location_updated_at?: string | null;
 };
 
-export type ProfileIdentity = {
-  id: string;
+export type UserDeviceInfo = {
+  imei?: string | null;
+  sim_number?: string | null;
+  phone_model?: string | null;
+  last_ip_address?: string | null;
 
-  email?: string | null;
-  phone_number: string;
-
-  username?: string | null;
-  full_name?: string | null;
-
-  preferred_language: string;
-
-  live_photo?: string | null;
+  push_token?: string | null;
+  platform?: "WEB" | "ANDROID" | "IOS" | null;
+  app_version?: string | null;
+  last_seen_at?: string | null;
 };
+
+export type ProfileSettings = {
+  /* --- Privacy & comms --- */
+  allow_messages_from?: AllowMessagesFrom;
+  searchable_by_username?: boolean;
+  hide_last_seen?: boolean;
+
+  /* --- Safety --- */
+  tracking_enabled?: boolean;
+  location_enabled?: boolean;
+  emergency_mode_enabled?: boolean;
+
+  /* --- SOS automation --- */
+  sos_silent_mode?: boolean;
+  sos_countdown_seconds?: number;
+  sos_auto_call_enabled?: boolean;
+  sos_auto_share_location?: boolean;
+  sos_auto_record_audio?: boolean;
+
+  /* --- Misc --- */
+  allow_push_notifications?: boolean;
+  allow_media_upload?: boolean;
+  allow_device_binding?: boolean;
+  allow_anonymous_reports?: boolean;
+
+  /* --- Quiet hours --- */
+  quiet_hours_enabled?: boolean;
+  quiet_hours_start?: string | null;
+  quiet_hours_end?: string | null;
+};
+
+export type ProfileSOSState = {
+  active: boolean;
+  risk_level?: SosRiskLevel;
+  status?: string;
+};
+
+/* ======================================================
+   AUDIT
+====================================================== */
 
 export type ProfileAudit = {
   date_joined: string;
   last_updated: string;
 };
 
+/* ======================================================
+   ✅ CANONICAL USER PROFILE
+====================================================== */
 
 export type UserProfile = {
   identity: ProfileIdentity;
   role: UserRole;
 
+  security: ProfileSecurityState;
   location: ProfileLocationState;
   device: UserDeviceInfo;
-  security: ProfileSecurityState;
+
+  settings: ProfileSettings;
+  sos: ProfileSOSState;
+
+  emergency_contacts: EmergencyContact[];
 
   organizations?: Organization[];
   documents?: VerificationDoc[];
 
-  settings: ProfileSettings;
-
   audit: ProfileAudit;
 };
 
+/* ======================================================
+   PUBLIC PROJECTION (SAFE)
+====================================================== */
 
 export type PublicUserProfile = {
   id: string;
@@ -125,50 +205,4 @@ export type PublicUserProfile = {
 
   role?: UserRole;
   is_verified?: boolean;
-};
-
-export type EmergencyContact = {
-  id: string;
-  name: string;
-  phone: string;
-
-  relationship?: "FAMILY" | "FRIEND" | "NEIGHBOR" | "COLLEAGUE" | "OTHER";
-  priority?: 1 | 2 | 3 | 4 | 5;
-
-  verified?: boolean;
-  created_at?: string;
-};
-
-export type AllowMessagesFrom = "EVERYONE" | "CONTACTS_ONLY" | "VERIFIED_ONLY";
-
-export type ProfileSettings = {
-  emergency_mode_enabled?: boolean;
-
-  emergency_contacts?: EmergencyContact[];
-  tracking_enabled?: boolean;
-  location_enabled?: boolean;
-
-  allow_location_sharing?: boolean;
-  allow_anonymous_reports?: boolean;
-
-  allow_push_notifications?: boolean;
-
-  allow_messages_from?: AllowMessagesFrom;
-
-  allow_device_binding?: boolean;
-  allow_media_upload?: boolean;
-
-  searchable_by_username?: boolean;
-  hide_last_seen?: boolean;
-
-  sos_silent_mode?: boolean;
-  sos_countdown_seconds?: number;
-
-  sos_auto_call_enabled?: boolean;
-  sos_auto_share_location?: boolean;
-  sos_auto_record_audio?: boolean;
-
-  quiet_hours_enabled?: boolean;
-  quiet_hours_start?: string | null;
-  quiet_hours_end?: string | null;
 };

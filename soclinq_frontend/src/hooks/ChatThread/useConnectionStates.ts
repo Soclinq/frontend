@@ -9,10 +9,7 @@ export type ConnectionStatus =
   | "offline"
   | "error";
 
-type Params = {
-  /** is websocket currently open */
-  wsConnected: boolean;
-
+type Options = {
   /** optional: ws instance */
   socket?: WebSocket | null;
 
@@ -22,24 +19,30 @@ type Params = {
 
 /* ================= Hook ================= */
 
-export function useConnectionStates({
-  wsConnected,
-  socket,
-  maxRetries = 5,
-}: Params) {
-  const [status, setStatus] = useState<ConnectionStatus>("connecting");
+export function useConnectionStates(
+  wsConnected: boolean,
+  options: Options = {}
+) {
+  const { socket, maxRetries = 5 } = options;
+
+  const [status, setStatus] =
+    useState<ConnectionStatus>("connecting");
   const [retryCount, setRetryCount] = useState(0);
+
   const retryTimerRef = useRef<number | null>(null);
 
-  const online = typeof navigator !== "undefined"
-    ? navigator.onLine
-    : true;
+  const online =
+    typeof navigator !== "undefined"
+      ? navigator.onLine
+      : true;
 
   /* ================= online/offline ================= */
 
   useEffect(() => {
     function onOnline() {
-      setStatus((s) => (s === "offline" ? "reconnecting" : s));
+      setStatus((s) =>
+        s === "offline" ? "reconnecting" : s
+      );
     }
 
     function onOffline() {
@@ -69,9 +72,10 @@ export function useConnectionStates({
       return;
     }
 
-    // not connected but online
     setStatus((prev) =>
-      prev === "connected" ? "reconnecting" : prev
+      prev === "connected" || prev === "connecting"
+        ? "reconnecting"
+        : prev
     );
   }, [wsConnected, online]);
 
@@ -79,16 +83,20 @@ export function useConnectionStates({
 
   useEffect(() => {
     if (status !== "reconnecting") return;
+
     if (retryCount >= maxRetries) {
       setStatus("error");
       return;
     }
 
-    const delay = Math.min(1000 * Math.pow(2, retryCount), 8000);
+    const delay = Math.min(
+      1000 * Math.pow(2, retryCount),
+      8000
+    );
 
     retryTimerRef.current = window.setTimeout(() => {
       setRetryCount((c) => c + 1);
-      // socket reconnect is owned by WS hook
+      // actual reconnect is handled by WS hook
     }, delay);
 
     return () => {

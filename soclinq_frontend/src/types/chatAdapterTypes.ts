@@ -5,49 +5,46 @@ export type ChatMode = "community" | "private";
 /* ================= FEATURE FLAGS ================= */
 
 export type ChatFeatureFlags = {
-  /* Core messaging */
+  /* Core */
   reactions: boolean;
   forward: boolean;
   typing: boolean;
   edit: boolean;
   deleteForEveryone: boolean;
 
-  /* Inbox / discovery */
-  inbox?: boolean;
-  searchInbox?: boolean;
+  /* Inbox */
+  inbox: boolean;
+  searchInbox: boolean;
 
   /* Read receipts */
-  markRead?: boolean;               // legacy "mark read"
-  readReceipts?: "thread" | "per-user"; // ✅ NEW (per-user seen)
+  markRead: boolean;
+  readReceipts: "thread" | "per-user";
 
-  /* Thread management */
-  pin?: boolean;
-  mute?: boolean;
-  archive?: boolean;
-
-  joinLeave?: boolean;
-  threadInfo?: boolean;
-
-  /* Safety & moderation */
-  reporting?: boolean;
-  moderation?: boolean;
-  safety?: boolean;
-
-  emergencyAlerts?: boolean;
+  /* Thread */
+  pin: boolean;
+  joinLeave: boolean;
+  mute: boolean;
+  archive: boolean;
+  threadInfo: boolean;
 
   /* Uploads */
-  uploadPresign?: boolean;
+  uploads: boolean;
+  uploadPresign: boolean;
 
   /* Presence */
-  presence?: boolean;
+  presence: boolean;
+
+  /* Safety */
+  reporting: boolean;
+  safety: boolean;
 
   /* 🔐 Security */
-  e2ee?: boolean;                  // encryption enabled
-  e2eeKeyRotation?: boolean;       // supports rotating keys
+  e2ee: boolean;
+  e2eeKeyRotation: boolean;
 
-  /* 🧠 Transport hints */
-  batching?: boolean;              // server supports batching ACK/SEEN
-  offlineReplay?: boolean;         // server can accept replayed messages
+  /* 🧠 Transport */
+  batching: boolean;
+  offlineReplay: boolean;
 };
 
 /* ================= BATCH PAYLOADS ================= */
@@ -62,26 +59,12 @@ export type DeliveredBatchPayload = {
   messageIds: string[];
 };
 
-/* ================= E2EE ================= */
-
-export type E2EEHandshake = {
-  keyId: string;
-  publicKey: string;
-  createdAt: string;
-};
-
-export type RotateKeyPayload = {
-  previousKeyId: string;
-  newKeyId: string;
-  publicKey: string;
-};
-
-/* ================= OFFLINE SYNC ================= */
+/* ================= OFFLINE ================= */
 
 export type OfflineReplayPayload = {
   clientTempId: string;
   threadId: string;
-  payload: any;
+  payload: unknown;
   createdAt: number;
 };
 
@@ -93,38 +76,34 @@ export type ChatAdapter = {
   features: ChatFeatureFlags;
 
   /* ---------- Inbox ---------- */
-  inbox?: () => string;
-  searchInbox?: (q: string) => string;
+  inbox: () => string;
+  searchInbox: (q: string) => string;
 
   /* ---------- Thread ---------- */
-  getOrCreateConversation?: () => string;
+  getOrCreateConversation: () => string;
+  threadInfo: (threadId: string) => string;
 
-  threadInfo?: (threadId: string) => string;
+  pinThread: (threadId: string) => string;
+  unpinThread: (threadId: string) => string;
 
-  joinThread?: (threadId: string) => string;
-  leaveThread?: (threadId: string) => string;
+  muteThread: (threadId: string) => string;
+  unmuteThread: (threadId: string) => string;
 
-  pinThread?: (threadId: string) => string;
-  unpinThread?: (threadId: string) => string;
-
-  muteThread?: (threadId: string) => string;
-  unmuteThread?: (threadId: string) => string;
-
-  archiveThread?: (threadId: string) => string;
-  unarchiveThread?: (threadId: string) => string;
+  archiveThread: (threadId: string) => string;
+  unarchiveThread: (threadId: string) => string;
 
   /* ---------- Read / Receipts ---------- */
-  markRead?: (threadId: string) => string;
+  markRead: (threadId: string) => string;
 
-  markSeenBatch?: () => string;        // ✅ POST seen batch
-  markDeliveredBatch?: () => string;   // ✅ POST delivered batch
+  markSeenBatch: () => string;
+  markDeliveredBatch: () => string;
 
   /* ---------- Messages ---------- */
   listMessages: (threadId: string) => string;
   listMessagesOlder: (threadId: string, cursor: string) => string;
 
   sendMessage: (threadId: string) => string;
-  edit: (messageId: string) => string;
+  editMessage: (messageId: string) => string;
 
   deleteForMe: (messageId: string) => string;
   deleteForEveryone: (messageId: string) => string;
@@ -134,40 +113,29 @@ export type ChatAdapter = {
   /* ---------- Reactions ---------- */
   react: (messageId: string) => string;
 
-  /* ---------- Forwarding ---------- */
+  /* ---------- Forward ---------- */
   forwardTargets: () => string;
   forwardMessage: (messageId: string) => string;
 
   /* ---------- Upload ---------- */
-  upload: () => string;
-  uploadPresign?: () => string;
+  uploadEndpoint: string;
+  uploadPresignEndpoint: string;
 
-  /* ---------- Moderation ---------- */
-  reportMessage?: (messageId: string) => string;
+  /* ---------- Moderation / Safety ---------- */
+  reportMessage: (messageId: string) => string;
 
-  modRemoveMessage?: (messageId: string) => string;
-  modMuteUser?: (threadId: string) => string;
-  modBanUser?: (threadId: string) => string;
+  blockUser: () => string;
+  unblockUser: () => string;
+  reportUser: () => string;
 
-  /* ---------- User Safety ---------- */
-  blockUser?: () => string;
-  unblockUser?: () => string;
-  reportUser?: () => string;
+  /* ---------- Offline ---------- */
+  replayOfflineMessages: () => string;
 
-  /* ---------- Alerts ---------- */
-  sendAlert?: (threadId: string) => string;
-
-  /* ---------- 🔐 E2EE ---------- */
-  e2eeHandshake?: (threadId: string) => string; // fetch keys
-  rotateE2EEKey?: () => string;                 // rotate key
-
-  /* ---------- 📴 Offline ---------- */
-  replayOfflineMessages?: () => string;         // bulk replay endpoint
-  markSeenBulk?: (ids: string[]) => Promise<void>;
-
-
+  sendTyping: (threadId: string) => void;
+  sendTypingStop: (threadId: string) => void;
+  
   /* ---------- WebSocket ---------- */
-  wsPath: (threadId: string) => string;
-  wsTypingPath?: (threadId: string) => string;
-  wsPresencePath?: (threadId: string) => string;
+  wsThread: (threadId: string) => string;
+  wsTyping: (threadId: string) => string;
+  wsPresence: (threadId: string) => string;
 };

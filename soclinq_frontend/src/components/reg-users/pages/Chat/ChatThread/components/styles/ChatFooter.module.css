@@ -1,0 +1,355 @@
+.footer {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  z-index: var(--z-sticky);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--chat-stack-gap);
+
+  padding: var(--space-4);
+  padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom));
+
+  background: var(--surface);
+  border-top: 1px solid var(--divider);
+
+  animation: footer-in var(--slow);
+}
+
+@keyframes footer-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ================= Attachments ================= */
+
+.attachPreview {
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+
+  animation: slide-down var(--mid);
+}
+
+.attachItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+
+  min-width: 180px;
+  padding: var(--space-3);
+
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+
+  box-shadow: var(--elevation-1);
+
+  animation: scale-in var(--mid);
+}
+
+.attachIcon {
+  font-size: 18px;
+  color: var(--text-muted);
+}
+
+.attachMeta {
+  flex: 1;
+  overflow: hidden;
+}
+
+.attachName {
+  font-size: var(--text-sm);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attachSize {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.attachItem button {
+  width: 28px;
+  height: 28px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: var(--radius-pill);
+  color: var(--text-muted);
+
+  transition: var(--transition-bg), var(--transition-transform);
+}
+
+.attachItem button:hover {
+  background: var(--state-hover-bg);
+  transform: scale(var(--state-active-scale));
+}
+
+/* ================= Row ================= */
+
+.row {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+/* ================= Input Shell ================= */
+
+.inputShell {
+  flex: 1;
+
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  min-height: var(--input-height);
+  padding: 0 var(--space-3);
+  max-width: calc(100% - 70px);
+
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--input-radius);
+
+  transition:
+    box-shadow var(--fast),
+    border-color var(--fast),
+    transform var(--fast);
+}
+
+.inputShell:focus-within {
+  box-shadow: var(--ring);
+  border-color: var(--brand);
+}
+
+.inputShell:active {
+  transform: scale(0.995);
+}
+
+/* ================= Input ================= */
+
+.input {
+  flex: 1;
+  min-width: 0;
+
+  height: calc(var(--input-height) - 2px);
+  padding: 0 var(--space-2);
+
+  font-size: var(--text-body);
+  line-height: var(--line-normal);
+
+  background: transparent;
+  color: var(--text);
+
+  border: none;
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--input-placeholder);
+}
+
+/* ================= Inline Icons ================= */
+
+.iconBtn {
+  width: 32px;
+  height: 32px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: var(--radius-pill);
+  color: var(--icon);
+
+  transition:
+    var(--transition-bg),
+    var(--transition-transform),
+    var(--transition-opacity);
+}
+
+.iconBtn:hover:not(:disabled) {
+  background: var(--state-hover-bg);
+}
+
+.iconBtn:active:not(:disabled) {
+  transform: scale(var(--state-active-scale));
+}
+
+.iconBtn:disabled {
+  opacity: var(--state-disabled-opacity);
+}
+
+.iconBtn.active {
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+/* ================= Send Button ================= */
+
+.sendBtn {
+  width: var(--btn-height);
+  height: var(--btn-height);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: var(--btn-radius);
+  background: var(--brand);
+  color: var(--text-invert);
+
+  animation: pop-in var(--mid);
+
+  transition:
+    background-color var(--fast),
+    transform var(--fast),
+    box-shadow var(--fast);
+}
+
+.sendBtn:hover:not(:disabled) {
+  background: var(--brand-hover);
+  box-shadow: var(--elevation-2);
+}
+
+.sendBtn:active:not(:disabled) {
+  transform: scale(var(--state-active-scale));
+}
+
+.sendBtn:disabled {
+  opacity: var(--state-disabled-opacity);
+}
+
+/* ================= Attach Menu ================= */
+
+.attachMenu {
+  display: flex;
+  gap: var(--space-2);
+
+  padding: var(--space-3);
+
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+
+  box-shadow: var(--elevation-3);
+
+  animation: slide-up var(--mid);
+}
+
+.attachMenu button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+
+  height: var(--btn-height);
+  padding: 0 var(--space-4);
+
+  font-size: var(--text-sm);
+  color: var(--text);
+
+  border-radius: var(--btn-radius);
+
+  transition: var(--transition-bg), var(--transition-transform);
+}
+
+.attachMenu button:hover {
+  background: var(--state-hover-bg);
+}
+
+/* ================= Emoji Picker ================= */
+
+.emojiPopup {
+  position: absolute;
+  bottom: calc(100% + var(--space-3));
+  left: var(--space-4);
+
+  z-index: var(--z-dropdown);
+
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--elevation-4);
+
+  animation: scale-fade var(--mid);
+}
+
+/* ================= Loader ================= */
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ================= Animations ================= */
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scale-fade {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

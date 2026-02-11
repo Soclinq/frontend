@@ -1,0 +1,112 @@
+.wrapper {
+    position: fixed;
+    bottom: 22px;
+    right: 18px;
+    z-index: 80;
+  }
+  
+  /* ✅ main FAB */
+  .fab {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+  
+    background: #25d366;
+    color: #fff;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+    cursor: pointer;
+  
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  
+  .fab:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.28);
+  }
+  
+  .fab:active {
+    transform: scale(0.92);
+  }
+  
+  .fabIcon {
+    font-size: 22px;
+    stroke-width: 2.6;
+    transition: transform 0.2s ease;
+  }
+  
+  .fabOpen .fabIcon {
+    transform: rotate(135deg);
+  }
+  
+  /* ✅ menu container */
+  .menu {
+    position: absolute;
+    right: 0;
+    bottom: 70px;
+  
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+    pointer-events: none;
+  
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  
+  .menuOpen {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
+  
+  /* ✅ menu item */
+  .menuItem {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+  }
+  
+  /* icon bubble */
+  .menuIcon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+  
+    background: #ffffff;
+    color: #111;
+  
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.18);
+    font-size: 18px;
+  }
+  
+  /* label bubble */
+  .menuLabel {
+    background: #ffffff;
+    color: #111;
+    font-weight: 600;
+    font-size: 13px;
+  
+    padding: 10px 12px;
+    border-radius: 12px;
+  
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.16);
+    white-space: nowrap;
+  }
+  

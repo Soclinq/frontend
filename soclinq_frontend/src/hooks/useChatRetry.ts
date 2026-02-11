@@ -14,7 +14,9 @@ type Params = {
 const MAX_CONCURRENT = 2;
 const BASE_DELAY = 1500;
 
-export function useChatRetry({ onRetryMessage, sendChunk }: Params) {
+export function useChatRetry(
+  { onRetryMessage, sendChunk }: Params = {}
+) {
   const queue = useRef<ChatMessage[]>([]);
   const inflight = useRef(0);
   const timers = useRef<Map<string, number>>(new Map());

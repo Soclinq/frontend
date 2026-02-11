@@ -8,7 +8,7 @@ export function useChatOptimisticReconciliation(
   setMessages: SetMessages
 ) {
   useEffect(() => {
-    if (!messages.length) return;
+    if (!messages?.length) return;
 
     const byClientTempId = new Map<string, ChatMessage>();
 
