@@ -7,27 +7,27 @@ export function useChatMessageDeduplication(
   messages: ChatMessage[],
   setMessages: SetMessages
 ) {
-  const seenRef = useRef<Set<string>>(new Set());
-
   useEffect(() => {
     if (!messages?.length) return;
 
+    const seen = new Set<string>();   // ✅ LOCAL PER RUN
     const next: ChatMessage[] = [];
     let mutated = false;
 
     for (const msg of messages) {
       const key = msg.id || msg.clientTempId;
+
       if (!key) {
         next.push(msg);
         continue;
       }
 
-      if (seenRef.current.has(key)) {
+      if (seen.has(key)) {
         mutated = true;
         continue;
       }
 
-      seenRef.current.add(key);
+      seen.add(key);
       next.push(msg);
     }
 

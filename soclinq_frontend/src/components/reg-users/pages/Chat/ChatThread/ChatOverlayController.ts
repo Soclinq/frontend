@@ -46,6 +46,14 @@ export function useChatOverlayController({
     [overlay]
   );
 
+  const openInfoModal = useCallback(
+    (message: ChatMessage) => {
+      overlay.open("INFO", { message });
+    },
+    [overlay]
+  );
+  
+
   const openCamera = useCallback(() => {
     overlay.open("CAMERA");
   }, [overlay]);
@@ -80,6 +88,7 @@ export function useChatOverlayController({
     openReactionPicker,
     openEmojiMart,
     openCamera,
+    openInfoModal,
     openDeleteSheet,
     openForwardSheet,
 

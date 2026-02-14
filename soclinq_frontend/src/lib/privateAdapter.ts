@@ -1,7 +1,11 @@
 import type { ChatAdapter } from "@/types/chatAdapterTypes";
 
+/* ================= BASE URLS ================= */
+
+const WS_BASE =
+  process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000";
+
 export const privateChatAdapter: ChatAdapter = {
-  /* ================= META ================= */
   mode: "private",
 
   features: {
@@ -10,6 +14,7 @@ export const privateChatAdapter: ChatAdapter = {
     typing: true,
     edit: true,
     deleteForEveryone: true,
+    joinLeave: true,
 
     inbox: true,
     searchInbox: true,
@@ -24,9 +29,7 @@ export const privateChatAdapter: ChatAdapter = {
 
     uploads: true,
     uploadPresign: true,
-
     presence: true,
-
     reporting: true,
     safety: true,
 
@@ -38,11 +41,14 @@ export const privateChatAdapter: ChatAdapter = {
   },
 
   /* ================= INBOX ================= */
+
   inbox: () => `/communities/private/chat/inbox/`,
+
   searchInbox: (q) =>
     `/communities/private/chat/search/?q=${encodeURIComponent(q)}`,
 
   /* ================= THREAD ================= */
+
   getOrCreateConversation: () =>
     `/communities/private/chat/conversations/get-or-create/`,
 
@@ -51,20 +57,24 @@ export const privateChatAdapter: ChatAdapter = {
 
   pinThread: (id) =>
     `/communities/private/chat/conversations/${id}/pin/`,
+
   unpinThread: (id) =>
     `/communities/private/chat/conversations/${id}/unpin/`,
 
   muteThread: (id) =>
     `/communities/private/chat/conversations/${id}/mute/`,
+
   unmuteThread: (id) =>
     `/communities/private/chat/conversations/${id}/unmute/`,
 
   archiveThread: (id) =>
     `/communities/private/chat/conversations/${id}/archive/`,
+
   unarchiveThread: (id) =>
     `/communities/private/chat/conversations/${id}/unarchive/`,
 
-  /* ================= READ / RECEIPTS ================= */
+  /* ================= READ ================= */
+
   markRead: (id) =>
     `/communities/private/chat/conversations/${id}/mark-read/`,
 
@@ -75,13 +85,12 @@ export const privateChatAdapter: ChatAdapter = {
     `/communities/private/chat/messages/delivered/batch/`,
 
   /* ================= MESSAGES ================= */
+
   listMessages: (id) =>
     `/communities/private/chat/conversations/${id}/messages/`,
 
   listMessagesOlder: (id, cursor) =>
-    `/communities/private/chat/conversations/${id}/messages/?cursor=${encodeURIComponent(
-      cursor
-    )}`,
+    `/communities/private/chat/conversations/${id}/messages/?cursor=${encodeURIComponent(cursor)}`,
 
   sendMessage: (id) =>
     `/communities/private/chat/conversations/${id}/messages/`,
@@ -99,10 +108,12 @@ export const privateChatAdapter: ChatAdapter = {
     `/communities/private/chat/messages/${messageId}/info/`,
 
   /* ================= REACTIONS ================= */
+
   react: (messageId) =>
     `/communities/private/chat/messages/${messageId}/reactions/`,
 
   /* ================= FORWARD ================= */
+
   forwardTargets: () =>
     `/communities/private/chat/forward-targets/`,
 
@@ -110,19 +121,25 @@ export const privateChatAdapter: ChatAdapter = {
     `/communities/private/chat/messages/${messageId}/forward/`,
 
   /* ================= UPLOAD ================= */
+
   uploadEndpoint: `/communities/private/chat/uploads/`,
   uploadPresignEndpoint: `/communities/private/chat/uploads/presign/`,
 
   /* ================= SAFETY ================= */
+
   reportMessage: (messageId) =>
     `/communities/private/chat/messages/${messageId}/report/`,
 
-  blockUser: () =>
-    `/communities/private/chat/block/`,
-  unblockUser: () =>
-    `/communities/private/chat/unblock/`,
-  reportUser: () =>
-    `/communities/private/chat/report/`,
+  blockUser: () => `/communities/private/chat/block/`,
+  unblockUser: () => `/communities/private/chat/unblock/`,
+  reportUser: () => `/communities/private/chat/report/`,
+
+  /* ================= OFFLINE ================= */
+
+  replayOfflineMessages: () =>
+    `/communities/private/chat/messages/replay/`,
+
+  /* ================= TYPING ================= */
 
   sendTyping: (threadId) => {
     window.dispatchEvent(
@@ -139,13 +156,10 @@ export const privateChatAdapter: ChatAdapter = {
       })
     );
   },
-  
-  /* ================= OFFLINE ================= */
-  replayOfflineMessages: () =>
-    `/communities/private/chat/messages/replay/`,
 
   /* ================= WEBSOCKET ================= */
-  wsThread: (id) => `/ws/private-chat/${id}/`,
-  wsTyping: (id) => `/ws/private-chat/${id}/typing/`,
-  wsPresence: (id) => `/ws/private-chat/${id}/presence/`,
+
+  wsThread: (id) => `${WS_BASE}/ws/private-chat/${id}/`,
+  wsTyping: (id) => `${WS_BASE}/ws/private-chat/${id}/typing/`,
+  wsPresence: (id) => `${WS_BASE}/ws/private-chat/${id}/presence/`,
 };

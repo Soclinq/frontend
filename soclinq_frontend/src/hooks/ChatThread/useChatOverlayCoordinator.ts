@@ -7,6 +7,7 @@ export type OverlayType =
   | "CAMERA"
   | "DELETE"
   | "FORWARD"
+  | "INFO"
   | null;
 
   type OverlayState<T = any> = {

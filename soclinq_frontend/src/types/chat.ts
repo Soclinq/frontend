@@ -48,7 +48,16 @@ export type ChatReplyPreview = {
 
 export type SeenByMap = Record<string, string>; // userId -> ISO timestamp
 
+export type ChatThreadMeta = {
+  isGroup?: boolean;
+  memberCount?: number;
+};
+
 export interface ChatMessage {
+  reactionReceipts: never[];
+  deliveredReceipts: never[];
+  threadMembers: never[];
+  readReceipts: never[];
   id: string;
   clientTempId?: string;
   hubId: string;
@@ -58,6 +67,7 @@ export interface ChatMessage {
 
   sender: Sender;
   createdAt: string;
+  threadMeta?: ChatThreadMeta;
 
   myReaction?: string | null;
   editedAt?: string | null;

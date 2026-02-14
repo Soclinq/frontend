@@ -99,29 +99,33 @@ export function useChatThreadWS({
       if (evt.type === "message:new" || evt.type === "message:ack") {
         const msg = normalizeMine(evt.payload);
         const hash = hashMessage(msg);
-
+      
         if (knownHashes.current.has(hash)) return;
         knownHashes.current.add(hash);
-
-        setMessages((prev) => {
+      
+        setMessages(prev => {
           const idx =
             msg.clientTempId != null
-              ? prev.findIndex((m) => m.clientTempId === msg.clientTempId)
+              ? prev.findIndex(m => m.clientTempId === msg.clientTempId)
               : -1;
-
+      
           if (idx !== -1) {
             const copy = [...prev];
-            copy[idx] = { ...msg, status: "sent" };
+      
+            /* ✅ ACK → message left sender → SINGLE TICK */
+            copy[idx] = { ...copy[idx], ...msg, status: "sent" };
+      
             return copy;
           }
-
-          if (prev.some((m) => m.id === msg.id)) return prev;
-          return [...prev, { ...msg, status: "sent" }];
+      
+          if (prev.some(m => m.id === msg.id)) return prev;
+      
+          return [...prev, { ...msg, status: msg.status ?? "sent" }];
         });
-
+      
         return;
       }
-
+      
       /* ---------- DELIVERED ---------- */
 
       if (evt.type === "message:delivered") {
@@ -142,25 +146,26 @@ export function useChatThreadWS({
 
       if (evt.type === "message:seen") {
         const { messageId, userId } = evt.payload;
-
-        setMessages((prev) =>
-          prev.map((m) => {
+      
+        setMessages(prev =>
+          prev.map(m => {
             if (m.id !== messageId) return m;
-
-            const seenBy: SeenByMap = {
+      
+            const seenBy = {
               ...(m.seenBy ?? {}),
               [userId]: new Date().toISOString(),
             };
-
+      
             return {
               ...m,
-              seenBy,
-              status: m.isMine ? "seen" : m.status,
+              seenBy,     // ✅ source of truth
             };
           })
         );
+      
         return;
       }
+      
 
       /* ---------- REACTIONS ---------- */
 

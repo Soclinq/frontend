@@ -7,10 +7,13 @@ export function useChatDedup(messages: ChatMessage[]) {
     const seen = new Set<string>();
 
     return messages.filter((m) => {
+      /* ✅ Ignore empty / invalid identifiers */
       const key =
-        m.messageHash ??
-        m.clientTempId ??
+        (m.messageHash && m.messageHash.trim()) ||
+        (m.clientTempId && m.clientTempId.trim()) ||
         m.id;
+
+      if (!key) return true; // ultra-defensive safeguard
 
       if (seen.has(key)) return false;
       seen.add(key);

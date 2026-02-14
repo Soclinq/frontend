@@ -74,8 +74,13 @@ export function useChatMessages({
           adapter.listMessages(threadId),
           { credentials: "include" }
         );
-
-        if (!res.ok) throw new Error();
+        
+        if (!res.ok) {
+          const text = await res.text();
+          console.error("listMessages failed:", res.status, text);
+          throw new Error(`HTTP ${res.status}`);
+        }
+        
 
         const data = await res.json();
 

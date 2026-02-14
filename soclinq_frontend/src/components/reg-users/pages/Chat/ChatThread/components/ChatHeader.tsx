@@ -39,7 +39,11 @@ type SelectionProps = {
   onForward?: () => void;
   onShare?: () => void;
   onDelete?: () => void;
+
+  canInfo?: boolean;        // ✅ ADD
+  onInfo?: () => void;      // ✅ ADD
 };
+
 
 type Props = {
   // basic
@@ -174,6 +178,15 @@ export default function ChatHeader(props: Props) {
               aria-label="Copy"
             >
               <FiCopy />
+            </button>
+            <button
+              className={styles.iconBtn}
+              disabled={!selection!.canInfo}
+              onClick={selection!.onInfo}
+              title="Message info"
+              aria-label="Message info"
+            >
+              <FiAlertCircle />
             </button>
 
             <button

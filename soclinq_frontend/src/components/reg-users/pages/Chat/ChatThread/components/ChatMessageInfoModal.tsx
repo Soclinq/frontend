@@ -1,256 +1,309 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
-import {
-  FiX,
-  FiEye,
-  FiCheckCircle,
-  FiSmile,
-  FiLoader,
-} from "react-icons/fi";
+import React, { useEffect, useMemo, useRef } from "react";
+import { FiX, FiLoader, FiEye, FiCheckCircle, FiSmile } from "react-icons/fi";
 import styles from "./styles/ChatMessageInfoModal.module.css";
+import type { ChatMessage } from "@/types/chat";
+import type { PublicUserProfile } from "@/types/profile";
 
-/* ---------------- Types ---------------- */
-
-export type InfoUser = {
-  id: string;
-  name: string;
-  photo?: string | null;
-};
-
-export type InfoReadItem = {
-  user: InfoUser;
-  readAt: string;
-};
-
-export type InfoDeliveredItem = {
-  user: InfoUser;
-  deliveredAt: string;
-};
-
-export type InfoReactionItem = {
-  emoji: string;
-  user: InfoUser;
-  createdAt: string;
-};
-
-export type MessageInfoData = {
-  read: InfoReadItem[];
-  delivered: InfoDeliveredItem[];
-  reactions: InfoReactionItem[];
-};
-
-export type InfoModalState = {
-  open: boolean;
-  messageId: string | null;
-  loading?: boolean;
-  data?: MessageInfoData | null;
-};
+/* ======================================================
+   TYPES (Overlay-Compatible)
+====================================================== */
 
 type Props = {
-  modal: InfoModalState;
+  message: ChatMessage;
   onClose: () => void;
 };
 
-function formatDateTime(iso?: string) {
+/* ======================================================
+   HELPERS
+====================================================== */
+
+function formatTime(iso?: string) {
   if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleString();
-  } catch {
-    return "";
-  }
+  return new Date(iso).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
-export default function ChatMessageInfoModal({ modal, onClose }: Props) {
+function sortByTimeDesc<T>(arr: T[], getTime: (item: T) => string | undefined) {
+  return [...arr].sort(
+    (a, b) =>
+      new Date(getTime(b) ?? 0).getTime() -
+      new Date(getTime(a) ?? 0).getTime()
+  );
+}
+
+
+/* ======================================================
+   AVATAR
+====================================================== */
+
+function Avatar({ user }: { user: PublicUserProfile }) {
+  const [failed, setFailed] = React.useState(false);
+
+  if (user.photo && !failed) {
+    return (
+      <img
+        src={user.photo}
+        className={styles.avatarImg}
+        onError={() => setFailed(true)}
+        alt={user.full_name ?? user.username ?? "User"}
+      />
+    );
+  }
+
+  const letter =
+    user.full_name?.slice(0, 1) ??
+    user.username?.slice(0, 1) ??
+    "?";
+
+  return (
+    <div className={styles.avatarFallback}>
+      {letter.toUpperCase()}
+    </div>
+  );
+}
+
+/* ======================================================
+   COMPONENT
+====================================================== */
+
+export default function ChatMessageInfoModal({
+  message,
+  onClose,
+}: Props) {
   const ref = useRef<HTMLDivElement | null>(null);
 
-  // ✅ close on outside click
+  /* ---------- Close Behaviors ---------- */
+
   useEffect(() => {
-    if (!modal.open) return;
-
-    const onDown = (e: MouseEvent) => {
-      const el = ref.current;
-      if (!el) return;
-      if (el.contains(e.target as Node)) return;
-      onClose();
-    };
-
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
-  }, [modal.open, onClose]);
-
-  // ✅ close on ESC
-  useEffect(() => {
-    if (!modal.open) return;
-
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [modal.open, onClose]);
+  }, [onClose]);
 
-  if (!modal.open) return null;
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      const el = ref.current;
+      if (!el || el.contains(e.target as Node)) return;
+      onClose();
+    };
 
-  const data = modal.data;
+    window.addEventListener("mousedown", onDown);
+    return () => window.removeEventListener("mousedown", onDown);
+  }, [onClose]);
+
+  /* ======================================================
+     NORMALIZATION (VERY IMPORTANT)
+  ====================================================== */
+
+  const read = message.readReceipts ?? [];
+  const delivered = message.deliveredReceipts ?? [];
+  const reactions = message.reactionReceipts ?? [];
+  const members = message.threadMembers ?? [];
+
+  /* ======================================================
+     DERIVED WHATSAPP LOGIC
+  ====================================================== */
+
+  const derived = useMemo(() => {
+    const readSorted = sortByTimeDesc(read, r => r.readAt);
+  const deliveredSorted = sortByTimeDesc(delivered, d => d.deliveredAt);
+  const reactionSorted = sortByTimeDesc(reactions, r => r.createdAt);
+
+
+    const deliveredSorted = sortByTimeDesc(
+      delivered.map(d => ({ ...d, time: d.deliveredAt }))
+    );
+
+    const reactionSorted = sortByTimeDesc(
+      reactions.map(r => ({ ...r, time: r.createdAt }))
+    );
+
+    const readIds = new Set(readSorted.map(r => r.user.id));
+
+    /* Delivered excluding read */
+    const deliveredOnly = deliveredSorted.filter(
+      d => !readIds.has(d.user.id)
+    );
+
+    const interacted = new Set([
+      ...readSorted.map(r => r.user.id),
+      ...deliveredSorted.map(d => d.user.id),
+    ]);
+
+    const remaining = members.filter(
+      u => !interacted.has(u.id)
+    );
+
+    return {
+      readSorted,
+      deliveredOnly,
+      reactionSorted,
+      remaining,
+    };
+  }, [read, delivered, reactions, members]);
+
+  /* ======================================================
+     RENDER
+  ====================================================== */
 
   return (
     <div className={styles.overlay}>
-      <div className={styles.backdrop} onClick={onClose} />
+      <div className={styles.backdrop} />
 
-      <div ref={ref} className={styles.modal} role="dialog" aria-modal="true">
-        {/* Header */}
+      <div ref={ref} className={styles.modal}>
+        {/* HEADER */}
         <div className={styles.header}>
-          <div className={styles.titleWrap}>
-            <h3 className={styles.title}>Message Info</h3>
-            <p className={styles.subTitle}>
-              {modal.messageId ? `Message ID: ${modal.messageId}` : "No message selected"}
-            </p>
+          <div>
+            <h3>Message Info</h3>
+            <span className={styles.messagePreview}>
+              {message.text ?? "Media message"}
+            </span>
           </div>
 
-          <button
-            type="button"
-            className={styles.closeBtn}
-            onClick={onClose}
-            title="Close"
-          >
+          <button onClick={onClose} className={styles.closeBtn}>
             <FiX />
           </button>
         </div>
 
-        {/* Body */}
+        {/* BODY */}
         <div className={styles.body}>
-          {modal.loading ? (
-            <div className={styles.loading}>
-              <FiLoader className={styles.spin} />
-              <span>Loading message info…</span>
-            </div>
-          ) : !data ? (
-            <div className={styles.emptyState}>
-              <span>Unable to load message info.</span>
-            </div>
-          ) : (
-            <>
-              {/* READ */}
-              <div className={styles.block}>
-                <div className={styles.blockHeader}>
-                  <div className={styles.blockIcon}>
-                    <FiEye />
-                  </div>
-                  <h4 className={styles.blockTitle}>Read</h4>
-                  <span className={styles.blockCount}>
-                    {data.read?.length || 0}
-                  </span>
-                </div>
+          <Section
+            icon={<FiEye />}
+            title="Read by"
+            count={derived.readSorted.length}
+          >
+            {derived.readSorted.length ? (
+              derived.readSorted.map(x => (
+                <UserRow
+                  key={x.user.id}
+                  user={x.user}
+                  time={formatTime(x.readAt)}
+                />
+              ))
+            ) : (
+              <Empty />
+            )}
+          </Section>
 
-                {data.read?.length ? (
-                  <div className={styles.rows}>
-                    {data.read.map((x) => (
-                      <div key={x.user.id} className={styles.row}>
-                        <div className={styles.user}>
-                          <div className={styles.avatar}>
-                            {x.user.name?.slice(0, 1)?.toUpperCase()}
-                          </div>
-                          <div className={styles.userMeta}>
-                            <span className={styles.userName}>{x.user.name}</span>
-                            <span className={styles.userTime}>
-                              {formatDateTime(x.readAt)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={styles.none}>None</div>
-                )}
-              </div>
+          <Section
+            icon={<FiCheckCircle />}
+            title="Delivered to"
+            count={derived.deliveredOnly.length}
+          >
+            {derived.deliveredOnly.length ? (
+              derived.deliveredOnly.map(x => (
+                <UserRow
+                  key={x.user.id}
+                  user={x.user}
+                  time={formatTime(x.deliveredAt)}
+                />
+              ))
+            ) : (
+              <Empty />
+            )}
+          </Section>
 
-              {/* DELIVERED */}
-              <div className={styles.block}>
-                <div className={styles.blockHeader}>
-                  <div className={styles.blockIcon}>
-                    <FiCheckCircle />
-                  </div>
-                  <h4 className={styles.blockTitle}>Delivered</h4>
-                  <span className={styles.blockCount}>
-                    {data.delivered?.length || 0}
-                  </span>
-                </div>
+          <Section
+            title="Remaining"
+            count={derived.remaining.length}
+          >
+            {derived.remaining.length ? (
+              derived.remaining.map(u => (
+                <UserRow key={u.id} user={u} />
+              ))
+            ) : (
+              <div className={styles.none}>Everyone received</div>
+            )}
+          </Section>
 
-                {data.delivered?.length ? (
-                  <div className={styles.rows}>
-                    {data.delivered.map((x) => (
-                      <div key={x.user.id} className={styles.row}>
-                        <div className={styles.user}>
-                          <div className={styles.avatar}>
-                            {x.user.name?.slice(0, 1)?.toUpperCase()}
-                          </div>
-                          <div className={styles.userMeta}>
-                            <span className={styles.userName}>{x.user.name}</span>
-                            <span className={styles.userTime}>
-                              {formatDateTime(x.deliveredAt)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={styles.none}>None</div>
-                )}
-              </div>
-
-              {/* REACTIONS */}
-              <div className={styles.block}>
-                <div className={styles.blockHeader}>
-                  <div className={styles.blockIcon}>
-                    <FiSmile />
-                  </div>
-                  <h4 className={styles.blockTitle}>Reactions</h4>
-                  <span className={styles.blockCount}>
-                    {data.reactions?.length || 0}
-                  </span>
-                </div>
-
-                {data.reactions?.length ? (
-                  <div className={styles.rows}>
-                    {data.reactions.map((x, idx) => (
-                      <div key={`${x.user.id}-${idx}`} className={styles.row}>
-                        <div className={styles.user}>
-                          <div className={styles.avatar}>
-                            {x.user.name?.slice(0, 1)?.toUpperCase()}
-                          </div>
-
-                          <div className={styles.userMeta}>
-                            <span className={styles.userName}>
-                              <span className={styles.reactionEmoji}>{x.emoji}</span>{" "}
-                              {x.user.name}
-                            </span>
-                            <span className={styles.userTime}>
-                              {formatDateTime(x.createdAt)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className={styles.none}>None</div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className={styles.footer}>
-          <button type="button" className={styles.okBtn} onClick={onClose}>
-            OK
-          </button>
+          <Section
+            icon={<FiSmile />}
+            title="Reactions"
+            count={derived.reactionSorted.length}
+          >
+            {derived.reactionSorted.length ? (
+              derived.reactionSorted.map((r, idx) => (
+                <UserRow
+                  key={`${r.user.id}-${idx}`}
+                  user={r.user}
+                  time={formatTime(r.createdAt)}
+                  extra={<span>{r.emoji}</span>}
+                />
+              ))
+            ) : (
+              <Empty />
+            )}
+          </Section>
         </div>
       </div>
     </div>
   );
+}
+
+/* ======================================================
+   SUB COMPONENTS
+====================================================== */
+
+function Section({
+  title,
+  icon,
+  count,
+  children,
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionHeader}>
+        <div className={styles.sectionTitle}>
+          {icon}
+          <span>{title}</span>
+        </div>
+
+        {count !== undefined && (
+          <span className={styles.count}>{count}</span>
+        )}
+      </div>
+
+      <div className={styles.rows}>{children}</div>
+    </div>
+  );
+}
+
+function UserRow({
+  user,
+  time,
+  extra,
+}: {
+  user: PublicUserProfile;
+  time?: string;
+  extra?: React.ReactNode;
+}) {
+  return (
+    <div className={styles.row}>
+      <Avatar user={user} />
+
+      <div className={styles.meta}>
+        <span className={styles.name}>
+          {extra} {user.full_name ?? user.username ?? "User"}
+        </span>
+
+        {time && <span className={styles.time}>{time}</span>}
+      </div>
+    </div>
+  );
+}
+
+function Empty() {
+  return <div className={styles.emptyRow}>None</div>;
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { openDB } from "idb";
+import { authFetch } from "@/lib/authFetch";
 
 /* ================= Types ================= */
 
@@ -79,18 +80,22 @@ export function useChatUploads(
     const blob = job.file.slice(start, end);
 
     const form = new FormData();
-    form.append("file", blob);
+    form.append("files", blob);
     form.append("clientTempId", job.clientTempId);
     form.append("offset", String(start));
 
-    const res = await fetch(uploadEndpoint, {
+    const res = await authFetch(uploadEndpoint, {
       method: "POST",
       body: form,
       credentials: "include",
     });
 
-    if (!res.ok) throw new Error("Chunk upload failed");
-  };
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      console.error("[UPLOAD ERROR]", res.status, text);
+      throw new Error(`Chunk upload failed: ${res.status}`);
+    }
+      };
 
   const processJob = async (job: UploadJob) => {
     activeRef.current++;

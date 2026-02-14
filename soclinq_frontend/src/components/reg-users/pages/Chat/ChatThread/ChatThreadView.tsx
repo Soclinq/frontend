@@ -52,7 +52,8 @@ type Props = {
 export default function ChatThreadView({ model }: Props) {
   const chatUI = useChatUI();
   const { thread, composer, overlays, view, ui, refs } = model;
-  const router = useRouter();
+
+  const currentUserId = thread.currentUser?.id;
 
   if (thread.guardLoading) return null;
 
@@ -77,10 +78,11 @@ export default function ChatThreadView({ model }: Props) {
 
  const rawSelection = ui?.selection;
 
-  const headerSelection =
-  rawSelection && rawSelection.active && rawSelection.count > 0
-    ? rawSelection
-    : null;
+ const headerSelection =
+ rawSelection && rawSelection.active && rawSelection.count > 0
+   ? rawSelection
+   : null;
+
 
 
 
@@ -108,18 +110,28 @@ export default function ChatThreadView({ model }: Props) {
               ? {
                   active: true,
                   count: headerSelection.count,
+          
                   onExit: headerSelection.clear,
                   onUnselectAll: headerSelection.clear,
+          
                   canReply: headerSelection.count === 1,
-                  onReply: () => ui!.startReply(
-                    [...headerSelection.ids][0]
-                  ),
+                  onReply: () =>
+                    ui!.startReply([...headerSelection.ids][0]),
+          
                   onCopy: () => copy(selectedMessages),
-                  onForward: () => overlays.openForwardSheet(selectedMessages),
-                  onDelete: () => overlays.openDeleteSheet(selectedMessages[0]),
+                  onForward: () =>
+                    overlays.openForwardSheet(selectedMessages),
+                  onDelete: () =>
+                    overlays.openDeleteSheet(selectedMessages[0]),
+          
+                  /* ✅ MESSAGE INFO */
+                  canInfo: headerSelection.count === 1,
+                  onInfo: () =>
+                    overlays.openInfoModal(selectedMessages[0]),  // ✅ KEY LINE
                 }
               : undefined
           }
+          
         />
 
         {shouldShowAudioRecorder && (
@@ -136,6 +148,7 @@ export default function ChatThreadView({ model }: Props) {
       {/* ================= MESSAGES ================= */}
       <ChatMessages
   messages={view.messages}
+  currentUserId={currentUserId}
   loading={thread.data.loading}
   error={thread.data.error}
   containerRef={refs.containerRef}
@@ -235,9 +248,10 @@ export default function ChatThreadView({ model }: Props) {
         <ChatForwardPicker {...overlays.data} onClose={overlays.close} />
       )}
 
-      {overlays.isOpen("INFO") && (
-        <ChatMessageInfoModal {...overlays.data} onClose={overlays.close} />
-      )}
+        {overlays.isOpen("INFO") && (
+          <ChatMessageInfoModal {...overlays.data} onClose={overlays.close} />
+        )}
+
     </div>
   );
 }

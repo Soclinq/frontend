@@ -778,6 +778,201 @@
   width: 100%;
 }
 
+/* ---------- Clock ---------- */
+
+.tickClock {
+  opacity: 0.7;
+  animation: tickFadeIn 120ms ease-out;
+}
+
+/* ---------- Single Tick (Sent) ---------- */
+
+.tickSent {
+  opacity: 0.65;
+  transform: scale(0.9);
+  animation: tickPopIn 140ms ease-out forwards;
+}
+
+/* ---------- Double Tick (Delivered) ---------- */
+
+.doubleTickDelivered {
+  display: inline-flex;
+  gap: 2px;
+
+  opacity: 0.55;
+  transform: scale(0.95);
+
+  animation: deliveredAppear 160ms ease-out;
+}
+
+.doubleTickDelivered svg {
+  color: rgba(15, 23, 42, 0.55);
+}
+
+/* ---------- Seen (Blue / WhatsApp Feel) ---------- */
+
+.doubleTickSeen {
+  display: inline-flex;
+  gap: 2px;
+
+  transform: scale(1);
+
+  animation: seenMorph 220ms ease-out;
+}
+
+.doubleTickSeen svg {
+  color: #4fc3f7;                /* WhatsApp blue */
+  animation: tickBlueShift 240ms ease-out;
+}
+
+/* ---------- Animations ---------- */
+
+@keyframes tickFadeIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 0.7; transform: scale(1); }
+}
+
+@keyframes tickPopIn {
+  0%   { opacity: 0; transform: scale(0.6); }
+  70%  { opacity: 0.8; transform: scale(1.05); }
+  100% { opacity: 0.65; transform: scale(0.9); }
+}
+
+/* Delivered ticks softly appear */
+@keyframes deliveredAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 0.55;
+    transform: scale(0.95);
+  }
+}
+
+/* KEY WhatsApp-like morph */
+@keyframes seenMorph {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Grey → Blue shift */
+@keyframes tickBlueShift {
+  0% {
+    color: rgba(15, 23, 42, 0.55);
+  }
+  100% {
+    color: #4fc3f7;
+  }
+}
+
+/* ---------- Clock ---------- */
+
+.tickClock {
+  opacity: 0.7;
+  animation: tickFadeIn 120ms ease-out;
+}
+
+/* ---------- Single Tick (Sent) ---------- */
+
+.tickSent {
+  opacity: 0.65;
+  transform: scale(0.9);
+  animation: tickPopIn 140ms ease-out forwards;
+}
+
+/* ---------- Double Tick (Delivered) ---------- */
+
+.doubleTickDelivered {
+  display: inline-flex;
+  gap: 2px;
+
+  opacity: 0.55;
+  transform: scale(0.95);
+
+  animation: deliveredAppear 160ms ease-out;
+}
+
+.doubleTickDelivered svg {
+  color: rgba(15, 23, 42, 0.55);
+}
+
+/* ---------- Seen (Blue / WhatsApp Feel) ---------- */
+
+.doubleTickSeen {
+  display: inline-flex;
+  gap: 2px;
+
+  transform: scale(1);
+
+  animation: seenMorph 220ms ease-out;
+}
+
+.doubleTickSeen svg {
+  color: #4fc3f7;                /* WhatsApp blue */
+  animation: tickBlueShift 240ms ease-out;
+}
+
+/* ---------- Animations ---------- */
+
+@keyframes tickFadeIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 0.7; transform: scale(1); }
+}
+
+@keyframes tickPopIn {
+  0%   { opacity: 0; transform: scale(0.6); }
+  70%  { opacity: 0.8; transform: scale(1.05); }
+  100% { opacity: 0.65; transform: scale(0.9); }
+}
+
+/* Delivered ticks softly appear */
+@keyframes deliveredAppear {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 0.55;
+    transform: scale(0.95);
+  }
+}
+
+/* KEY WhatsApp-like morph */
+@keyframes seenMorph {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.4;
+  }
+  40% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Grey → Blue shift */
+@keyframes tickBlueShift {
+  0% {
+    color: rgba(15, 23, 42, 0.55);
+  }
+  100% {
+    color: #4fc3f7;
+  }
+}
+
+
 /* =========================
    Mobile tweaks
 ========================= */

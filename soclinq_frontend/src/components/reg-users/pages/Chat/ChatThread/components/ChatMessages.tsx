@@ -35,6 +35,7 @@ type Props = {
   messages: ChatMessage[];
   loading: boolean;
   error: string | null;
+  currentUserId: string;
 
   selectionMode: boolean;
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -61,11 +62,13 @@ export default function ChatMessages({
   loading,
   error,
   containerRef,
+  currentUserId,
   bottomRef,
   selection,
   onReply,
   onReact,
   selectionMode,
+  
   onRetryMessage,
   sendChunk,
 }: Props) {
@@ -110,6 +113,41 @@ export default function ChatMessages({
 
   /* ---------------- render ---------------- */
 
+  function computeSeen(
+    msg: ChatMessage,
+    currentUserId: string,
+    isGroup?: boolean
+  ): boolean
+   {
+    if (!msg.isMine) return false;
+  
+    const seenBy = msg.seenBy ?? {};
+  
+    const otherSeenUsers = Object.keys(seenBy).filter(
+      id => String(id) !== String(currentUserId)
+    );
+  
+    if (!isGroup) {
+      /* Private chat → any other user seen */
+      return otherSeenUsers.length > 0;
+    }
+  
+    /* Group chat → require everyone except sender */
+    const memberCount = msg.threadMeta?.memberCount ?? 0;
+    if (isGroup && memberCount <= 1) return false;
+  
+    return otherSeenUsers.length >= memberCount - 1;
+  }
+  
+  console.log(
+    "[ChatMessages] render",
+    messages.map(m => ({
+      id: m.id,
+      temp: m.clientTempId,
+      text: m.text
+    }))
+  );
+  
   return (
     <div className={styles.messagesWrap}>
       <div ref={containerRef} className={styles.messages}  onContextMenu={(e) => e.preventDefault()}>
@@ -124,6 +162,13 @@ export default function ChatMessages({
         {!loading &&
           !error &&
           dedupedMessages.map((msg) => {
+            const seen = computeSeen(
+              msg,
+              currentUserId,
+              msg.threadMeta?.isGroup ?? false
+            );
+            
+            
             const selected = selection?.isSelected(msg.id) ?? false;
             const translateX = swipeDx[msg.id] ?? 0;
             const reactions: ChatReaction[] = msg.reactions ?? [];
@@ -163,6 +208,7 @@ export default function ChatMessages({
                 {msg.text && <p className={styles.text}>{msg.text}</p>}
 
                 {reactions.length > 0 && (
+                  
                   <div
                     className={styles.reactionsRow}
                     onClick={(e) => {
@@ -197,8 +243,31 @@ export default function ChatMessages({
                     {formatTime(msg.createdAt)}
                   </span>
 
-                  {msg.isMine && msg.status === "sending" && <FiClock />}
-                  {msg.isMine && msg.status === "sent" && <FiCheck />}
+
+                  {msg.isMine && msg.status === "sending" && (
+                      <FiClock className={styles.tickClock} />
+                    )}
+
+                    {msg.isMine && msg.status === "sent" && !seen && (
+                      <FiCheck className={styles.tickSent} />
+                    )}
+
+                    {msg.isMine && msg.status === "delivered" && !seen && (
+                      <span className={styles.doubleTickDelivered}>
+                        <FiCheck />
+                        <FiCheck />
+                      </span>
+                    )}
+
+                    {msg.isMine && seen && (
+                      <span className={styles.doubleTickSeen}>
+                        <FiCheck />
+                        <FiCheck />
+                      </span>
+                    )}
+
+
+
 
                   {msg.isMine &&
                     msg.status === "failed" &&

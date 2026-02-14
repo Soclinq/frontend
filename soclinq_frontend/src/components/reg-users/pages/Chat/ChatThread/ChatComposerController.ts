@@ -83,6 +83,7 @@ export function useChatComposerController({
 
   /* ================= Send ================= */
   async function send() {
+    
     if (!currentUser) return;
     const hasContent =
         Boolean(input.trim()) ||
@@ -118,6 +119,13 @@ export function useChatComposerController({
         hubId: threadId,
         sender: currentUser,
       });
+
+      // inside send() in ChatComposerController.ts
+    console.log('[composer] optimistic add', built.payload.clientTempId, built.payload.text);
+    console.log("[SEND TRIGGERED]");
+    console.log("[payload]", built.payload);
+    
+    
   
       addOptimisticMessage(built.optimistic);
   
