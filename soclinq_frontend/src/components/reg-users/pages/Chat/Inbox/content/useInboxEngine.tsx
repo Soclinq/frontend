@@ -51,11 +51,13 @@ export default function useInboxEngine({
   const ui = useChatUI();
   const { location, loading: locationLoading, source } = usePreciseLocation();
 
-  const [loading, setLoading] = useState(false);
+  const [loadingPrivate, setLoadingPrivate] = useState(false);
+  const [loadingCommunities, setLoadingCommunities] = useState(false);
   const [privateInbox, setPrivateInbox] = useState<PrivateInboxItem[]>([]);
 
   const lastLoadedRef = useRef<string | null>(null);
 
+  const loading = loadingPrivate || loadingCommunities;
   const disabled = loading || locationLoading;
 
   /* ================= FETCH ================= */
@@ -85,7 +87,7 @@ export default function useInboxEngine({
 
       ui.setInboxLGAs(blocks, resolvedId);
     },
-    [source, ui]
+    [source, ui] // ✅ FIXED
   );
 
   const loadPrivateInbox = useCallback(async () => {
@@ -95,30 +97,49 @@ export default function useInboxEngine({
     return (data?.conversations ?? []) as PrivateInboxItem[];
   }, []);
 
-  /* ================= RELOAD ================= */
+  /* ================= SAFE LOADERS ================= */
 
-  const reload = useCallback(async () => {
-    if (!location) return;
-
+  const loadPrivateNow = useCallback(async () => {
     try {
-      setLoading(true);
-
-      const [privates] = await Promise.all([
-        loadPrivateInbox(),
-        loadCommunities(location.lat, location.lng),
-      ]);
-
+      setLoadingPrivate(true);
+      const privates = await loadPrivateInbox();
       setPrivateInbox(privates);
-    } catch (err) {
+    } catch {
       notify({
         type: "error",
         title: "Refresh failed",
         message: "Unable to refresh inbox.",
       });
     } finally {
-      setLoading(false);
+      setLoadingPrivate(false);
     }
-  }, [location, loadCommunities, loadPrivateInbox, notify]);
+  }, [loadPrivateInbox, notify]);
+
+  const loadCommunitiesNow = useCallback(async () => {
+    if (!location) return;
+
+    try {
+      setLoadingCommunities(true);
+      await loadCommunities(location.lat, location.lng);
+    } catch {
+      notify({
+        type: "error",
+        title: "Refresh failed",
+        message: "Unable to refresh inbox.",
+      });
+    } finally {
+      setLoadingCommunities(false);
+    }
+  }, [location, loadCommunities, notify]);
+
+  /* ================= RELOAD ================= */
+
+  const reload = useCallback(async () => {
+    await Promise.allSettled([
+      loadPrivateNow(),
+      loadCommunitiesNow(),
+    ]);
+  }, [loadPrivateNow, loadCommunitiesNow]);
 
   /* ================= EXPOSE RELOAD ================= */
 
@@ -128,6 +149,12 @@ export default function useInboxEngine({
 
   /* ================= AUTO LOAD ================= */
 
+  // Load private inbox once (no location needed)
+  useEffect(() => {
+    void loadPrivateNow();
+  }, [loadPrivateNow]);
+
+  // Load communities when location stabilizes
   useEffect(() => {
     if (!location || locationLoading) return;
 
@@ -135,8 +162,9 @@ export default function useInboxEngine({
     if (lastLoadedRef.current === key) return;
 
     lastLoadedRef.current = key;
-    reload();
-  }, [location, locationLoading, reload]);
+
+    void loadCommunitiesNow();
+  }, [location, locationLoading, loadCommunitiesNow]);
 
   /* ================= BUILD INBOX ================= */
 
@@ -174,8 +202,6 @@ export default function useInboxEngine({
         : item.chat.other_user?.name?.toLowerCase().includes(q)
     );
   }, [inboxItems, searchValue]);
-
-  /* ================= RETURN ================= */
 
   return {
     inboxItems: filteredInbox,

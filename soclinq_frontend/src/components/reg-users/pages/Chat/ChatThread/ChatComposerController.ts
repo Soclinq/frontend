@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";import type { ChatMessage, SendMessagePayload } from "@/types/chat";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChatMessage, SendMessagePayload } from "@/types/chat";
 import type { ChatAdapter } from "@/types/chatAdapterTypes";
 import type { PublicUserProfile } from "@/types/profile";
 
