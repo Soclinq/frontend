@@ -117,13 +117,7 @@ export default function ChatMessageInfoModal({
   const reactionSorted = sortByTimeDesc(reactions, r => r.createdAt);
 
 
-    const deliveredSorted = sortByTimeDesc(
-      delivered.map(d => ({ ...d, time: d.deliveredAt }))
-    );
 
-    const reactionSorted = sortByTimeDesc(
-      reactions.map(r => ({ ...r, time: r.createdAt }))
-    );
 
     const readIds = new Set(readSorted.map(r => r.user.id));
 
