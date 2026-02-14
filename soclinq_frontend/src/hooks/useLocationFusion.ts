@@ -1,5 +1,4 @@
 import { useRef } from "react";
-import L from "leaflet";
 
 export type LocationSource =
   | "GPS"
@@ -15,28 +14,69 @@ export type LocationPacket = {
   source: LocationSource;
 };
 
-const MAX_SPEED = 50; // m/s
+const MAX_SPEED = 50; // meters/sec
 const MAX_ACCURACY = 3000;
+const EARTH_RADIUS_METERS = 6371000;
+
+/* ================= Distance Helpers ================= */
+
+function toRadians(value: number) {
+  return (value * Math.PI) / 180;
+}
+
+function getDistanceMeters(
+  startLat: number,
+  startLng: number,
+  endLat: number,
+  endLng: number
+) {
+  const dLat = toRadians(endLat - startLat);
+  const dLng = toRadians(endLng - startLng);
+
+  const lat1 = toRadians(startLat);
+  const lat2 = toRadians(endLat);
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) *
+      Math.cos(lat2) *
+      Math.sin(dLng / 2) ** 2;
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return EARTH_RADIUS_METERS * c;
+}
+
+/* ================= Kalman Filter ================= */
 
 class Kalman2D {
   lat: number;
   lng: number;
-  variance: number;
+  variance: number; // ✅ ALWAYS meters²
 
-  constructor(lat: number, lng: number, v: number) {
+  constructor(lat: number, lng: number, accuracy: number) {
     this.lat = lat;
     this.lng = lng;
-    this.variance = v;
+    this.variance = accuracy ** 2; // ✅ FIXED
   }
 
-  update(lat: number, lng: number, acc: number) {
-    const k = this.variance / (this.variance + acc ** 2);
+  update(lat: number, lng: number, accuracy: number) {
+    const measurementVariance = accuracy ** 2;
+
+    const k =
+      this.variance /
+      (this.variance + measurementVariance);
+
     this.lat += k * (lat - this.lat);
     this.lng += k * (lng - this.lng);
+
     this.variance *= 1 - k;
+
     return { lat: this.lat, lng: this.lng };
   }
 }
+
+/* ================= Hook ================= */
 
 export function useLocationFusion(
   onFused: (d: LocationPacket) => void
@@ -45,31 +85,41 @@ export function useLocationFusion(
   const lastRef = useRef<LocationPacket | null>(null);
 
   function isValid(d: LocationPacket) {
-    if (!lastRef.current) return true;
+    const last = lastRef.current;
+    if (!last) return true;
 
-    const dist = L.latLng(
-      lastRef.current.lat,
-      lastRef.current.lng
-    ).distanceTo([d.lat, d.lng]);
+    if (d.timestamp <= last.timestamp) return false;
 
-    const dt =
-      (d.timestamp - lastRef.current.timestamp) / 1000;
+    const dist = getDistanceMeters(
+      last.lat,
+      last.lng,
+      d.lat,
+      d.lng
+    );
 
+    const dt = (d.timestamp - last.timestamp) / 1000;
     if (dt <= 0) return false;
 
     const speed = dist / dt;
+
     return speed < MAX_SPEED;
   }
 
   function ingest(d: LocationPacket) {
+    if (d.accuracy > MAX_ACCURACY) return;
+
     if (!lastRef.current) {
-      kalmanRef.current = new Kalman2D(d.lat, d.lng, d.accuracy);
+      kalmanRef.current = new Kalman2D(
+        d.lat,
+        d.lng,
+        d.accuracy
+      );
+
       lastRef.current = d;
       onFused(d);
       return;
     }
 
-    if (d.accuracy > MAX_ACCURACY) return;
     if (!isValid(d)) return;
 
     if (!kalmanRef.current) {
