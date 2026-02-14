@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import type { ChatMessage, SendMessagePayload } from "@/types/chat";
+import { useEffect, useMemo, useRef, useState } from "react";import type { ChatMessage, SendMessagePayload } from "@/types/chat";
 import type { ChatAdapter } from "@/types/chatAdapterTypes";
 import type { PublicUserProfile } from "@/types/profile";
 
@@ -38,6 +37,7 @@ export function useChatComposerController({
   const [attachments, setAttachments] = useState<File[]>([]);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const draftHydratedThreadRef = useRef<string | null>(null);
 
   /* ================= Hooks ================= */
   const composer = useChatComposer();
@@ -80,6 +80,22 @@ export function useChatComposerController({
     drafts.save(v);
     typing.send(); // ✅ emit typing:start
   }
+
+  useEffect(() => {
+    if (!drafts.isHydrated) return;
+    if (draftHydratedThreadRef.current === threadId) return;
+
+    setInput(drafts.draft.text);
+    draftHydratedThreadRef.current = threadId;
+  }, [drafts.draft.text, drafts.isHydrated, threadId]);
+
+  useEffect(() => {
+    draftHydratedThreadRef.current = null;
+    setInput("");
+    setAttachments([]);
+    setReplyTo(null);
+    setEditingId(null);
+  }, [threadId]);
 
   /* ================= Send ================= */
   async function send() {

@@ -37,6 +37,23 @@ export type ChatReaction = {
   reactedByMe?: boolean;
 };
 
+export type ChatReadReceipt = {
+  user: PublicUserProfile;
+  readAt?: string;
+};
+
+export type ChatDeliveredReceipt = {
+  user: PublicUserProfile;
+  deliveredAt?: string;
+};
+
+export type ChatReactionReceipt = {
+  emoji: string;
+  user: PublicUserProfile;
+  createdAt?: string;
+};
+
+
 /**
  * ✅ Used inside message.replyTo
  */
@@ -54,10 +71,10 @@ export type ChatThreadMeta = {
 };
 
 export interface ChatMessage {
-  reactionReceipts: never[];
-  deliveredReceipts: never[];
-  threadMembers: never[];
-  readReceipts: never[];
+  reactionReceipts?: ChatReactionReceipt[];
+  deliveredReceipts?: ChatDeliveredReceipt[];
+  threadMembers?: PublicUserProfile[];
+  readReceipts?: ChatReadReceipt[];
   id: string;
   clientTempId?: string;
   hubId: string;

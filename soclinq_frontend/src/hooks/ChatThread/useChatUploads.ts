@@ -92,8 +92,8 @@ export function useChatUploads(
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
-      console.error("[UPLOAD ERROR]", res.status, text);
-      throw new Error(`Chunk upload failed: ${res.status}`);
+      const details = text ? ` - ${text}` : "";
+      throw new Error(`Chunk upload failed: ${res.status}${details}`);
     }
       };
 

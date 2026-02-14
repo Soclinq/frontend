@@ -1,47 +1,51 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef } from "react";
-import { FiX, FiLoader, FiEye, FiCheckCircle, FiSmile } from "react-icons/fi";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { FiCheckCircle, FiEye, FiSmile, FiX } from "react-icons/fi";
 import styles from "./styles/ChatMessageInfoModal.module.css";
-import type { ChatMessage } from "@/types/chat";
+
+import type {
+  ChatDeliveredReceipt,
+  ChatMessage,
+  ChatReactionReceipt,
+  ChatReadReceipt,
+} from "@/types/chat";
+
 import type { PublicUserProfile } from "@/types/profile";
 
-/* ======================================================
-   TYPES (Overlay-Compatible)
-====================================================== */
-
-type Props = {
-  message: ChatMessage;
-  onClose: () => void;
-};
-
-/* ======================================================
-   HELPERS
-====================================================== */
+/* ====================================================== */
+/* Helpers */
+/* ====================================================== */
 
 function formatTime(iso?: string) {
   if (!iso) return "";
-  return new Date(iso).toLocaleTimeString([], {
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+
+  return date.toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 
-function sortByTimeDesc<T>(arr: T[], getTime: (item: T) => string | undefined) {
-  return [...arr].sort(
-    (a, b) =>
-      new Date(getTime(b) ?? 0).getTime() -
-      new Date(getTime(a) ?? 0).getTime()
-  );
+function sortByTimeDesc<T>(
+  arr: T[],
+  getTime: (item: T) => string | undefined
+) {
+  return [...arr].sort((a, b) => {
+    const aTime = new Date(getTime(a) ?? 0).getTime();
+    const bTime = new Date(getTime(b) ?? 0).getTime();
+    return bTime - aTime;
+  });
 }
 
-
-/* ======================================================
-   AVATAR
-====================================================== */
+/* ====================================================== */
+/* Avatar */
+/* ====================================================== */
 
 function Avatar({ user }: { user: PublicUserProfile }) {
-  const [failed, setFailed] = React.useState(false);
+  const [failed, setFailed] = useState(false);
 
   if (user.photo && !failed) {
     return (
@@ -66,73 +70,78 @@ function Avatar({ user }: { user: PublicUserProfile }) {
   );
 }
 
-/* ======================================================
-   COMPONENT
-====================================================== */
+/* ====================================================== */
+/* Component */
+/* ====================================================== */
 
-export default function ChatMessageInfoModal({
-  message,
-  onClose,
-}: Props) {
-  const ref = useRef<HTMLDivElement | null>(null);
+type Props = {
+  message: ChatMessage;
+  onClose: () => void;
+};
 
-  /* ---------- Close Behaviors ---------- */
+export default function ChatMessageInfoModal({ message, onClose }: Props) {
+  const modalRef = useRef<HTMLDivElement | null>(null);
+
+  /* ---------------- Close Behaviors ---------------- */
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
     };
 
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
   }, [onClose]);
 
   useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      const el = ref.current;
-      if (!el || el.contains(e.target as Node)) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const modal = modalRef.current;
+      if (!modal || modal.contains(event.target as Node)) return;
       onClose();
     };
 
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
+    window.addEventListener("mousedown", onMouseDown);
+    return () => window.removeEventListener("mousedown", onMouseDown);
   }, [onClose]);
 
-  /* ======================================================
-     NORMALIZATION (VERY IMPORTANT)
-  ====================================================== */
+  /* ---------------- Normalization ---------------- */
 
-  const read = message.readReceipts ?? [];
-  const delivered = message.deliveredReceipts ?? [];
-  const reactions = message.reactionReceipts ?? [];
-  const members = message.threadMembers ?? [];
+  const readReceipts = message.readReceipts ?? [];
+  const deliveredReceipts = message.deliveredReceipts ?? [];
+  const reactionReceipts = message.reactionReceipts ?? [];
+  const threadMembers = message.threadMembers ?? [];
 
-  /* ======================================================
-     DERIVED WHATSAPP LOGIC
-  ====================================================== */
+  /* ---------------- Derived State ---------------- */
 
   const derived = useMemo(() => {
-    const readSorted = sortByTimeDesc(read, r => r.readAt);
-  const deliveredSorted = sortByTimeDesc(delivered, d => d.deliveredAt);
-  const reactionSorted = sortByTimeDesc(reactions, r => r.createdAt);
+    const readSorted = sortByTimeDesc<ChatReadReceipt>(
+      readReceipts,
+      (r) => r.readAt
+    );
 
+    const deliveredSorted = sortByTimeDesc<ChatDeliveredReceipt>(
+      deliveredReceipts,
+      (d) => d.deliveredAt
+    );
 
+    const reactionSorted = sortByTimeDesc<ChatReactionReceipt>(
+      reactionReceipts,
+      (r) => r.createdAt
+    );
 
+    const readIds = new Set(readSorted.map((r) => r.user.id));
 
-    const readIds = new Set(readSorted.map(r => r.user.id));
-
-    /* Delivered excluding read */
     const deliveredOnly = deliveredSorted.filter(
-      d => !readIds.has(d.user.id)
+      (d) => !readIds.has(d.user.id)
     );
 
     const interacted = new Set([
-      ...readSorted.map(r => r.user.id),
-      ...deliveredSorted.map(d => d.user.id),
+      ...readSorted.map((r) => r.user.id),
+      ...deliveredSorted.map((d) => d.user.id),
     ]);
 
-    const remaining = members.filter(
-      u => !interacted.has(u.id)
+    const remaining = threadMembers.filter(
+      (member) => !interacted.has(member.id)
     );
 
     return {
@@ -141,18 +150,21 @@ export default function ChatMessageInfoModal({
       reactionSorted,
       remaining,
     };
-  }, [read, delivered, reactions, members]);
+  }, [readReceipts, deliveredReceipts, reactionReceipts, threadMembers]);
 
-  /* ======================================================
-     RENDER
-  ====================================================== */
+  /* ---------------- Render ---------------- */
 
   return (
     <div className={styles.overlay}>
       <div className={styles.backdrop} />
 
-      <div ref={ref} className={styles.modal}>
-        {/* HEADER */}
+      <div
+        ref={modalRef}
+        className={styles.modal}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Message Info"
+      >
         <div className={styles.header}>
           <div>
             <h3>Message Info</h3>
@@ -161,24 +173,24 @@ export default function ChatMessageInfoModal({
             </span>
           </div>
 
-          <button onClick={onClose} className={styles.closeBtn}>
+          <button
+            type="button"
+            onClick={onClose}
+            className={styles.closeBtn}
+            aria-label="Close"
+          >
             <FiX />
           </button>
         </div>
 
-        {/* BODY */}
         <div className={styles.body}>
-          <Section
-            icon={<FiEye />}
-            title="Read by"
-            count={derived.readSorted.length}
-          >
+          <Section icon={<FiEye />} title="Read by" count={derived.readSorted.length}>
             {derived.readSorted.length ? (
-              derived.readSorted.map(x => (
+              derived.readSorted.map((r) => (
                 <UserRow
-                  key={x.user.id}
-                  user={x.user}
-                  time={formatTime(x.readAt)}
+                  key={r.user.id}
+                  user={r.user}
+                  time={formatTime(r.readAt)}
                 />
               ))
             ) : (
@@ -192,11 +204,11 @@ export default function ChatMessageInfoModal({
             count={derived.deliveredOnly.length}
           >
             {derived.deliveredOnly.length ? (
-              derived.deliveredOnly.map(x => (
+              derived.deliveredOnly.map((d) => (
                 <UserRow
-                  key={x.user.id}
-                  user={x.user}
-                  time={formatTime(x.deliveredAt)}
+                  key={d.user.id}
+                  user={d.user}
+                  time={formatTime(d.deliveredAt)}
                 />
               ))
             ) : (
@@ -204,12 +216,9 @@ export default function ChatMessageInfoModal({
             )}
           </Section>
 
-          <Section
-            title="Remaining"
-            count={derived.remaining.length}
-          >
+          <Section title="Remaining" count={derived.remaining.length}>
             {derived.remaining.length ? (
-              derived.remaining.map(u => (
+              derived.remaining.map((u) => (
                 <UserRow key={u.id} user={u} />
               ))
             ) : (
@@ -223,9 +232,9 @@ export default function ChatMessageInfoModal({
             count={derived.reactionSorted.length}
           >
             {derived.reactionSorted.length ? (
-              derived.reactionSorted.map((r, idx) => (
+              derived.reactionSorted.map((r, i) => (
                 <UserRow
-                  key={`${r.user.id}-${idx}`}
+                  key={`${r.user.id}-${i}`}
                   user={r.user}
                   time={formatTime(r.createdAt)}
                   extra={<span>{r.emoji}</span>}
@@ -241,9 +250,9 @@ export default function ChatMessageInfoModal({
   );
 }
 
-/* ======================================================
-   SUB COMPONENTS
-====================================================== */
+/* ====================================================== */
+/* Sub Components */
+/* ====================================================== */
 
 function Section({
   title,

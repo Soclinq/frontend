@@ -62,11 +62,14 @@ export function useChatDrafts({
   const hydratedRef = useRef(false);
   const saveTimerRef = useRef<number | null>(null);
   const storageKey = `${LOCAL_PREFIX}${threadId}`;
+  const [isHydrated, setIsHydrated] = useState(false);
 
   /* ================= LOAD ================= */
 
   useEffect(() => {
     let cancelled = false;
+    hydratedRef.current = false;
+    setIsHydrated(false);
 
     (async () => {
       try {
@@ -98,6 +101,7 @@ export function useChatDrafts({
         // ignore hydration errors
       } finally {
         hydratedRef.current = true;
+        setIsHydrated(true);
       }
     })();
 
@@ -108,43 +112,49 @@ export function useChatDrafts({
 
   /* ================= SAVE (DEBOUNCED) ================= */
 
+  const persistDraft = useCallback(async (nextDraft: ChatDraft) => {
+    try {
+      const payload: ChatDraft = {
+        ...nextDraft,
+        text: encrypt ? await encrypt(nextDraft.text) : nextDraft.text,
+        updatedAt: Date.now(),
+      };
+
+      // Large drafts → IndexedDB
+      if (isLarge(nextDraft.text)) {
+        const db = await dbPromise;
+        await db.put(STORE, { threadId, ...payload });
+        localStorage.removeItem(storageKey);
+      } else {
+        localStorage.setItem(storageKey, JSON.stringify(payload));
+      }
+
+      // Optional cross-device sync
+      syncRemote?.(nextDraft);
+    } catch {
+      // ignore persistence errors
+    }
+  }, [encrypt, storageKey, syncRemote, threadId]);
+
   useEffect(() => {
     if (!hydratedRef.current) return;
 
     if (saveTimerRef.current) {
       clearTimeout(saveTimerRef.current);
     }
+    const draftSnapshot = draft;
 
-    saveTimerRef.current = window.setTimeout(async () => {
-      try {
-        const payload: ChatDraft = {
-          ...draft,
-          text: encrypt ? await encrypt(draft.text) : draft.text,
-          updatedAt: Date.now(),
-        };
-
-        // Large drafts → IndexedDB
-        if (isLarge(draft.text)) {
-          const db = await dbPromise;
-          await db.put(STORE, { threadId, ...payload });
-          localStorage.removeItem(storageKey);
-        } else {
-          localStorage.setItem(storageKey, JSON.stringify(payload));
-        }
-
-        // Optional cross-device sync
-        syncRemote?.(draft);
-      } catch {
-        // ignore persistence errors
-      }
+    saveTimerRef.current = window.setTimeout(() => {
+      void persistDraft(draftSnapshot);
     }, 350);
 
     return () => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
       }
+      void persistDraft(draftSnapshot);
     };
-  }, [draft, encrypt, syncRemote]);
+  }, [draft, persistDraft]);
 
   /* ================= API ================= */
 
@@ -194,6 +204,7 @@ export function useChatDrafts({
     setReply,
     addAttachment,
     removeAttachment,
+    isHydrated,
   
     /* aliases for composer ergonomics */
     save: setText,
