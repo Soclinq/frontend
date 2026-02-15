@@ -104,7 +104,10 @@ export default function ChatThreadContainer({
           selection,
           startReply: (id) => {
             const msg = thread.data.messages.find(m => m.id === id);
-            if (msg) composer.startReply(msg);
+            if (msg) {
+              composer.startReply(msg);
+              clearSelection();
+            }
           },
         },
         refs: {

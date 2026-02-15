@@ -73,6 +73,9 @@ export const communityChatAdapter: ChatAdapter = {
 
   unmuteThread: (threadId: string) =>
     `/communities/hubs/${threadId}/unmute/`,
+  forwardMessages: () =>
+    `/communities/chat/messages/forward/`,
+
 
   archiveThread: (threadId: string) =>
     `/communities/hubs/${threadId}/archive/`,

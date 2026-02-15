@@ -88,6 +88,8 @@ export const privateChatAdapter: ChatAdapter = {
 
   listMessages: (id) =>
     `/communities/private/chat/conversations/${id}/messages/`,
+  forwardMessages: () =>
+    `/communities/private/chat/messages/forward/`,
 
   listMessagesOlder: (id, cursor) =>
     `/communities/private/chat/conversations/${id}/messages/?cursor=${encodeURIComponent(cursor)}`,

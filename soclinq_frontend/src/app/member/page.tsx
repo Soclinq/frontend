@@ -80,6 +80,7 @@ export default function Page() {
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const alerts = 2;
+  const isCommunityTab = activeTab === "community";
 
   /* ================= TAB HISTORY ================= */
 
@@ -271,17 +272,24 @@ export default function Page() {
 
         {/* ================= MAIN ================= */}
         <main className={styles.main}>
-          <AppHeader
-            activeTab={activeTab}
-            setActiveTab={navigateTab}
-            sidebarCollapsed={sidebarCollapsed}
-            setDrawerOpen={setDrawerOpen}
-            alerts={alerts}
-            activeId={activeId}
-            setActiveId={setActiveId}
-          />
+        {!isCommunityTab && (
+            <AppHeader
+              activeTab={activeTab}
+              setActiveTab={navigateTab}
+              sidebarCollapsed={sidebarCollapsed}
+              setDrawerOpen={setDrawerOpen}
+              alerts={alerts}
+              activeId={activeId}
+              setActiveId={setActiveId}
+            />
+          )}
 
-          <section className={styles.content}>
+          <section
+            className={[
+              styles.content,
+              isCommunityTab ? styles.contentCommunity : "",
+            ].join(" ")}
+          >
             {renderContent()}
           </section>
 
@@ -293,7 +301,7 @@ export default function Page() {
       </div>
 
       {/* ================= MOBILE BOTTOM NAV ================= */}
-      <div className={styles.bottomNav}>
+      {!isCommunityTab && <div className={styles.bottomNav}>
         {navItems.map(({ id, icon: Icon, danger }) => (
           <button
             key={id}
@@ -308,7 +316,7 @@ export default function Page() {
             <Icon size={22} />
           </button>
         ))}
-      </div>
+      </div>}
     </>
   );
 }

@@ -158,6 +158,7 @@ export function useChatThreadWS({
       
             return {
               ...m,
+              status: m.isMine ? "seen" : m.status,
               seenBy,     // ✅ source of truth
             };
           })

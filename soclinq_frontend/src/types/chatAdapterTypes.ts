@@ -78,6 +78,8 @@ export type ChatAdapter = {
   /* ---------- Inbox ---------- */
   inbox: () => string;
   searchInbox: (q: string) => string;
+  forwardMessages: () => string;
+  
 
   /* ---------- Thread ---------- */
   getOrCreateConversation: () => string;

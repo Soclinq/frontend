@@ -139,14 +139,21 @@ export default function ChatMessages({
     return otherSeenUsers.length >= memberCount - 1;
   }
   
-  console.log(
-    "[ChatMessages] render",
-    messages.map(m => ({
-      id: m.id,
-      temp: m.clientTempId,
-      text: m.text
-    }))
-  );
+  function hasDeliveredReceipt(msg: ChatMessage): boolean {
+    if (!msg.isMine) return false;
+
+    return (msg.deliveredReceipts ?? []).some(
+      (receipt) => String(receipt.user?.id) !== String(currentUserId)
+    );
+  }
+
+  function hasReadReceipt(msg: ChatMessage): boolean {
+    if (!msg.isMine) return false;
+
+    return (msg.readReceipts ?? []).some(
+      (receipt) => String(receipt.user?.id) !== String(currentUserId)
+    );
+  }
   
   return (
     <div className={styles.messagesWrap}>
@@ -162,11 +169,23 @@ export default function ChatMessages({
         {!loading &&
           !error &&
           dedupedMessages.map((msg) => {
-            const seen = computeSeen(
-              msg,
-              currentUserId,
-              msg.threadMeta?.isGroup ?? false
-            );
+            const seen =
+              computeSeen(
+                msg,
+                currentUserId,
+                msg.threadMeta?.isGroup ?? false
+              ) || hasReadReceipt(msg);
+
+            const delivered =
+              msg.status === "delivered" ||
+              msg.status === "seen" ||
+              hasDeliveredReceipt(msg) ||
+              hasReadReceipt(msg) ||
+              seen;
+
+            const sent =
+              msg.status === "sent" ||
+              (msg.isMine && !msg.status);
             
             
             const selected = selection?.isSelected(msg.id) ?? false;
@@ -192,14 +211,14 @@ export default function ChatMessages({
                   }}
                   style={{
                     transform:
-                      translateX > 0 && !selection
+                      translateX > 0 && !selectionMode
                         ? `translateX(${Math.min(translateX, 42)}px)`
                         : undefined,
                   }}
                   onClick={(e) => {
                     if (consumeClickIfGesture(e)) return;
-
-                    if (selection) {
+  
+                      if (selectionMode && selection) {
                       selection.toggle(msg.id);
                     }
                   }}
@@ -248,11 +267,11 @@ export default function ChatMessages({
                       <FiClock className={styles.tickClock} />
                     )}
 
-                    {msg.isMine && msg.status === "sent" && !seen && (
+                    {msg.isMine && sent && !delivered && !seen && (
                       <FiCheck className={styles.tickSent} />
                     )}
 
-                    {msg.isMine && msg.status === "delivered" && !seen && (
+                  {msg.isMine && delivered && !seen && (
                       <span className={styles.doubleTickDelivered}>
                         <FiCheck />
                         <FiCheck />
