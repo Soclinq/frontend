@@ -1122,6 +1122,130 @@ class MessageForwardView(APIView):
         )
 
 
+class BulkCommunityMessageForwardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        target_hub_ids = request.data.get("targetIds") or []
+        source_hub_id = request.data.get("fromThreadId")
+        raw_messages = request.data.get("messages") or []
+        message_ids = [str(m.get("id")) for m in raw_messages if isinstance(m, dict) and m.get("id")]
+
+        if not isinstance(target_hub_ids, list) or not target_hub_ids or not message_ids:
+            return Response(
+                {"error": "targetIds and messages are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        parsed_target_ids = []
+        for raw in target_hub_ids:
+            try:
+                parsed_target_ids.append(UUID(str(raw)))
+            except Exception:
+                continue
+
+        parsed_message_ids = []
+        for raw in message_ids:
+            try:
+                parsed_message_ids.append(UUID(str(raw)))
+            except Exception:
+                continue
+
+        if not parsed_target_ids or not parsed_message_ids:
+            return Response(
+                {"error": "No valid target or message IDs"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        src_messages = (
+            HubMessage.objects.select_related("hub", "reply_to")
+            .prefetch_related("attachments")
+            .filter(id__in=parsed_message_ids)
+        )
+        if source_hub_id:
+            src_messages = src_messages.filter(hub_id=source_hub_id)
+
+        src_list = list(src_messages)
+        if not src_list:
+            return Response({"error": "No forwardable messages found"}, status=status.HTTP_404_NOT_FOUND)
+
+        source_hub_ids = {m.hub_id for m in src_list}
+        allowed_source_hubs = set(
+            CommunityMembership.objects.filter(
+                user=user,
+                hub_id__in=source_hub_ids,
+                is_active=True,
+            ).values_list("hub_id", flat=True)
+        )
+        src_list = [m for m in src_list if m.hub_id in allowed_source_hubs]
+        if not src_list:
+            return Response({"error": "Not allowed to forward selected messages"}, status=status.HTTP_403_FORBIDDEN)
+
+        allowed_target_hubs = set(
+            CommunityMembership.objects.filter(
+                user=user,
+                hub_id__in=parsed_target_ids,
+                is_active=True,
+            ).values_list("hub_id", flat=True)
+        )
+
+        created_payloads = []
+        for target_hub_id in parsed_target_ids:
+            if target_hub_id not in allowed_target_hubs:
+                continue
+
+            for src in src_list:
+                with transaction.atomic():
+                    new_msg = HubMessage.objects.create(
+                        hub_id=target_hub_id,
+                        sender=user,
+                        text=src.text or "",
+                        message_type=src.message_type,
+                        reply_to=src.reply_to if src.reply_to_id else None,
+                        forwarded_from=src,
+                        is_forwarded=True,
+                    )
+
+                    for a in src.attachments.all():
+                        MessageAttachment.objects.create(
+                            message=new_msg,
+                            attachment_type=a.attachment_type,
+                            url=a.url,
+                            thumbnail_url=getattr(a, "thumbnail_url", "") or "",
+                            mime_type=getattr(a, "mime_type", "") or "",
+                            file_name=getattr(a, "file_name", "") or "",
+                            file_size=getattr(a, "file_size", None),
+                            width=getattr(a, "width", None),
+                            height=getattr(a, "height", None),
+                            duration_ms=getattr(a, "duration_ms", None),
+                        )
+
+                    payload = HubMessageSerializer(new_msg, context={"request": request}).data
+                    created_payloads.append(payload)
+
+                    notify_group(
+                        group_name=chat_group_name(str(target_hub_id)),
+                        payload={"type": "message:new", "payload": payload},
+                    )
+
+        if not created_payloads:
+            return Response(
+                {"error": "No messages were forwarded"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return Response(
+            {
+                "success": True,
+                "forwarded": len(created_payloads),
+                "messages": created_payloads,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 from django.db.models import Q, Count, Max
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
@@ -1875,3 +1999,425 @@ class PrivateConversationMessagesView(APIView):
         )
 
         return Response(payload, status=status.HTTP_200_OK)
+
+
+from community.models import PrivateMessageAttachment
+
+
+class BulkPrivateMessageForwardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        target_conversation_ids = request.data.get("targetIds") or []
+        source_conversation_id = request.data.get("fromThreadId")
+        raw_messages = request.data.get("messages") or []
+        message_ids = [str(m.get("id")) for m in raw_messages if isinstance(m, dict) and m.get("id")]
+
+        if not isinstance(target_conversation_ids, list) or not target_conversation_ids or not message_ids:
+            return Response(
+                {"error": "targetIds and messages are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        parsed_target_ids = []
+        for raw in target_conversation_ids:
+            try:
+                parsed_target_ids.append(UUID(str(raw)))
+            except Exception:
+                continue
+
+        parsed_message_ids = []
+        for raw in message_ids:
+            try:
+                parsed_message_ids.append(UUID(str(raw)))
+            except Exception:
+                continue
+
+        if not parsed_target_ids or not parsed_message_ids:
+            return Response(
+                {"error": "No valid target or message IDs"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        src_messages = (
+            PrivateMessage.objects.select_related("sender", "conversation", "reply_to")
+            .prefetch_related("attachments")
+            .filter(id__in=parsed_message_ids, deleted_at__isnull=True)
+        )
+
+        if source_conversation_id:
+            src_messages = src_messages.filter(conversation_id=source_conversation_id)
+
+        src_list = list(src_messages)
+        if not src_list:
+            return Response({"error": "No forwardable messages found"}, status=status.HTTP_404_NOT_FOUND)
+
+        allowed_source_conversations = set(
+            PrivateConversationMember.objects.filter(
+                user=user,
+                conversation_id__in={m.conversation_id for m in src_list},
+            ).values_list("conversation_id", flat=True)
+        )
+
+        src_list = [m for m in src_list if m.conversation_id in allowed_source_conversations]
+        if not src_list:
+            return Response({"error": "Not allowed to forward selected messages"}, status=status.HTTP_403_FORBIDDEN)
+
+        allowed_target_conversations = set(
+            PrivateConversationMember.objects.filter(
+                user=user,
+                conversation_id__in=parsed_target_ids,
+                conversation__is_active=True,
+            ).values_list("conversation_id", flat=True)
+        )
+
+        channel_layer = get_channel_layer()
+        created_payloads = []
+
+        for target_conversation_id in parsed_target_ids:
+            if target_conversation_id not in allowed_target_conversations:
+                continue
+
+            for src in src_list:
+                with transaction.atomic():
+                    msg = PrivateMessage.objects.create(
+                        conversation_id=target_conversation_id,
+                        sender=user,
+                        text=src.text or "",
+                        message_type=src.message_type,
+                        reply_to=src.reply_to if src.reply_to_id else None,
+                    )
+
+                    for a in src.attachments.all():
+                        PrivateMessageAttachment.objects.create(
+                            message=msg,
+                            attachment_type=a.attachment_type,
+                            url=a.url,
+                            s3_key=getattr(a, "s3_key", "") or "",
+                            thumbnail_url=getattr(a, "thumbnail_url", "") or "",
+                            mime_type=getattr(a, "mime_type", "") or "",
+                            file_name=getattr(a, "file_name", "") or "",
+                            file_size=getattr(a, "file_size", None),
+                            width=getattr(a, "width", None),
+                            height=getattr(a, "height", None),
+                            duration_ms=getattr(a, "duration_ms", None),
+                        )
+
+                    payload = {
+                        "id": str(msg.id),
+                        "clientTempId": None,
+                        "conversationId": str(target_conversation_id),
+                        "messageType": "TEXT",
+                        "text": msg.text,
+                        "sender": {"id": str(user.id), "name": user.full_name or user.username},
+                        "createdAt": msg.created_at.isoformat(),
+                        "isMine": True,
+                        "deletedAt": None,
+                        "editedAt": None,
+                        "attachments": [],
+                        "reactions": [],
+                        "myReaction": None,
+                        "replyTo": None,
+                    }
+                    created_payloads.append(payload)
+
+                    async_to_sync(channel_layer.group_send)(
+                        f"private_chat_{target_conversation_id}",
+                        {
+                            "type": "broadcast",
+                            "payload": {
+                                "type": "message:new",
+                                "payload": payload,
+                            },
+                            "sender": None,
+                        },
+                    )
+
+        if not created_payloads:
+            return Response(
+                {"error": "No messages were forwarded"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return Response(
+            {
+                "success": True,
+                "forwarded": len(created_payloads),
+                "messages": created_payloads,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class CommunityForwardTargetsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        memberships = list(
+            CommunityMembership.objects.select_related("hub")
+            .filter(user=user, is_active=True, hub__is_active=True)
+            .order_by("-joined_at")[:300]
+        )
+
+        membership_hub_ids = [m.hub_id for m in memberships]
+
+        last_msg_subq = (
+            HubMessage.objects.filter(
+                hub_id=OuterRef("hub_id"),
+                deleted_at__isnull=True,
+                sender=user,
+            )
+            .order_by("-created_at")
+            .values("created_at")[:1]
+        )
+        recent_rows = (
+            CommunityMembership.objects.filter(user=user, is_active=True, hub_id__in=membership_hub_ids)
+            .annotate(last_message_at=Subquery(last_msg_subq))
+            .filter(last_message_at__isnull=False)
+            .order_by(F("last_message_at").desc(nulls_last=True))
+            .values_list("hub_id", flat=True)[:50]
+        )
+
+        recent_hub_ids = list(recent_rows)
+
+        hubs_by_id = {m.hub_id: m.hub for m in memberships}
+        targets = []
+        seen = set()
+
+        # 1) Recent chats first (active hubs the user is already in)
+        for hub_id in recent_hub_ids:
+            hub = hubs_by_id.get(hub_id)
+            if not hub:
+                continue
+            seen.add(hub_id)
+            targets.append(
+                {
+                    "id": str(hub.id),
+                    "name": hub.name,
+                    "type": "COMMUNITY",
+                    "photo": getattr(hub, "photo", None),
+                    "bucket": "RECENT",
+                }
+            )
+
+        # 2) Remaining groups user is a member of
+        for m in memberships:
+            hub = m.hub
+            if hub.id in seen:
+                continue
+            seen.add(hub.id)
+            targets.append(
+                {
+                    "id": str(hub.id),
+                    "name": hub.name,
+                    "type": "COMMUNITY",
+                    "photo": getattr(hub, "photo", None),
+                    "bucket": "GROUPS",
+                }
+            )
+
+        # 3) LGA groups in the user's current state (append at bottom)
+        user_state = getattr(user, "admin_1", None)
+        if user_state:
+            lga_hubs = (
+                CommunityHub.objects.filter(
+                    admin_unit__level=2,
+                    admin_unit__parent=user_state,
+                    hub_type=HubType.SYSTEM,
+                    is_active=True,
+                )
+                .select_related("admin_unit")
+                .order_by("name")[:80]
+            )
+
+            for hub in lga_hubs:
+                if hub.id in seen:
+                    continue
+                seen.add(hub.id)
+                targets.append(
+                    {
+                        "id": str(hub.id),
+                        "name": hub.name,
+                        "type": "COMMUNITY",
+                        "photo": getattr(hub, "photo", None),
+                        "bucket": "LGA",
+                    }
+                )
+
+        return Response({"targets": targets}, status=status.HTTP_200_OK)
+
+
+class PrivateForwardTargetsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        blocked_ids = set(
+            UserBlock.objects.filter(blocker=user).values_list("blocked_id", flat=True)
+        )
+        blocked_by_ids = set(
+            UserBlock.objects.filter(blocked=user).values_list("blocker_id", flat=True)
+        )
+
+        memberships = list(
+            PrivateConversationMember.objects.select_related(
+                "conversation", "conversation__user1", "conversation__user2"
+            )
+            .filter(user=user, conversation__is_active=True)
+            .order_by("-created_at")[:300]
+        )
+
+        # recent private chats by latest message time
+        convo_ids = [m.conversation_id for m in memberships]
+        last_msg_subq = (
+            PrivateMessage.objects.filter(
+                conversation_id=OuterRef("conversation_id"),
+                deleted_at__isnull=True,
+            )
+            .order_by("-created_at")
+            .values("created_at")[:1]
+        )
+        recent_conversation_ids = list(
+            PrivateConversationMember.objects.filter(user=user, conversation_id__in=convo_ids)
+            .annotate(last_message_at=Subquery(last_msg_subq))
+            .filter(last_message_at__isnull=False)
+            .order_by(F("last_message_at").desc(nulls_last=True))
+            .values_list("conversation_id", flat=True)[:50]
+        )
+
+        memberships_by_convo = {m.conversation_id: m for m in memberships}
+
+        targets = []
+        seen = set()
+
+        def build_target(membership, bucket: str):
+            convo = membership.conversation
+            other = convo.user2 if convo.user1_id == user.id else convo.user1
+
+            if other.id in blocked_ids or other.id in blocked_by_ids:
+                return None
+
+            return {
+                "id": str(convo.id),
+                "conversation_id": str(convo.id),
+                "name": other.full_name or other.username,
+                "type": "PRIVATE",
+                "photo": getattr(other, "photo", None),
+                "bucket": bucket,
+                "other_user": {
+                    "id": str(other.id),
+                    "name": other.full_name or other.username,
+                    "photo": getattr(other, "photo", None),
+                },
+            }
+
+        # 1) recent chats first
+        for convo_id in recent_conversation_ids:
+            membership = memberships_by_convo.get(convo_id)
+            if not membership:
+                continue
+            payload = build_target(membership, "RECENT")
+            if not payload:
+                continue
+            seen.add(convo_id)
+            targets.append(payload)
+
+        # 2) associated contacts list (remaining conversation peers)
+        for membership in memberships:
+            convo_id = membership.conversation_id
+            if convo_id in seen:
+                continue
+            payload = build_target(membership, "CONTACTS")
+            if not payload:
+                continue
+            seen.add(convo_id)
+            targets.append(payload)
+
+        # 3) contacts explicitly attached by user (server-side list)
+        from accounts.models import EmergencyContact
+
+        contact_phones = list(
+            EmergencyContact.objects.filter(user=user).values_list("phone", flat=True)
+        )
+        if contact_phones:
+            possible_users = (
+                User.objects.filter(phone_number__in=contact_phones, is_active=True, is_suspended=False)
+                .exclude(id=user.id)
+                .only("id", "full_name", "username", "photo")[:120]
+            )
+
+            for other in possible_users:
+                if other.id in blocked_ids or other.id in blocked_by_ids:
+                    continue
+
+                convo = (
+                    PrivateConversation.objects.filter(is_active=True)
+                    .filter(
+                        Q(user1=user, user2=other) |
+                        Q(user1=other, user2=user)
+                    )
+                    .first()
+                )
+
+                if not convo:
+                    convo = PrivateConversation.objects.create(
+                        user1=user,
+                        user2=other,
+                        is_active=True,
+                    )
+
+                PrivateConversationMember.objects.get_or_create(conversation=convo, user=user)
+                PrivateConversationMember.objects.get_or_create(conversation=convo, user=other)
+
+                if convo.id in seen:
+                    continue
+
+                seen.add(convo.id)
+                targets.append(
+                    {
+                        "id": str(convo.id),
+                        "conversation_id": str(convo.id),
+                        "name": other.full_name or other.username,
+                        "type": "PRIVATE",
+                        "photo": getattr(other, "photo", None),
+                        "bucket": "CONTACTS",
+                        "other_user": {
+                            "id": str(other.id),
+                            "name": other.full_name or other.username,
+                            "photo": getattr(other, "photo", None),
+                        },
+                    }
+                )
+
+        return Response({"targets": targets}, status=status.HTTP_200_OK)
+
+
+class CommunityInboxView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        memberships = (
+            CommunityMembership.objects.select_related("hub")
+            .filter(user=user, is_active=True, hub__is_active=True)
+            .order_by("-joined_at")[:250]
+        )
+
+        conversations = [
+            {
+                "id": str(m.hub.id),
+                "hub_id": str(m.hub.id),
+                "name": m.hub.name,
+                "type": "COMMUNITY",
+                "photo": getattr(m.hub, "photo", None),
+            }
+            for m in memberships
+        ]
+
+        return Response({"conversations": conversations}, status=status.HTTP_200_OK)

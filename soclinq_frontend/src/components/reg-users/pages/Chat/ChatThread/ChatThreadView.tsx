@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import type { ChatMessage } from "@/types/chat";
+import type { ChatAdapter } from "@/types/chatAdapterTypes";
 import { useChatUI } from "../Inbox/state/ChatUIContext";
 import ChatHeader from "./components/ChatHeader";
 import ChatMessages from "./components/ChatMessages";
@@ -23,6 +23,8 @@ import { useChatClipboard } from "@/hooks/ChatThread/useChatClipboard";
 
 type Props = {
   model: {
+    adapter: ChatAdapter;
+    threadId: string;
     thread: any;
     composer: any;
     overlays: any;
@@ -51,7 +53,7 @@ type Props = {
 
 export default function ChatThreadView({ model }: Props) {
   const chatUI = useChatUI();
-  const { thread, composer, overlays, view, ui, refs } = model;
+  const { adapter, threadId, thread, composer, overlays, view, ui, refs } = model;
 
   const currentUserId = thread.currentUser?.id;
 
@@ -117,6 +119,16 @@ export default function ChatThreadView({ model }: Props) {
 
 
 
+  const forwardMessages = useMemo(
+    () =>
+      (overlays?.data?.messages || []).map((m: ChatMessage) => ({
+        id: m.id,
+        text: m.text || "",
+        deletedAt: m.deletedAt,
+        attachments: m.attachments || [],
+      })),
+    [overlays?.data?.messages]
+  );
 
   return (
     <div className={styles.chat} ref={refs.containerRef}>
@@ -277,7 +289,15 @@ export default function ChatThreadView({ model }: Props) {
       )}
 
       {overlays.isOpen("FORWARD") && (
-        <ChatForwardPicker {...overlays.data} onClose={overlays.close} />
+        <ChatForwardPicker
+          open={true}
+          onClose={overlays.close}
+          mode="FORWARD"
+          adapter={adapter}
+          currentThreadId={threadId}
+          forwardMessages={forwardMessages}
+          onForwardDone={() => ui?.selection?.clear()}
+        />
       )}
 
         {overlays.isOpen("INFO") && (

@@ -80,6 +80,11 @@ export default function ChatForwardPicker({
   onForwardDone,
 }: Props) {
   const notify = useNotify();
+  const notifyRef = useRef(notify);
+
+  useEffect(() => {
+    notifyRef.current = notify;
+  }, [notify]);
 
   const [loading, setLoading] = useState(false);
   const [forwarding, setForwarding] = useState(false);
@@ -96,6 +101,7 @@ export default function ChatForwardPicker({
 
   const searchMode = Boolean(search.trim());
   const debTimer = useRef<NodeJS.Timeout | null>(null);
+  const hasLoadedDefaultsRef = useRef(false);
 
   const targets = useMemo(() => {
     return searchMode ? searchTargets : defaultTargets;
@@ -131,7 +137,13 @@ export default function ChatForwardPicker({
       if (!res.ok) return [];
 
       const list =
-        data?.results ?? data?.items ?? data?.threads ?? data?.conversations ?? data?.inbox ?? [];
+        data?.results ??
+        data?.items ??
+        data?.threads ??
+        data?.conversations ??
+        data?.inbox ??
+        data?.targets ??
+        [];
 
       if (!Array.isArray(list)) return [];
 
@@ -226,7 +238,13 @@ export default function ChatForwardPicker({
 
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      hasLoadedDefaultsRef.current = false;
+      return;
+    }
+
+    if (hasLoadedDefaultsRef.current) return;
+    hasLoadedDefaultsRef.current = true;
 
     let cancelled = false;
 
@@ -245,13 +263,13 @@ export default function ChatForwardPicker({
         if (cancelled) return;
 
         const apiTargets = Array.isArray(data?.targets)
-        ? (data.targets.map(toForwardTarget).filter(Boolean) as ForwardTarget[])
-        : [];
+          ? (data.targets.map(toForwardTarget).filter(Boolean) as ForwardTarget[])
+          : [];
 
-      const recentTargets = await fetchRecentTargets();
-      if (cancelled) return;
+        const recentTargets = await fetchRecentTargets();
+        if (cancelled) return;
 
-      setDefaultTargets(uniqueTargets([...apiTargets, ...recentTargets]));
+        setDefaultTargets(uniqueTargets([...apiTargets, ...recentTargets]));
         setSearchTargets([]);
         setSearch("");
         setSelectedIds([]);
@@ -263,7 +281,7 @@ export default function ChatForwardPicker({
 
         setDefaultTargets(recentTargets);
 
-        notify({
+        notifyRef.current({
           type: "warning",
           title: "Limited targets",
           message: "Showing recent chats. Pull contacts to add more people.",
@@ -279,7 +297,7 @@ export default function ChatForwardPicker({
     return () => {
       cancelled = true;
     };
-  }, [open, adapter, notify]);
+  }, [open, adapter.mode]);
   // ==========================
   // ✅ Search remote (username/phone/email)
   // ==========================
