@@ -1,14 +1,16 @@
 "use client";
 
-import styles from "./styles/SosModal.module.css";
+import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
-import { useState } from "react";
 import { FaTimes } from "react-icons/fa";
 
+import styles from "./styles/SosModal.module.css";
 import PreSosPanel from "./PreSosPanel";
+
 const ActiveSosPanel = dynamic(() => import("./ActiveSosPanel"), {
   ssr: false,
 });
+
 type SosStep = "PRE" | "ACTIVE";
 
 interface SosFlowModalProps {
@@ -18,16 +20,20 @@ interface SosFlowModalProps {
 export default function SosFlowModal({ onClose }: SosFlowModalProps) {
   const [step, setStep] = useState<SosStep>("PRE");
 
+  const handleStart = useCallback(() => {
+    setStep("ACTIVE");
+  }, []);
+
   return (
     <div className={styles.backdrop}>
       <div className={styles.modal}>
-        {/* ================= MODAL HEADER ================= */}
         <header className={styles.header}>
           <h2 className={styles.title}>
             {step === "PRE" ? "Emergency SOS" : "SOS Active"}
           </h2>
 
           <button
+            type="button"
             className={styles.closeBtn}
             onClick={onClose}
             aria-label="Close SOS modal"
@@ -36,16 +42,10 @@ export default function SosFlowModal({ onClose }: SosFlowModalProps) {
           </button>
         </header>
 
-        {/* ================= MODAL BODY ================= */}
         <div className={styles.body}>
-          {step === "PRE" && (
-            <PreSosPanel
-              onClose={onClose}
-              onStart={() => setStep("ACTIVE")}
-            />
-          )}
-
-          {step === "ACTIVE" && (
+          {step === "PRE" ? (
+            <PreSosPanel onClose={onClose} onStart={handleStart} />
+          ) : (
             <ActiveSosPanel onClose={onClose} />
           )}
         </div>
