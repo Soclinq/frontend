@@ -96,6 +96,8 @@ export default function ChatThreadContainer({
   return (
     <ChatThreadView
       model={{
+        adapter,
+        threadId,
         thread,
         composer,
         overlays,

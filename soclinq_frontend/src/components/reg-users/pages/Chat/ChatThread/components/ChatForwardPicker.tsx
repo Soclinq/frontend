@@ -102,6 +102,7 @@ export default function ChatForwardPicker({
   const hasLoadedDefaultsRef = useRef(false);
   const searchMode = Boolean(search.trim());
   const debTimer = useRef<NodeJS.Timeout | null>(null);
+  const hasLoadedDefaultsRef = useRef(false);
 
   const targets = useMemo(() => {
     return searchMode ? searchTargets : defaultTargets;
@@ -263,8 +264,8 @@ export default function ChatForwardPicker({
         if (cancelled) return;
 
         const apiTargets = Array.isArray(data?.targets)
-        ? (data.targets.map(toForwardTarget).filter(Boolean) as ForwardTarget[])
-        : [];
+          ? (data.targets.map(toForwardTarget).filter(Boolean) as ForwardTarget[])
+          : [];
 
         const recentTargets = await fetchRecentTargets();
         if (cancelled) return;

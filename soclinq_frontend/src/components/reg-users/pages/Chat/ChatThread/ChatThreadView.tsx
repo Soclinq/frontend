@@ -2,6 +2,7 @@
 import React, { useState, useMemo } from "react";
 import type { ChatAdapter } from "@/types/chatAdapterTypes";
 import type { ChatMessage } from "@/types/chat";
+import type { ChatAdapter } from "@/types/chatAdapterTypes";
 import { useChatUI } from "../Inbox/state/ChatUIContext";
 import ChatHeader from "./components/ChatHeader";
 import ChatMessages from "./components/ChatMessages";
@@ -179,6 +180,16 @@ export default function ChatThreadView({ model }: Props) {
 
 
 
+  const forwardMessages = useMemo(
+    () =>
+      (overlays?.data?.messages || []).map((m: ChatMessage) => ({
+        id: m.id,
+        text: m.text || "",
+        deletedAt: m.deletedAt,
+        attachments: m.attachments || [],
+      })),
+    [overlays?.data?.messages]
+  );
 
   return (
     <div className={styles.chat} ref={refs.containerRef}>
