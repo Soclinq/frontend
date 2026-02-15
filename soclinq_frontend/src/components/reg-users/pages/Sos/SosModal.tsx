@@ -1,12 +1,14 @@
 "use client";
 
 import styles from "./styles/SosModal.module.css";
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import { FaTimes } from "react-icons/fa";
 
 import PreSosPanel from "./PreSosPanel";
-import ActiveSosPanel from "./ActiveSosPanel";
-
+const ActiveSosPanel = dynamic(() => import("./ActiveSosPanel"), {
+  ssr: false,
+});
 type SosStep = "PRE" | "ACTIVE";
 
 interface SosFlowModalProps {
