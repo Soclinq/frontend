@@ -127,6 +127,16 @@ export default function Page() {
       window.removeEventListener("popstate", handlePopState);
   }, [router]);
 
+
+  useEffect(() => {
+    const openDrawer = () => setDrawerOpen(true);
+
+    window.addEventListener("linqmi:open-mobile-drawer", openDrawer);
+    return () => {
+      window.removeEventListener("linqmi:open-mobile-drawer", openDrawer);
+    };
+  }, []);
+
   /* ================= NAV ITEMS ================= */
 
   const navItems: {
