@@ -12,8 +12,20 @@ export type LGAGroupBlock = {
  * Active chat pointer
  */
 export type ActiveChat =
-  | { kind: "COMMUNITY"; id: string }
-  | { kind: "PRIVATE"; id: string }
+    | {
+      kind: "COMMUNITY";
+      id: string;
+      title?: string;
+      avatarUrl?: string | null;
+      onlineCount?: number | null;
+    }
+    | {
+      kind: "PRIVATE";
+      id: string;
+      title?: string;
+      avatarUrl?: string | null;
+      subtitle?: string;
+    }
   | null;
 
 /**

@@ -126,8 +126,20 @@ export default function InboxEngine({
 
                     onOpenChat(
                       item.kind === "COMMUNITY"
-                        ? { kind: "COMMUNITY", id: item.hub.id }
-                        : { kind: "PRIVATE", id: item.chat.conversation_id }
+                      ? {
+                        kind: "COMMUNITY",
+                        id: item.hub.id,
+                        title: item.hub.name,
+                        avatarUrl: item.hub.avatar_icon ?? item.hub.cover_image ?? null,
+                        onlineCount: item.hub.online_count ?? null,
+                      }
+                    : {
+                        kind: "PRIVATE",
+                        id: item.chat.conversation_id,
+                        title: item.chat.other_user?.name ?? "Chat",
+                        avatarUrl: item.chat.other_user?.photo ?? null,
+                        subtitle: item.chat.other_user?.online ? "Online" : undefined,
+                      }
                     );
                   }}
                   onLongPress={() => {

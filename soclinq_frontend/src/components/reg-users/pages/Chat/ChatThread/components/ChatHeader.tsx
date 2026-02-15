@@ -121,7 +121,7 @@ const onlineSubtitle =
 
 const [showOnlineStatus, setShowOnlineStatus] = useState(false);
 
-useEffect(() => {
+React.useEffect(() => {
   if (!isGroup || !onlineSubtitle) {
     setShowOnlineStatus(false);
     return;
@@ -136,6 +136,7 @@ useEffect(() => {
 
 const groupSubtitle =
   showOnlineStatus && onlineSubtitle ? onlineSubtitle : memberSubtitle;
+
 
   /* two-level menus */
   const [mainMenuOpen, setMainMenuOpen] = useState(false);
