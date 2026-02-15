@@ -28,6 +28,47 @@ type Props = {
   onForwardDone?: () => void;
 };
 
+type ContactMatchUser = {
+  id: string;
+  name: string;
+  photo?: string | null;
+};
+
+function normalizeTargetType(input: unknown): "PRIVATE" | "COMMUNITY" {
+  return String(input || "").toUpperCase() === "COMMUNITY" ? "COMMUNITY" : "PRIVATE";
+}
+
+function toForwardTarget(raw: any): ForwardTarget | null {
+  const id = String(
+    raw?.id ?? raw?.threadId ?? raw?.thread_id ?? raw?.conversation_id ?? raw?.hub_id ?? ""
+  ).trim();
+
+  const name = String(
+    raw?.name ?? raw?.title ?? raw?.display_name ?? raw?.other_user?.name ?? ""
+  ).trim();
+
+  if (!id || !name) return null;
+
+  return {
+    id,
+    name,
+    type: normalizeTargetType(raw?.type ?? raw?.threadType),
+    photo: raw?.photo ?? raw?.avatar ?? raw?.other_user?.photo ?? null,
+  };
+}
+
+function uniqueTargets(items: ForwardTarget[]): ForwardTarget[] {
+  const seen = new Set<string>();
+  const output: ForwardTarget[] = [];
+
+  for (const item of items) {
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    output.push(item);
+  }
+
+  return output;
+}
 export default function ChatForwardPicker({
   open,
   onClose,
@@ -50,6 +91,9 @@ export default function ChatForwardPicker({
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [contactsGranted, setContactsGranted] = useState(false);
+
   const searchMode = Boolean(search.trim());
   const debTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -57,10 +101,6 @@ export default function ChatForwardPicker({
     return searchMode ? searchTargets : defaultTargets;
   }, [searchMode, searchTargets, defaultTargets]);
 
-  const selectedTargets = useMemo(() => {
-    const set = new Set(selectedIds);
-    return targets.filter((t) => set.has(t.id));
-  }, [selectedIds, targets]);
 
   const canSubmit =
     mode === "NEW_MESSAGE"
@@ -80,6 +120,111 @@ export default function ChatForwardPicker({
   // ==========================
   // ✅ Load default list (contacts + groups)
   // ==========================
+  async function fetchRecentTargets() {
+    try {
+      const res = await authFetch(adapter.inbox(), {
+        method: "GET",
+        credentials: "include",
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return [];
+
+      const list =
+        data?.results ?? data?.items ?? data?.threads ?? data?.conversations ?? data?.inbox ?? [];
+
+      if (!Array.isArray(list)) return [];
+
+      return uniqueTargets(
+        list
+          .map(toForwardTarget)
+          .filter(Boolean) as ForwardTarget[]
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  async function requestContactsAndSync() {
+    const hasContactAPI =
+      typeof navigator !== "undefined" &&
+      // @ts-ignore
+      navigator.contacts &&
+      // @ts-ignore
+      typeof navigator.contacts.select === "function";
+
+    if (!hasContactAPI) {
+      notify({
+        type: "info",
+        title: "Contacts not supported",
+        message: "Your browser does not support contact sync. You can still use search.",
+        duration: 3000,
+      });
+      setContactsGranted(false);
+      return;
+    }
+
+    try {
+      setContactsLoading(true);
+
+      // @ts-ignore
+      const picked = await navigator.contacts.select(["name", "tel", "email"], {
+        multiple: true,
+      });
+
+      const phones: string[] = [];
+      const emails: string[] = [];
+
+      for (const c of picked || []) {
+        const tel = Array.isArray(c.tel) ? c.tel : [];
+        const em = Array.isArray(c.email) ? c.email : [];
+
+        tel.forEach((t: string) => t && phones.push(t));
+        em.forEach((e: string) => e && emails.push(e));
+      }
+
+      const res = await authFetch("/api/chat/new-chat/sync-contacts", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phones, emails }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error();
+
+      const contactTargets = (Array.isArray(data?.registered) ? data.registered : [])
+        .map((u: ContactMatchUser) => ({
+          id: String(u.id),
+          name: u.name,
+          type: "PRIVATE" as const,
+          photo: u.photo ?? null,
+        }))
+        .filter((t: ForwardTarget) => t.id && t.name);
+
+      setDefaultTargets((prev) => uniqueTargets([...contactTargets, ...prev]));
+      setContactsGranted(true);
+
+      notify({
+        type: "success",
+        title: "Contacts synced",
+        message: "Matched contacts are now available in your forward list.",
+        duration: 2000,
+      });
+    } catch {
+      setContactsGranted(false);
+      notify({
+        type: "warning",
+        title: "Contacts unavailable",
+        message: "Could not sync contacts right now. You can still use recent chats/search.",
+        duration: 2500,
+      });
+    } finally {
+      setContactsLoading(false);
+    }
+  }
+
+
   useEffect(() => {
     if (!open) return;
 
@@ -89,13 +234,6 @@ export default function ChatForwardPicker({
       try {
         setLoading(true);
 
-        /**
-         * ✅ This endpoint should return:
-         * - registered contacts on device
-         * - recent chats
-         * - hubs/groups
-         * so forwarding is seamless.
-         */
         const res = await authFetch(adapter.forwardTargets(), {
           method: "GET",
           credentials: "include",
@@ -106,19 +244,29 @@ export default function ChatForwardPicker({
 
         if (cancelled) return;
 
-        setDefaultTargets(data.targets || []);
+        const apiTargets = Array.isArray(data?.targets)
+        ? (data.targets.map(toForwardTarget).filter(Boolean) as ForwardTarget[])
+        : [];
+
+      const recentTargets = await fetchRecentTargets();
+      if (cancelled) return;
+
+      setDefaultTargets(uniqueTargets([...apiTargets, ...recentTargets]));
         setSearchTargets([]);
         setSearch("");
         setSelectedIds([]);
-      } catch (e: any) {
+      } catch {
         if (cancelled) return;
 
-        setDefaultTargets([]);
+        const recentTargets = await fetchRecentTargets();
+        if (cancelled) return;
+
+        setDefaultTargets(recentTargets);
 
         notify({
           type: "warning",
-          title: "Targets unavailable",
-          message: "Unable to load contacts/groups. Try again.",
+          title: "Limited targets",
+          message: "Showing recent chats. Pull contacts to add more people.",
           duration: 2500,
         });
       } finally {
@@ -131,8 +279,7 @@ export default function ChatForwardPicker({
     return () => {
       cancelled = true;
     };
-  }, [open, adapter]);
-
+  }, [open, adapter, notify]);
   // ==========================
   // ✅ Search remote (username/phone/email)
   // ==========================
@@ -158,7 +305,11 @@ export default function ChatForwardPicker({
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error();
 
-        setSearchTargets(data.targets || []);
+        const results = Array.isArray(data?.targets)
+          ? (data.targets.map(toForwardTarget).filter(Boolean) as ForwardTarget[])
+          : [];
+
+        setSearchTargets(results);
       } catch {
         setSearchTargets([]);
       }
@@ -275,7 +426,7 @@ export default function ChatForwardPicker({
                 ? `${selectedIds.length} selected`
                 : searchMode
                 ? "Search results"
-                : "Contacts on Soclinq"}
+                : "Recent chats + your contacts"}
             </p>
           </div>
 
@@ -305,6 +456,23 @@ export default function ChatForwardPicker({
         </div>
 
         {/* Body */}
+        {!contactsGranted && (
+          <div className={styles.permissionBanner}>
+            <div>
+              <div className={styles.permissionTitle}>Find more contacts</div>
+              <div className={styles.permissionText}>
+                Sync phone contacts to show people linked to your account.
+              </div>
+            </div>
+            <button
+              className={styles.permissionBtn}
+              onClick={requestContactsAndSync}
+              disabled={contactsLoading}
+            >
+              {contactsLoading ? "Syncing..." : "Sync Contacts"}
+            </button>
+          </div>
+        )}
         <div className={styles.body}>
           {loading && <div className={styles.loading}>Loading...</div>}
 
