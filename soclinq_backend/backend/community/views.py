@@ -1744,6 +1744,278 @@ class OpenPrivateConversationView(APIView):
         )
 
 
+class BulkCommunityMessageForwardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        target_hub_ids = request.data.get("targetIds") or []
+        source_hub_id = request.data.get("fromThreadId")
+        raw_messages = request.data.get("messages") or []
+        message_ids = [str(m.get("id")) for m in raw_messages if isinstance(m, dict) and m.get("id")]
+
+        if not isinstance(target_hub_ids, list) or not target_hub_ids or not message_ids:
+            return Response(
+                {"error": "targetIds and messages are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        parsed_target_ids = []
+        for raw in target_hub_ids:
+            try:
+                parsed_target_ids.append(UUID(str(raw)))
+            except Exception:
+                continue
+
+        parsed_message_ids = []
+        for raw in message_ids:
+            try:
+                parsed_message_ids.append(UUID(str(raw)))
+            except Exception:
+                continue
+
+        if not parsed_target_ids or not parsed_message_ids:
+            return Response(
+                {"error": "No valid target or message IDs"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        src_messages = (
+            HubMessage.objects.select_related("hub", "reply_to")
+            .prefetch_related("attachments")
+            .filter(id__in=parsed_message_ids)
+        )
+        if source_hub_id:
+            src_messages = src_messages.filter(hub_id=source_hub_id)
+
+        src_list = list(src_messages)
+        if not src_list:
+            return Response({"error": "No forwardable messages found"}, status=status.HTTP_404_NOT_FOUND)
+
+        source_hub_ids = {m.hub_id for m in src_list}
+        allowed_source_hubs = set(
+            CommunityMembership.objects.filter(
+                user=user,
+                hub_id__in=source_hub_ids,
+                is_active=True,
+            ).values_list("hub_id", flat=True)
+        )
+        src_list = [m for m in src_list if m.hub_id in allowed_source_hubs]
+        if not src_list:
+            return Response({"error": "Not allowed to forward selected messages"}, status=status.HTTP_403_FORBIDDEN)
+
+        allowed_target_hubs = set(
+            CommunityMembership.objects.filter(
+                user=user,
+                hub_id__in=parsed_target_ids,
+                is_active=True,
+            ).values_list("hub_id", flat=True)
+        )
+
+        created_payloads = []
+        for target_hub_id in parsed_target_ids:
+            if target_hub_id not in allowed_target_hubs:
+                continue
+
+            for src in src_list:
+                with transaction.atomic():
+                    new_msg = HubMessage.objects.create(
+                        hub_id=target_hub_id,
+                        sender=user,
+                        text=src.text or "",
+                        message_type=src.message_type,
+                        reply_to=src.reply_to if src.reply_to_id else None,
+                        forwarded_from=src,
+                        is_forwarded=True,
+                    )
+
+                    for a in src.attachments.all():
+                        MessageAttachment.objects.create(
+                            message=new_msg,
+                            attachment_type=a.attachment_type,
+                            url=a.url,
+                            thumbnail_url=getattr(a, "thumbnail_url", "") or "",
+                            mime_type=getattr(a, "mime_type", "") or "",
+                            file_name=getattr(a, "file_name", "") or "",
+                            file_size=getattr(a, "file_size", None),
+                            width=getattr(a, "width", None),
+                            height=getattr(a, "height", None),
+                            duration_ms=getattr(a, "duration_ms", None),
+                        )
+
+                    payload = HubMessageSerializer(new_msg, context={"request": request}).data
+                    created_payloads.append(payload)
+
+                    notify_group(
+                        group_name=chat_group_name(str(target_hub_id)),
+                        payload={"type": "message:new", "payload": payload},
+                    )
+
+        if not created_payloads:
+            return Response(
+                {"error": "No messages were forwarded"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return Response(
+            {
+                "success": True,
+                "forwarded": len(created_payloads),
+                "messages": created_payloads,
+            },
+            status=status.HTTP_200_OK,
+        )
+from community.models import PrivateMessageAttachment
+
+
+class BulkPrivateMessageForwardView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+
+        target_conversation_ids = request.data.get("targetIds") or []
+        source_conversation_id = request.data.get("fromThreadId")
+        raw_messages = request.data.get("messages") or []
+        message_ids = [str(m.get("id")) for m in raw_messages if isinstance(m, dict) and m.get("id")]
+
+        if not isinstance(target_conversation_ids, list) or not target_conversation_ids or not message_ids:
+            return Response(
+                {"error": "targetIds and messages are required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        parsed_target_ids = []
+        for raw in target_conversation_ids:
+            try:
+                parsed_target_ids.append(UUID(str(raw)))
+            except Exception:
+                continue
+
+        parsed_message_ids = []
+        for raw in message_ids:
+            try:
+                parsed_message_ids.append(UUID(str(raw)))
+            except Exception:
+                continue
+
+        if not parsed_target_ids or not parsed_message_ids:
+            return Response(
+                {"error": "No valid target or message IDs"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        src_messages = (
+            PrivateMessage.objects.select_related("sender", "conversation", "reply_to")
+            .prefetch_related("attachments")
+            .filter(id__in=parsed_message_ids, deleted_at__isnull=True)
+        )
+
+        if source_conversation_id:
+            src_messages = src_messages.filter(conversation_id=source_conversation_id)
+
+        src_list = list(src_messages)
+        if not src_list:
+            return Response({"error": "No forwardable messages found"}, status=status.HTTP_404_NOT_FOUND)
+
+        allowed_source_conversations = set(
+            PrivateConversationMember.objects.filter(
+                user=user,
+                conversation_id__in={m.conversation_id for m in src_list},
+            ).values_list("conversation_id", flat=True)
+        )
+
+        src_list = [m for m in src_list if m.conversation_id in allowed_source_conversations]
+        if not src_list:
+            return Response({"error": "Not allowed to forward selected messages"}, status=status.HTTP_403_FORBIDDEN)
+
+        allowed_target_conversations = set(
+            PrivateConversationMember.objects.filter(
+                user=user,
+                conversation_id__in=parsed_target_ids,
+                conversation__is_active=True,
+            ).values_list("conversation_id", flat=True)
+        )
+
+        channel_layer = get_channel_layer()
+        created_payloads = []
+
+        for target_conversation_id in parsed_target_ids:
+            if target_conversation_id not in allowed_target_conversations:
+                continue
+
+            for src in src_list:
+                with transaction.atomic():
+                    msg = PrivateMessage.objects.create(
+                        conversation_id=target_conversation_id,
+                        sender=user,
+                        text=src.text or "",
+                        message_type=src.message_type,
+                        reply_to=src.reply_to if src.reply_to_id else None,
+                    )
+
+                    for a in src.attachments.all():
+                        PrivateMessageAttachment.objects.create(
+                            message=msg,
+                            attachment_type=a.attachment_type,
+                            url=a.url,
+                            s3_key=getattr(a, "s3_key", "") or "",
+                            thumbnail_url=getattr(a, "thumbnail_url", "") or "",
+                            mime_type=getattr(a, "mime_type", "") or "",
+                            file_name=getattr(a, "file_name", "") or "",
+                            file_size=getattr(a, "file_size", None),
+                            width=getattr(a, "width", None),
+                            height=getattr(a, "height", None),
+                            duration_ms=getattr(a, "duration_ms", None),
+                        )
+
+                    payload = {
+                        "id": str(msg.id),
+                        "clientTempId": None,
+                        "conversationId": str(target_conversation_id),
+                        "messageType": "TEXT",
+                        "text": msg.text,
+                        "sender": {"id": str(user.id), "name": user.full_name or user.username},
+                        "createdAt": msg.created_at.isoformat(),
+                        "isMine": True,
+                        "deletedAt": None,
+                        "editedAt": None,
+                        "attachments": [],
+                        "reactions": [],
+                        "myReaction": None,
+                        "replyTo": None,
+                    }
+                    created_payloads.append(payload)
+
+                    async_to_sync(channel_layer.group_send)(
+                        f"private_chat_{target_conversation_id}",
+                        {
+                            "type": "broadcast",
+                            "payload": {
+                                "type": "message:new",
+                                "payload": payload,
+                            },
+                            "sender": None,
+                        },
+                    )
+
+        if not created_payloads:
+            return Response(
+                {"error": "No messages were forwarded"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        return Response(
+            {
+                "success": True,
+                "forwarded": len(created_payloads),
+                "messages": created_payloads,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 from django.db import transaction
 from django.db.models import Q
 from rest_framework.views import APIView

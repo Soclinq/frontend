@@ -1,7 +1,7 @@
 from django.urls import path
 from community.views import (NearbyCommunitiesByLocationView, MessageDeleteView,
                              GroupMessagesView, ChatUploadView, MessageDeleteForMeView,
-                             MessageInfoView, MessageForwardView, CommunityHubSearchView,
+                             MessageInfoView, MessageForwardView, BulkCommunityMessageForwardView, BulkPrivateMessageForwardView, CommunityHubSearchView,
                              JoinCommunityHubView, PrivateInboxView, NewChatSearchUsersView,
                              OpenPrivateConversationView, PrivateConversationMessagesView,
                              )
@@ -21,5 +21,8 @@ urlpatterns = [
     path("private/open/", OpenPrivateConversationView.as_view()),
     path("private/chat/conversations/<uuid:conversation_id>/messages/",PrivateConversationMessagesView.as_view(),),
     path("private/chat/uploads/", ChatUploadView.as_view()),
+    path("chat/messages/forward/", BulkCommunityMessageForwardView.as_view()),
+    path("private/chat/messages/forward/", BulkPrivateMessageForwardView.as_view()),
+
 ]
 
