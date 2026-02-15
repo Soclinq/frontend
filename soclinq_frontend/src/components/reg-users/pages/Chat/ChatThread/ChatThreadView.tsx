@@ -1,7 +1,6 @@
 "use client";
-
-import { useRouter } from "next/navigation";
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import type { ChatAdapter } from "@/types/chatAdapterTypes";
 import type { ChatMessage } from "@/types/chat";
 import { useChatUI } from "../Inbox/state/ChatUIContext";
 import ChatHeader from "./components/ChatHeader";
@@ -23,6 +22,8 @@ import { useChatClipboard } from "@/hooks/ChatThread/useChatClipboard";
 
 type Props = {
   model: {
+    adapter: ChatAdapter;
+    threadId: string;
     thread: any;
     composer: any;
     overlays: any;
@@ -51,7 +52,7 @@ type Props = {
 
 export default function ChatThreadView({ model }: Props) {
   const chatUI = useChatUI();
-  const { thread, composer, overlays, view, ui, refs } = model;
+  const { adapter, threadId, thread, composer, overlays, view, ui, refs } = model;
 
   const currentUserId = thread.currentUser?.id;
 
@@ -114,6 +115,17 @@ export default function ChatThreadView({ model }: Props) {
  rawSelection && rawSelection.active && rawSelection.count > 0
    ? rawSelection
    : null;
+
+   const forwardMessages = useMemo(
+    () =>
+      (overlays?.data?.messages || []).map((m: ChatMessage) => ({
+        id: m.id,
+        text: m.text || "",
+        deletedAt: m.deletedAt,
+        attachments: m.attachments || [],
+      })),
+    [overlays?.data?.messages]
+  );
 
 
 
@@ -277,8 +289,15 @@ export default function ChatThreadView({ model }: Props) {
       )}
 
       {overlays.isOpen("FORWARD") && (
-        <ChatForwardPicker {...overlays.data} onClose={overlays.close} />
-      )}
+        <ChatForwardPicker
+          open={true}
+          onClose={overlays.close}
+          mode="FORWARD"
+          adapter={adapter}
+          currentThreadId={threadId}
+          forwardMessages={forwardMessages}
+          onForwardDone={() => ui?.selection?.clear()}
+        />      )}
 
         {overlays.isOpen("INFO") && (
           <ChatMessageInfoModal {...overlays.data} onClose={overlays.close} />
