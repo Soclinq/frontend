@@ -23,12 +23,30 @@ export default function UnifiedHeader({
           className={styles.leftBtn}
           onClick={left.onClick}
           disabled={disabled}
+          title={left.title}
         >
           {left.icon}
           {left.label && (
             <span className={styles.leftText}>{left.label}</span>
           )}
         </button>
+      ) : left?.type === "BUTTON_GROUP" ? (
+        <div className={styles.leftGroup}>
+          {left.buttons.map((btn, idx) => (
+            <button
+              key={idx}
+              className={styles.leftBtn}
+              onClick={btn.onClick}
+              disabled={disabled}
+              title={btn.title}
+            >
+              {btn.icon}
+              {btn.label && (
+                <span className={styles.leftText}>{btn.label}</span>
+              )}
+            </button>
+          ))}
+        </div>
       ) : (
         <div />
       )}

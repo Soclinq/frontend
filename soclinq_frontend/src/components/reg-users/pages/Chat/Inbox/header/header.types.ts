@@ -13,7 +13,17 @@ export type HeaderLeft =
       type: "BUTTON";
       icon: React.ReactNode;
       label?: string;
+      title?: string;
       onClick?: () => void;
+    }
+  | {
+      type: "BUTTON_GROUP";
+      buttons: Array<{
+        icon: React.ReactNode;
+        label?: string;
+        title?: string;
+        onClick?: () => void;
+      }>;
     }
   | { type: "NONE" };
 

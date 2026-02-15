@@ -22,6 +22,7 @@ import {
   FiSettings,
   FiHelpCircle,
   FiImage,
+  FiMenu,
 } from "react-icons/fi";
 
 import UnifiedHeader from "./UnifiedHeader";
@@ -212,12 +213,24 @@ export default function UnifiedHeaderSlot() {
   return (
     <UnifiedHeader
       left={{
-        type: "BUTTON",
-        icon: <FiMapPin />,
-        onClick: () => {
-          ui.resetSelection();
-          ui.openChangeLGA();
-        },
+        type: "BUTTON_GROUP",
+        buttons: [
+          {
+            icon: <FiMenu />,
+            title: "Open navigation",
+            onClick: () => {
+              window.dispatchEvent(new CustomEvent("linqmi:open-mobile-drawer"));
+            },
+          },
+          {
+            icon: <FiMapPin />,
+            title: "Change LGA",
+            onClick: () => {
+              ui.resetSelection();
+              ui.openChangeLGA();
+            },
+          },
+        ],
       }}
       center={{
         type: "SEARCH",
