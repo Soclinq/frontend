@@ -183,4 +183,44 @@
     place-items: center;
     opacity: 0.7;
   }
+
+  .permissionBanner {
+    margin: 0 14px 8px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #f8fafc;
+  }
+  
+  .permissionTitle {
+    font-size: 12px;
+    font-weight: 700;
+  }
+  
+  .permissionText {
+    font-size: 12px;
+    opacity: 0.7;
+  }
+  
+  .permissionBtn {
+    border: none;
+    background: #111;
+    color: #fff;
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  
+  .permissionBtn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   
