@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   FiX,
   FiSend,
@@ -111,6 +111,32 @@ export default function ChatHeader(props: Props) {
   } = props;
 
   const selecting = !!selection?.active;
+
+  const memberSubtitle = members.length > 0
+  ? members.slice(0, 4).join(", ")
+  : `${members.length} members`;
+
+const onlineSubtitle =
+  onlineCount != null ? `${onlineCount} online` : null;
+
+const [showOnlineStatus, setShowOnlineStatus] = useState(false);
+
+React.useEffect(() => {
+  if (!isGroup || !onlineSubtitle) {
+    setShowOnlineStatus(false);
+    return;
+  }
+
+  const interval = window.setInterval(() => {
+    setShowOnlineStatus((prev) => !prev);
+  }, 3500);
+
+  return () => window.clearInterval(interval);
+}, [isGroup, onlineSubtitle]);
+
+const groupSubtitle =
+  showOnlineStatus && onlineSubtitle ? onlineSubtitle : memberSubtitle;
+
 
   /* two-level menus */
   const [mainMenuOpen, setMainMenuOpen] = useState(false);
@@ -259,10 +285,8 @@ export default function ChatHeader(props: Props) {
               <div className={styles.subtitleRow}>
                 {/* group or private status */}
                 {isGroup ? (
-                  <span className={styles.subtitle}>
-                    {onlineCount != null ? `${onlineCount} online` : `${members.length} members`}
-                    {members.length > 0 ? ` • ${members.slice(0, 3).join(", ")}` : ""}
-                  </span>
+                  
+                  <span className={styles.subtitle}>{groupSubtitle}</span>
                 ) : subtitle ? (
                   <span className={styles.subtitle}>{subtitle}</span>
                 ) : (

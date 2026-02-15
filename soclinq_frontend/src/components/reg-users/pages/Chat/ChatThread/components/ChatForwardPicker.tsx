@@ -99,6 +99,7 @@ export default function ChatForwardPicker({
   const [contactsLoading, setContactsLoading] = useState(false);
   const [contactsGranted, setContactsGranted] = useState(false);
 
+  const hasLoadedDefaultsRef = useRef(false);
   const searchMode = Boolean(search.trim());
   const debTimer = useRef<NodeJS.Timeout | null>(null);
   const hasLoadedDefaultsRef = useRef(false);
@@ -137,14 +138,14 @@ export default function ChatForwardPicker({
       if (!res.ok) return [];
 
       const list =
-        data?.results ??
-        data?.items ??
-        data?.threads ??
-        data?.conversations ??
-        data?.inbox ??
-        data?.targets ??
-        [];
-
+      data?.results ??
+      data?.items ??
+      data?.threads ??
+      data?.conversations ??
+      data?.inbox ??
+      data?.targets ??
+      [];
+      
       if (!Array.isArray(list)) return [];
 
       return uniqueTargets(
@@ -269,8 +270,7 @@ export default function ChatForwardPicker({
         const recentTargets = await fetchRecentTargets();
         if (cancelled) return;
 
-        setDefaultTargets(uniqueTargets([...apiTargets, ...recentTargets]));
-        setSearchTargets([]);
+        setDefaultTargets(uniqueTargets([...apiTargets, ...recentTargets]));        setSearchTargets([]);
         setSearch("");
         setSelectedIds([]);
       } catch {
@@ -297,7 +297,7 @@ export default function ChatForwardPicker({
     return () => {
       cancelled = true;
     };
-  }, [open, adapter.mode]);
+  }, [open, adapter]);
   // ==========================
   // ✅ Search remote (username/phone/email)
   // ==========================

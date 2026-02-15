@@ -1,6 +1,6 @@
 "use client";
-
-import React, { useMemo, useState } from "react";
+import React, { useState, useMemo } from "react";
+import type { ChatAdapter } from "@/types/chatAdapterTypes";
 import type { ChatMessage } from "@/types/chat";
 import type { ChatAdapter } from "@/types/chatAdapterTypes";
 import { useChatUI } from "../Inbox/state/ChatUIContext";
@@ -67,10 +67,29 @@ export default function ChatThreadView({ model }: Props) {
 
   const { copy } = useChatClipboard();
 
-  const selection = ui?.selection;
-  const [recordingActive, setRecordingActive] = useState(false);
-  const hasText = composer.input.trim().length > 0;
-  const hasAttachments = composer.attachments.length > 0;
+  const activeChat = chatUI.activeChat;
+  const isGroupChat =
+    (typeof thread.ws?.isGroup === "boolean"
+      ? thread.ws.isGroup
+      : activeChat?.kind === "COMMUNITY") ?? false;
+
+  const groupMemberNames = React.useMemo(() => {
+    const names = new Set<string>();
+
+    for (const message of [...view.messages].reverse()) {
+      for (const member of message.threadMembers ?? []) {
+        const displayName =
+          member.full_name?.trim() ||
+          member.username?.trim();
+
+        if (displayName) names.add(displayName);
+      }
+
+      if (names.size >= 6) break;
+    }
+
+    return Array.from(names);
+  }, [view.messages]);
 
   const chatPartnerName = React.useMemo(() => {
     const messageWithMembers = [...view.messages]
@@ -78,31 +97,62 @@ export default function ChatThreadView({ model }: Props) {
       .find((message: ChatMessage) => (message.threadMembers?.length ?? 0) > 0);
 
     const partnerFromMembers = messageWithMembers?.threadMembers?.find(
-      (member: { id: any; }) => String(member.id) !== String(currentUserId)
+      (member) => String(member.id) !== String(currentUserId)
     );
 
-    if (partnerFromMembers?.full_name?.trim()) {
-      return partnerFromMembers.full_name.trim();
-    }
+    const partnerNameFromMembers =
+      partnerFromMembers?.full_name?.trim() ||
+      partnerFromMembers?.username?.trim();
+
+    if (partnerNameFromMembers) return partnerNameFromMembers;
 
     const lastIncoming = [...view.messages]
       .reverse()
       .find((message: ChatMessage) => !message.isMine && message.sender?.name?.trim());
 
-    return lastIncoming?.sender?.name?.trim() ?? null;
-  }, [view.messages, currentUserId]);
+    return lastIncoming?.sender?.name?.trim() ?? activeChat?.title ?? null;
+  }, [view.messages, currentUserId, activeChat?.title]);
 
-  const normalizedTitle = (thread.ws.chatName ?? "").trim();
-  const isGenericChatTitle = ["", "chat", "private chat"].includes(
-    normalizedTitle.toLowerCase()
+  const normalizedTitle = (thread.ws?.chatName ?? "").trim();
+  const fallbackTitle = (activeChat?.title ?? "").trim();
+  const titleCandidate = normalizedTitle || fallbackTitle;
+
+  const isGenericChatTitle = ["", "chat", "private chat", "group chat"].includes(
+    titleCandidate.toLowerCase()
   );
-  const headerTitle =
-    !thread.ws.isGroup && chatPartnerName
-      ? isGenericChatTitle
-        ? `${chatPartnerName}`
-        : `${normalizedTitle} • ${chatPartnerName}`
-      : normalizedTitle || "Chat";
 
+  const headerTitle = isGroupChat
+    ? titleCandidate || "Group Chat"
+    : chatPartnerName
+      ? isGenericChatTitle
+        ? `Chat with ${chatPartnerName}`
+        : titleCandidate.includes(chatPartnerName)
+          ? titleCandidate
+          : `${titleCandidate} • ${chatPartnerName}`
+      : titleCandidate || "Chat";
+
+  const headerMembers =
+    thread.ws?.members?.length > 0
+      ? thread.ws.members
+      : groupMemberNames;
+
+  const headerOnlineCount =
+    thread.ws?.onlineCount ??
+    (activeChat?.kind === "COMMUNITY" ? activeChat.onlineCount ?? undefined : undefined);
+
+  const headerAvatarUrl =
+    thread.ws?.avatarUrl ?? activeChat?.avatarUrl ?? undefined;
+
+  const headerSubtitle =
+    activeChat?.kind === "PRIVATE"
+      ? activeChat.subtitle ?? (thread.data.online ? "Online" : thread.ws?.lastSeen)
+      : thread.ws?.lastSeen;
+
+
+  const selection = ui?.selection;
+  const [recordingActive, setRecordingActive] = useState(false);
+  const hasText = composer.input.trim().length > 0;
+  const hasAttachments = composer.attachments.length > 0;
 
   const shouldShowAudioRecorder =
     !hasText &&
@@ -116,6 +166,17 @@ export default function ChatThreadView({ model }: Props) {
  rawSelection && rawSelection.active && rawSelection.count > 0
    ? rawSelection
    : null;
+
+   const forwardMessages = useMemo(
+    () =>
+      (overlays?.data?.messages || []).map((m: ChatMessage) => ({
+        id: m.id,
+        text: m.text || "",
+        deletedAt: m.deletedAt,
+        attachments: m.attachments || [],
+      })),
+    [overlays?.data?.messages]
+  );
 
 
 
@@ -135,11 +196,11 @@ export default function ChatThreadView({ model }: Props) {
       {/* ================= HEADER ================= */}
       <ChatHeader
           title={headerTitle}
-          avatarUrl={thread.ws.avatarUrl}
-          subtitle={thread.data.online ? "Online" : thread.ws.lastSeen}
-          isGroup={thread.ws.isGroup}
-          onlineCount={thread.ws.onlineCount}
-          members={thread.ws.members}
+          avatarUrl={headerAvatarUrl}
+          subtitle={headerSubtitle}
+          isGroup={isGroupChat}
+          onlineCount={headerOnlineCount}
+          members={headerMembers}
           showBack
           onBack={chatUI.goHome}
           onCall={thread.ws.startCall}
@@ -297,8 +358,7 @@ export default function ChatThreadView({ model }: Props) {
           currentThreadId={threadId}
           forwardMessages={forwardMessages}
           onForwardDone={() => ui?.selection?.clear()}
-        />
-      )}
+        />      )}
 
         {overlays.isOpen("INFO") && (
           <ChatMessageInfoModal {...overlays.data} onClose={overlays.close} />
