@@ -409,6 +409,23 @@
 }
 
 
+.wrapperCommunity {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.contentCommunity {
+  padding: 0;
+  padding-bottom: 0;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+
+
 /* Icon wrapper (auto works if icons are first child) */
 .drawerItem > svg {
   opacity: 0.9;
@@ -471,6 +488,14 @@
   border-radius: 12px;
 }
 
+.contentCommunity {
+  padding: 0;
+  padding-bottom: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+
 .statCard {
   background: #ffffff;
   border-radius: 16px;
@@ -494,8 +519,6 @@
 /* ================= CONTENT ================= */
 .content {
   flex: 1;
-  padding: 16px;
-  padding-bottom: 65px; /* space for bottom nav */
 }
 
 /* ================= FOOTER ================= */

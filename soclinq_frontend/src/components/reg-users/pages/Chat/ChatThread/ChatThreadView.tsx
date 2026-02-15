@@ -70,6 +70,38 @@ export default function ChatThreadView({ model }: Props) {
   const hasText = composer.input.trim().length > 0;
   const hasAttachments = composer.attachments.length > 0;
 
+  const chatPartnerName = React.useMemo(() => {
+    const messageWithMembers = [...view.messages]
+      .reverse()
+      .find((message: ChatMessage) => (message.threadMembers?.length ?? 0) > 0);
+
+    const partnerFromMembers = messageWithMembers?.threadMembers?.find(
+      (member: { id: any; }) => String(member.id) !== String(currentUserId)
+    );
+
+    if (partnerFromMembers?.full_name?.trim()) {
+      return partnerFromMembers.full_name.trim();
+    }
+
+    const lastIncoming = [...view.messages]
+      .reverse()
+      .find((message: ChatMessage) => !message.isMine && message.sender?.name?.trim());
+
+    return lastIncoming?.sender?.name?.trim() ?? null;
+  }, [view.messages, currentUserId]);
+
+  const normalizedTitle = (thread.ws.chatName ?? "").trim();
+  const isGenericChatTitle = ["", "chat", "private chat"].includes(
+    normalizedTitle.toLowerCase()
+  );
+  const headerTitle =
+    !thread.ws.isGroup && chatPartnerName
+      ? isGenericChatTitle
+        ? `${chatPartnerName}`
+        : `${normalizedTitle} • ${chatPartnerName}`
+      : normalizedTitle || "Chat";
+
+
   const shouldShowAudioRecorder =
     !hasText &&
     !hasAttachments
@@ -90,7 +122,7 @@ export default function ChatThreadView({ model }: Props) {
     <div className={styles.chat} ref={refs.containerRef}>
       {/* ================= HEADER ================= */}
       <ChatHeader
-          title={thread.ws.chatName ?? "Chat"}
+          title={headerTitle}
           avatarUrl={thread.ws.avatarUrl}
           subtitle={thread.data.online ? "Online" : thread.ws.lastSeen}
           isGroup={thread.ws.isGroup}
